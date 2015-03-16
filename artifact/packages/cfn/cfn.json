@@ -1,0 +1,270 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Description goes here",
+    "Parameters": {
+        "App": {
+            "Description": "Service name (must be normalised)",
+            "Type": "String"
+        },
+        "Stack": {
+            "Description": "Service stack (lowercase)",
+            "Type": "String"
+        },
+        "Stage": {
+            "Description": "Environment name",
+            "Type": "String",
+            "Default": "CODE",
+            "AllowedValues": [ "PROD", "CODE" ],
+            "ConstraintDescription": "must be a valid stage eg. PROD, CODE"
+        },
+        "RpmName": {
+            "Description": "rpm package name",
+            "Type": "String"
+        },
+        "RpmRepoBucket": {
+            "Description": "S3 bucket containing rpm repo",
+            "Type": "String"
+        },
+        "VpcId": {
+            "Description": "ID of the VPC onto which to launch the application eg. vpc-1234abcd",
+            "Type": "String"
+        },
+        "PublicVpcSubnets": {
+            "Description": "Subnets to use in VPC for public internet-facing ELB eg. subnet-abcd1234",
+            "Type": "CommaDelimitedList"
+        },
+        "PrivateVpcSubnets": {
+            "Description": "Subnets to use in VPC for private EC2 instances eg. subnet-abcd1234",
+            "Type": "CommaDelimitedList"
+        },
+        "HostedZone": {
+            "Description": "Hosted zone to use for DNS entry pointing to public ELB",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "InstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+               "Path": "/",
+               "Roles": [ { "Ref": "Role" } ]
+            }
+        },
+        "Role": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version" : "2012-10-17",
+                    "Statement": [ {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [ "ec2.amazonaws.com" ]
+                        },
+                        "Action": [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "Path": "/",
+                "Policies": [ {
+                    "PolicyName": "Policy",
+                    "PolicyDocument": {
+                        "Statement": [ {
+                            "Effect": "Allow",
+                            "Action": [ "s3:GetObject" ],
+                            "Resource": { "Fn::Join": [ "" [ "arn:aws:s3:::", { "Ref": "RpmRepoBucket" }, "/*" ] ] },
+                        } ]
+                    }
+                } ]
+            }
+        },
+        "DnsRecord": {
+            "Type": "AWS::Route53::RecordSetGroup",
+            "Properties": {
+                "HostedZoneName": { "Fn::Join": [ "", [ { "Ref": "HostedZone" }, "." ] ] },
+                "Comment": "Alias to public ELB",
+                "RecordSets": [
+                    {
+                        "Name": { "Fn::Join": [ ".", [ { "Ref": "App" }, { "Ref": "HostedZone" } ] ] },
+                        "Type": "A",
+                        "AliasTarget" : {
+                            "HostedZoneId" : { "Fn::GetAtt" : [ "ElasticLoadBalancer", "CanonicalHostedZoneNameID" ] },
+                            "DNSName" : { "Fn::GetAtt": [ "ElasticLoadBalancer", "DNSName" ] }
+                        }
+                    }
+                ]
+            }
+        },
+        "ElasticLoadBalancer": {
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+            "Properties": {
+                "CrossZone": true,
+                "Listeners": [
+                    {
+                        "Protocol": "HTTP",
+                        "LoadBalancerPort": "80",
+                        "InstancePort": "8080"
+                    }
+                ],
+                "HealthCheck": {
+                    "Target": "HTTP:8080/management/healthcheck",
+                    "Timeout": "10",
+                    "Interval": "20",
+                    "UnhealthyThreshold": "10",
+                    "HealthyThreshold": "2"
+                },
+                "Subnets": { "Ref": "PublicVpcSubnets" },
+                "SecurityGroups": [
+                    { "Ref": "ElasticLoadBalancerSecurityGroup" }
+                ]
+            }
+        },
+        "AppServerGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "AvailabilityZones": { "Fn::GetAZs": "" },
+                "VPCZoneIdentifier": { "Ref": "PrivateVpcSubnets" },
+                "LaunchConfigurationName": { "Ref": "LaunchConfig" },
+                "MinSize": 1,
+                "MaxSize": 3,
+                "HealthCheckType": "ELB",
+                "HealthCheckGracePeriod": 300,
+                "LoadBalancerNames": [ { "Ref": "ElasticLoadBalancer" } ],
+                "Tags": [
+                    {
+                        "Key": "Stage",
+                        "Value": { "Ref": "Stage" },
+                        "PropagateAtLaunch": "true"
+                    },
+                    {
+                        "Key": "Stack",
+                        "Value": { "Ref": "Stack" },
+                        "PropagateAtLaunch": "true"
+                    },
+                    {
+                        "Key": "App",
+                        "Value": { "Ref": "App" },
+                        "PropagateAtLaunch": "true"
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": { "Fn::Join": [ ":", [ { "Ref": "Stage" }, { "Ref": "App" } ] ]},
+                        "PropagateAtLaunch": "true"
+                    }
+                ]
+            }
+        },
+        "LaunchConfig": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "/etc/yum.repos.d/service.repo": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "\n",
+                                        [
+                                            "[service]",
+                                            "name=Service packages",
+                                            { "Fn::Join": [ "/" [ "baseurl=https://s3-eu-west-1.amazonaws.com", { "Ref": "RpmRepoBucket" } ] ] },
+                                            "exclude=epel-release",
+                                            "enabled=1",
+                                            "gpgcheck=0",
+                                            "metadata_expire=5"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "ImageId": "ami-9d23aeea",
+                "SecurityGroups": [
+                    { "Ref": "AppSecurityGroup" }
+                ],
+                "InstanceType": "t2.small",
+                "IamInstanceProfile": { "Ref": "InstanceProfile" },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [ "", [
+                            "#!/bin/bash -v",
+
+                            { "Fn::Join": [ " ", [
+                                "/opt/aws/bin/cfn-init -v -c default",
+                                "-s",
+                                { "Ref": "AWS::StackName" },
+                                "-r LaunchConfig",
+                                "--region",
+                                { "Ref": "AWS::Region" },
+                                "&> /tmp/cfn_init.log"
+                            ] ] },
+
+                            { "Fn::Join": [ "" [ "aws s3 cp s3://", { "Ref": "RpmRepoBucket" }, "/", { "Ref": "RpmName" }, " ." ] ] },
+
+                            { "Fn::Join": [ "", [ "yum install -y ", {"Ref": "RpmName" } ] ] }
+                        ] ]
+                    }
+                }
+            }
+        },
+        "ElasticLoadBalancerSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allow public access over HTTP(S)",
+                "VpcId": { "Ref": "VpcId" },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "443",
+                        "ToPort": "443",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ],
+                "SecurityGroupEgress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8080",
+                        "ToPort": "8080",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+        "AppSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "SSH and HTTP",
+                "VpcId": { "Ref": "VpcId" },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "8080",
+                        "ToPort": "8080",
+                        "SourceSecurityGroupId": { "Ref": "ElasticLoadBalancerSecurityGroup" }
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "DnsRecord": {
+            "Value": { "Ref": "DnsRecord" }
+        }
+    }
+}
