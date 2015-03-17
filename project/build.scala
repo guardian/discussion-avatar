@@ -29,6 +29,7 @@ object AvatarBuild extends Build {
         "javax.servlet" % "javax.servlet-api" % "3.1.0",
         "org.scalatra" %% "scalatra-json" % "2.3.0",
         "org.json4s"   %% "json4s-jackson" % "3.2.11",
+        "org.scalaz" %% "scalaz-core" % "7.1.1",
         "org.scalatra" %% "scalatra-scalatest" % "2.3.0" % "test"
       )
     )
