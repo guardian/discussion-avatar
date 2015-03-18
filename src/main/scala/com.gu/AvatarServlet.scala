@@ -2,17 +2,22 @@ package com.gu
 
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json._
+import org.scalatra.swagger.{SwaggerSupport, Swagger}
 import org.scalatra.{NotImplemented, Ok, Params, ScalatraServlet}
+
 import scalaz.Scalaz._
 import scalaz.{NonEmptyList, ValidationNel, \/}
 
-class AvatarServlet
+class AvatarServlet(implicit val swagger: Swagger)
   extends ScalatraServlet
-  with JacksonJsonSupport {
+  with JacksonJsonSupport
+  with SwaggerSupport {
 
   implicit def nelToList[A](nel: NonEmptyList[A]): List[A] = nel.list
 
   protected implicit val jsonFormats: Formats = DefaultFormats
+
+  protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
 
   before() {
     contentType = formats("json")
@@ -34,26 +39,75 @@ class AvatarServlet
 
   // Avatar endpoints
 
-  get("/avatars") {
+  val getAvatars =
+    (apiOperation[List[Avatar]]("getAvatars")
+      summary "List all avatars"
+      parameter (queryParam[Option[String]]("status")
+        .description("The request includes a status to filter by")))
+
+  get("/avatars", operation(getAvatars)) {
     val filters = Filters.fromParams(params).disjunction
     val avatars = filters flatMap AvatarRepository.get
     getOrError(avatars)
   }
 
-  get("/avatars/:id") {
+  val getAvatar =
+    (apiOperation[Avatar]("getAvatar")
+      summary "Retrieve avatar by ID")
+
+  get("/avatars/:id", operation(getAvatar)) {
     val avatar = AvatarRepository.get(params("id"))
     getOrError(avatar)
   }
 
-  get("/avatars/user/:userId/active") {}
+  val getActiveAvatarForUser =
+    (apiOperation[Avatar]("getActiveAvatarForUser")
+      summary "Get active avatar for user")
 
-  post("/avatars") {}
+  get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
+    val user = User(params("userId"))
+    val avatar = AvatarRepository.get(user)
+    getOrError(avatar)
+  }
 
-  put("/avatars/:id/status") {}
+  // TODO, add a browser-usable endpoint (i.e. multipart/form-data)
+  val postAvatar =
+    (apiOperation[Avatar]("postAvatar")
+      summary "Add a new avatar"
+      parameter (bodyParam[AvatarRequest]("")
+        .description("The request includes the new Avatar's details")))
+
+  post("/avatars", operation(postAvatar)) {
+    val avatar = AvatarRepository.get("123") // hack for now
+    getOrError(avatar)
+  }
+
+  val putAvatarStatus =
+    (apiOperation[Avatar]("putAvatarStatus")
+      summary "Update avatar status"
+      parameters (
+        pathParam[String]("id")
+          .description("The request includes the Avatar ID"),
+        bodyParam[StatusRequest]("")
+          .description("The request includes the Avatar's new status")))
+
+  put("/avatars/:id/status", operation(putAvatarStatus)) {
+    val avatar = AvatarRepository.get("123") // hack for now
+    getOrError(avatar)
+  }
 
   def getOrError[A](r: \/[NonEmptyList[String], A]): Any =
     r valueOr (errors => ErrorResponse(errors))
 }
+
+sealed trait RequestParams
+case class AvatarRequest(
+  userId: Int,
+  originalFilename: String,
+  status: Status,
+  image: String // Note, base64 encoded
+)
+case class StatusRequest(status: Status)
 
 sealed trait ApiResponse
 case class AvatarList(avatars: List[Avatar]) extends ApiResponse
@@ -78,6 +132,8 @@ case class Error(
   errors: NonEmptyList[Error]
 )
 
+case class User(id: String)
+
 case class Avatar(
   id: String,
   avatarUrl: String,
@@ -94,7 +150,7 @@ object Filters {
       case Some("approved") => Approved.success
       case Some("rejected") => Rejected.success
       case Some("all") => All.success
-      case Some(invalid) => s"$invalid is not a valid status type".failureNel
+      case Some(invalid) => s"'$invalid' is not a valid status type. Must be 'pending', 'approved', or 'all'.".failureNel
       case None => All.success
     }
 
@@ -106,6 +162,7 @@ object Filters {
 sealed trait Repository {
   def get(filters: Filters): \/[NonEmptyList[String], List[Avatar]]
   def get(id: String): \/[NonEmptyList[String], Avatar]
+  def get(user: User): \/[NonEmptyList[String], Avatar]
 //  def get(userId: String, filters: Filters): List[Avatar]
 //  def getActive(userId: String): Option[Avatar]
 }
@@ -117,7 +174,6 @@ object AvatarRepository extends Repository {
   )
 
   def get(filters: Filters): \/[NonEmptyList[String], List[Avatar]] = avatars.right
-  def get(id: String): \/[NonEmptyList[String], Avatar] = {
-    avatars.head.right
-  }
+  def get(id: String): \/[NonEmptyList[String], Avatar] = avatars.head.right
+  def get(user: User): \/[NonEmptyList[String], Avatar] = avatars.head.right
 }
