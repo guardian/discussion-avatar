@@ -1,27 +1,15 @@
 Avatar Service
 ==============
 
-GET /profile
-GET /profile/{id}
-GET /profile/{id}/avatar
-PUT /profile/{id}/avatar
+**This service is a work in progress!**
 
-GET /avatar
-GET /avatar/pending
-GET /avatar/approved
-GET /avatar/rejected
+## Architecture
 
+http://blog.8thlight.com/uncle-bob/2012/08/13/the-clean-architecture.html
 
-How are we going to store profile information without a db? Avatar
-filename?
-
-Yes, {profile-id}.png?
-
-Resizing? A lambda perhaps, or just resize on upload?
-
-
-If S3 only then what about consistency?! Can't guarantee this.
-
+Entities are core Avatar models and logic. Adapters relate to IO of some
+form - http or the store. The Dependency Rule requires that the entity 
+layer is unaware of the adapters.
 
 ## File uploads
 
@@ -37,11 +25,10 @@ Resize to 60x60 but make bigger for moderators somehow?
 
 ## Consistency?
 
-Don't worry about it. But might be worth using a database? To store
-original filename?
-
+Don't worry about it. But probably do need a database of some kind to 
+store avatar meta-data and manage workflow.
 
 ## Behaviour
 
-q. can you flag an approved avatar for moderation?
-q. can users upload multiple images for moderation? No, latest wins...
+* can you flag an approved avatar for moderation?
+* can users upload multiple images for moderation? No, latest wins...
