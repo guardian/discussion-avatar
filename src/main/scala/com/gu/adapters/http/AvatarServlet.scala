@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.store.AvatarStore
+import com.gu.adapters.store.Store
 import com.gu.entities._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
@@ -8,7 +8,7 @@ import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 import scalaz.{-\/, \/, \/-}
 
-class AvatarServlet(implicit val swagger: Swagger)
+class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   extends ScalatraServlet
   with JacksonJsonSupport
   with SwaggerSupport {
@@ -35,7 +35,7 @@ class AvatarServlet(implicit val swagger: Swagger)
 
   def getAvatars(params: Params): ActionResult = {
     val filters = Filters.fromParams(params)
-    val avatars = filters flatMap AvatarStore.get
+    val avatars = filters flatMap store.get
     getOrError(avatars)
   }
 
@@ -44,7 +44,7 @@ class AvatarServlet(implicit val swagger: Swagger)
       summary "Retrieve avatar by ID")
 
   def getAvatar(): ActionResult = {
-    val avatar = AvatarStore.get(params("id"))
+    val avatar = store.get(params("id"))
     getOrError(avatar)
   }
 
@@ -54,7 +54,7 @@ class AvatarServlet(implicit val swagger: Swagger)
 
   def getActiveAvatarForUser(userId: String): ActionResult = {
     val user = User(params("userId"))
-    val avatar = AvatarStore.get(user)
+    val avatar = store.get(user)
     getOrError(avatar)
   }
 
@@ -66,7 +66,7 @@ class AvatarServlet(implicit val swagger: Swagger)
       .description("The request includes the new Avatar's details")))
 
   def postAvatar(): ActionResult = {
-    val avatar = AvatarStore.get("123") // hack for now
+    val avatar = store.get("123") // hack for now
     getOrError(avatar)
   }
 
@@ -80,7 +80,7 @@ class AvatarServlet(implicit val swagger: Swagger)
         .description("The request includes the Avatar's new status")))
 
   def putAvatarStatus(): ActionResult = {
-    val avatar = AvatarStore.get("123") // hack for now
+    val avatar = store.get("123") // hack for now
     getOrError(avatar)
   }
 
