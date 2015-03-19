@@ -21,85 +21,86 @@ class AvatarServlet(implicit val swagger: Swagger)
     contentType = formats("json")
   }
 
-  // Management endpoints
+  def healthcheck(): ActionResult = Ok(Message("OK"))
 
-  get("/management/healthcheck") {
-    Ok(Message("OK"))
-  }
+  def gtg(): ActionResult = NotImplemented(Message("Endpoint needs to be specified"))
 
-  get("/management/gtg") {
-    NotImplemented(Message("Endpoint needs to be specified"))
-  }
+  def dependencies(): ActionResult = NotImplemented(Message("Endpoint needs to be specified"))
 
-  get("/management/dependencies") {
-    NotImplemented(Message("Endpoint needs to be specified"))
-  }
-
-  // Avatar endpoints
-
-  val getAvatars =
+  val getAvatarsInfo =
     (apiOperation[List[Avatar]]("getAvatars")
       summary "List all avatars"
       parameter (queryParam[Option[String]]("status")
-        .description("The request includes a status to filter by")))
+      .description("The request includes a status to filter by")))
 
-  get("/avatars", operation(getAvatars)) {
+  def getAvatars(params: Params): ActionResult = {
     val filters = Filters.fromParams(params)
     val avatars = filters flatMap AvatarStore.get
     getOrError(avatars)
   }
 
-  val getAvatar =
+  val getAvatarInfo =
     (apiOperation[Avatar]("getAvatar")
       summary "Retrieve avatar by ID")
 
-  get("/avatars/:id", operation(getAvatar)) {
+  def getAvatar(): ActionResult = {
     val avatar = AvatarStore.get(params("id"))
     getOrError(avatar)
   }
 
-  val getActiveAvatarForUser =
+  val getActiveAvatarForUserInfo =
     (apiOperation[Avatar]("getActiveAvatarForUser")
       summary "Get active avatar for user")
 
-  get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
+  def getActiveAvatarForUser(userId: String): ActionResult = {
     val user = User(params("userId"))
     val avatar = AvatarStore.get(user)
     getOrError(avatar)
   }
 
   // TODO, add a browser-usable endpoint (i.e. multipart/form-data)
-  val postAvatar =
+  val postAvatarInfo =
     (apiOperation[Avatar]("postAvatar")
       summary "Add a new avatar"
       parameter (bodyParam[AvatarRequest]("")
-        .description("The request includes the new Avatar's details")))
+      .description("The request includes the new Avatar's details")))
 
-  post("/avatars", operation(postAvatar)) {
+  def postAvatar(): ActionResult = {
     val avatar = AvatarStore.get("123") // hack for now
     getOrError(avatar)
   }
 
-  val putAvatarStatus =
+  val putAvatarStatusInfo =
     (apiOperation[Avatar]("putAvatarStatus")
       summary "Update avatar status"
       parameters (
-        pathParam[String]("id")
-          .description("The request includes the Avatar ID"),
-        bodyParam[StatusRequest]("")
-          .description("The request includes the Avatar's new status")))
+      pathParam[String]("id")
+        .description("The request includes the Avatar ID"),
+      bodyParam[StatusRequest]("")
+        .description("The request includes the Avatar's new status")))
 
-  put("/avatars/:id/status", operation(putAvatarStatus)) {
+  def putAvatarStatus(): ActionResult = {
     val avatar = AvatarStore.get("123") // hack for now
     getOrError(avatar)
   }
 
-  def getOrError[A](r: \/[Error, A]): Any =
-    r match {
-      case \/-(success) => Ok(success)
-      case -\/(error) => error match {
-        case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-        case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      }
+  def getOrError[A](r: \/[Error, A]): ActionResult = r match {
+    case \/-(success) => Ok(success)
+    case -\/(error) => error match {
+      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
     }
+  }
+
+  get("/management/healthcheck")(healthcheck())
+  get("/management/gtg")(gtg())
+  get("/management/dependencies")(dependencies())
+
+  get("/avatars", operation(getAvatarsInfo))(getAvatars(params))
+  get("/avatars/:id", operation(getAvatarInfo))(getAvatar())
+  get("/avatars/user/:userId/active",
+    operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser(params("userId")))
+
+  post("/avatars", operation(postAvatarInfo))(postAvatar())
+  put("/avatars/:id/status", operation(putAvatarStatusInfo))(putAvatarStatus())
 }
