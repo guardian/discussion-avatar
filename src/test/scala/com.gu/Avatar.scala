@@ -1,5 +1,6 @@
 package com.gu
 
+import com.gu.adapters.http.AvatarServlet
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest.ScalatraSuite
 

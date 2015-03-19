@@ -1,6 +1,6 @@
 import javax.servlet.ServletContext
 
-import com.gu.{AvatarSwagger, ResourcesApp, AvatarServlet}
+import com.gu.adapters.http.{AvatarServlet, AvatarSwagger, ResourcesApp}
 import org.scalatra._
 
 class ScalatraBootstrap extends LifeCycle {
