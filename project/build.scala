@@ -17,6 +17,10 @@ object AvatarBuild extends Build {
   val logbackVersion = "1.1.2"
   val servletApiVersion = "3.1.0"
   val scalazVersion = "7.1.1"
+  val identityCookieVersion = "3.44"
+  val typesafeConfigVersion = "1.2.1"
+
+  val guardianReleases = "Guardian releases" at "http://guardian.github.io/maven/repo-releases"
 
   lazy val project = Project (
     Name,
@@ -28,6 +32,7 @@ object AvatarBuild extends Build {
       scalaVersion := ScalaVersion,
       //scalacOptions += "-Ylog-classpath",
       resolvers += Classpaths.typesafeReleases,
+      resolvers += guardianReleases,
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "ch.qos.logback" % "logback-classic" % logbackVersion,
@@ -39,7 +44,9 @@ object AvatarBuild extends Build {
         "org.scalatra" %% "scalatra-json" % ScalatraVersion,
         "org.scalaz" %% "scalaz-core" % scalazVersion,
         "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
-        "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion
+        "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion,
+        "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
+        "com.typesafe" % "config" % typesafeConfigVersion
       )
     )
   )

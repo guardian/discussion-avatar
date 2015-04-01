@@ -5,20 +5,30 @@ import com.gu.entities._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
+import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 import scalaz.{-\/, \/, \/-}
+import org.scalatra.servlet.SizeConstraintExceededException
+import com.gu.identity.cookie.{ProductionKeys, IdentityCookieDecoder}
 
 class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   extends ScalatraServlet
   with JacksonJsonSupport
-  with SwaggerSupport {
+  with SwaggerSupport
+  with FileUploadSupport {
 
   protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer
 
   protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
 
+  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024)))
+
   before() {
     contentType = formats("json")
+  }
+
+  error {
+    case e: SizeConstraintExceededException => RequestEntityTooLarge(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size", Nil))
   }
 
   def healthcheck(): ActionResult = Ok(Message("OK"))
@@ -43,29 +53,36 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     (apiOperation[Avatar]("getAvatar")
       summary "Retrieve avatar by ID")
 
-  def getAvatar(): ActionResult = {
-    val avatar = store.get(params("id"))
+  def getAvatar(id: String): ActionResult = {
+    val avatar = store.get(id)
     getOrError(avatar)
   }
 
   val getActiveAvatarForUserInfo =
-    (apiOperation[Avatar]("getActiveAvatarForUser")
+    (apiOperation[List[Avatar]]("getActiveAvatarForUser")
       summary "Get active avatar for user")
 
-  def getActiveAvatarForUser(userId: String): ActionResult = {
+  def getActiveAvatarsForUser(userId: String): ActionResult = {
     val user = User(params("userId"))
     val avatar = store.get(user)
     getOrError(avatar)
   }
 
-  // TODO, add a browser-usable endpoint (i.e. multipart/form-data)
   val postAvatarInfo =
     (apiOperation[Avatar]("postAvatar")
       summary "Add a new avatar"
-      parameter (bodyParam[AvatarRequest]("")
-      .description("The request includes the new Avatar's details")))
+      consumes "multipart/form-data")
 
   def postAvatar(): ActionResult = {
+    val file = fileParams("image")
+    val cd = new IdentityCookieDecoder(new ProductionKeys)
+
+//    for {
+//      cookie <- request.cookies.get("GU_U")
+//      user <- cd.getUserDataForGuU(cookie).map(_.user)
+//      username <- user.publicFields.displayName
+//    }
+
     val avatar = store.get("123") // hack for now
     getOrError(avatar)
   }
@@ -97,10 +114,15 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   get("/management/dependencies")(dependencies())
 
   get("/avatars", operation(getAvatarsInfo))(getAvatars(params))
-  get("/avatars/:id", operation(getAvatarInfo))(getAvatar())
-  get("/avatars/user/:userId/active",
-    operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser(params("userId")))
+  get("/avatars/:id", operation(getAvatarInfo))(getAvatar(params("id")))
+  get("/avatars/user/:userId",
+    operation(getActiveAvatarForUserInfo))(getActiveAvatarsForUser(params("userId")))
+  get("avatars/user/me/active")
 
   post("/avatars", operation(postAvatarInfo))(postAvatar())
   put("/avatars/:id/status", operation(putAvatarStatusInfo))(putAvatarStatus())
+
+  // for cdn endpoint (avatars.theguardian.com)
+  //   /user/:id -> retrieve active avatar for a user
+  //   /user/me  -> retrieve active avatar for me (via included cookie)
 }

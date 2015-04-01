@@ -15,4 +15,6 @@ object Errors {
 
   def avatarNotFound(errors: NonEmptyList[String]): AvatarNotFound =
     AvatarNotFound("Avatar not found", errors)
+
+
 }
