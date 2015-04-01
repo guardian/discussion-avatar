@@ -24,7 +24,7 @@ object AvatarStore extends Store {
 
   def get(filters: Filters): \/[Error, List[Avatar]] = avatars.right
   def get(id: String): \/[Error, Avatar] = avatars.head.right
-  def get(user: User): \/[Error, Avatar] = avatars.head.right
+  def get(user: User): \/[Error, List[Avatar]] = avatars.right
   def getActive(user: User): \/[Error, Avatar] = avatars.head.right
 
   def add(avatar: Avatar): \/[Error, Avatar] = ???
