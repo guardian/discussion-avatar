@@ -117,7 +117,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   get("/avatars/:id", operation(getAvatarInfo))(getAvatar(params("id")))
   get("/avatars/user/:userId",
     operation(getActiveAvatarForUserInfo))(getActiveAvatarsForUser(params("userId")))
-  get("avatars/user/me/active")
+  get("avatars/user/me/active", operation(getAvatarInfo))(getAvatar(params("id"))) // hack for now
 
   post("/avatars", operation(postAvatarInfo))(postAvatar())
   put("/avatars/:id/status", operation(putAvatarStatusInfo))(putAvatarStatus())
