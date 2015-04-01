@@ -18,8 +18,8 @@ sealed trait Store {
 
 object AvatarStore extends Store {
   val avatars = List(
-    Avatar("123-id", "http://avatar-url-1", 123, "foo.gif", Approved),
-    Avatar("abc-id", "http://avatar-url-2", 234, "bar.gif", Approved)
+    Avatar("123-id", "http://avatar-url-1", 123, "foo.gif", Approved, true),
+    Avatar("abc-id", "http://avatar-url-2", 234, "bar.gif", Approved, true)
   )
 
   def get(filters: Filters): \/[Error, List[Avatar]] = avatars.right

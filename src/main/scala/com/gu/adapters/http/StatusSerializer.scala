@@ -6,15 +6,17 @@ import org.json4s.JsonAST.JString
 
 class StatusSerializer extends CustomSerializer[Status](format => (
   {
-    case JString("approved") => Approved
-    case JString("rejected") => Approved
-    case JString("pending") => Approved
-    case JString("all") => Approved
+    case JString(Approved.asString) => Approved
+    case JString(Rejected.asString) => Rejected
+    case JString(Pending.asString) => Pending
+    case JString(Inactive.asString) => Inactive
+    case JString(All.asString) => All
   },
   {
-    case Approved => JString("approved")
-    case Rejected => JString("rejected")
-    case Pending  => JString("pending")
-    case All      => JString("all")
+    case Approved => JString(Approved.asString)
+    case Rejected => JString(Rejected.asString)
+    case Pending  => JString(Pending.asString)
+    case Inactive => JString(Inactive.asString)
+    case All      => JString(All.asString)
   }
 ))

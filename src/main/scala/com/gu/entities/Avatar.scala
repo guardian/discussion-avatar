@@ -5,5 +5,6 @@ case class Avatar(
   avatarUrl: String,
   userId: Int,
   originalFilename: String,
-  status: Status
+  status: Status,
+  isActive: Boolean
 )

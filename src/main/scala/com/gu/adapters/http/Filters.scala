@@ -11,12 +11,12 @@ case class Filters(status: Status)
 object Filters {
   def fromParams(params: Params): \/[InvalidFilters, Filters] = {
     val status: Validation[NonEmptyList[String], Status] = params.get("status") match {
-      case Some("inactive") => Success(Inactive)
-      case Some("approved") => Success(Approved)
-      case Some("rejected") => Success(Rejected)
-      case Some("pending") => Success(Pending)
-      case Some("all") => Success(All)
-      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid status type. Must be 'pending', 'approved', 'rejected', 'inactive' or 'all'."))
+      case Some(Inactive.asString) => Success(Inactive)
+      case Some(Approved.asString) => Success(Approved)
+      case Some(Rejected.asString) => Success(Rejected)
+      case Some(Pending.asString) => Success(Pending)
+      case Some(All.asString) => Success(All)
+      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid status type. Must be '${Inactive.asString}', '${Approved.asString}', '${Rejected.asString}', '${Pending.asString}' or '${All.asString}'."))
       case None => Success(All)
     }
 
