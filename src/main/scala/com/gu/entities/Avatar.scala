@@ -1,9 +1,13 @@
 package com.gu.entities
 
+import org.joda.time.DateTime
+
 case class Avatar(
   id: String,
   avatarUrl: String,
   userId: Int,
   originalFilename: String,
-  status: Status
+  status: Status,
+  createdAt: DateTime
 )
+

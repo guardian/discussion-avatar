@@ -1,5 +1,7 @@
 package com.gu.adapters.http
 
+import java.io.FileInputStream
+
 import com.gu.adapters.store.Store
 import com.gu.entities._
 import org.json4s.{DefaultFormats, Formats}
@@ -10,6 +12,9 @@ import org.scalatra.swagger.{Swagger, SwaggerSupport}
 import scalaz.{-\/, \/, \/-}
 import org.scalatra.servlet.SizeConstraintExceededException
 import com.gu.identity.cookie.{ProductionKeys, IdentityCookieDecoder}
+import java.util.UUID
+import org.joda.time.DateTime
+import com.gu.entities.{Pending}
 
 class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   extends ScalatraServlet
@@ -21,7 +26,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 
   protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
 
-  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024)))
+  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024*1024)))
 
   before() {
     contentType = formats("json")
@@ -75,7 +80,8 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 
   def postAvatar(): ActionResult = {
     val file = fileParams("image")
-    val cd = new IdentityCookieDecoder(new ProductionKeys)
+
+//    val cd = new IdentityCookieDecoder(new ProductionKeys)
 
 //    for {
 //      cookie <- request.cookies.get("GU_U")
@@ -83,7 +89,31 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 //      username <- user.publicFields.displayName
 //    }
 
-    val avatar = store.get("123") // hack for now
+    // get body file "avatar"
+
+    // get original filename
+
+    // get contentType
+
+    // create Avatar type
+
+    // store.add() -> save to s3 and update dynamoDB
+
+//    val newAvatar = Avatar(
+//      id = UUID.randomUUID().toString,
+//      avatarUrl = s"$avatarUrl/${obj.getKey}",
+//      userId = 123,
+//      originalFilename = file.getFieldName,
+//      status = Pending,
+//      createdAt = new DateTime()
+//    )
+
+    val avatar = store.save(
+      123, // FIXME
+      file.getName,
+      file.getInputStream,
+      file.getContentType.get
+    )
     getOrError(avatar)
   }
 
