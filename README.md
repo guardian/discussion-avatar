@@ -33,3 +33,9 @@ store avatar meta-data and manage workflow.
 
 * can you flag an approved avatar for moderation? Yes.
 * can users upload multiple images for moderation? No, latest wins.
+
+## Docs
+
+http://localhost:8080/api-docs/v1
+
+([Swagger](http://swagger.io/)-driven.)
