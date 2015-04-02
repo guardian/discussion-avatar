@@ -32,8 +32,8 @@ sealed trait Store {
 
 object AvatarTestStore extends Store {
   val avatars = List(
-    Avatar("123-id", "http://avatar-url-1", 123, "foo.gif", Approved, new DateTime(), new DateTime()),
-    Avatar("abc-id", "http://avatar-url-2", 234, "bar.gif", Approved, new DateTime(), new DateTime())
+    Avatar("123-id", "http://avatar-url-1", "", 123, "foo.gif", Approved, new DateTime(), new DateTime()),
+    Avatar("abc-id", "http://avatar-url-2", "", 234, "bar.gif", Approved, new DateTime(), new DateTime())
   )
 
   def get(filters: Filters): \/[Error, List[Avatar]] = avatars.right
@@ -54,6 +54,7 @@ object AvatarAwsStore extends Store {
   dynamoDB.setRegion(Region.getRegion(Regions.EU_WEST_1))
 
   val conf = ConfigFactory.load()
+  val apiBaseUrl = conf.getString("api.baseUrl")
   val publicBucket = conf.getString("aws.s3.public")
   val privateBucket = conf.getString("aws.s3.private")
   val dynamoDBTableName = conf.getString("aws.dynamodb.table")
@@ -71,7 +72,7 @@ object AvatarAwsStore extends Store {
     println(file.getContentType)
 
     val avatarId = UUID.randomUUID.toString
-    val createdAt = new DateTime()
+    val now = new DateTime()
 
     // copy to S3
     val metadata = new ObjectMetadata()
@@ -84,7 +85,7 @@ object AvatarAwsStore extends Store {
 
     s3.putObject(new PutObjectRequest(
         privateBucket,
-        s"images/$avatarId",
+        s"avatars/$avatarId",
         file.getInputStream,
         metadata
       )
@@ -107,12 +108,12 @@ object AvatarAwsStore extends Store {
 //    ).asJava
 
     val item = Map[String, AttributeValue](
-      "UserId" -> AttributeValues.N(user),
       "ImageId" -> AttributeValues.S(avatarId),
-      "Status" -> AttributeValues.S("inactive"),
+      "UserId" -> AttributeValues.N(user),
       "OriginalFilename" -> AttributeValues.S(file.getName),
-      "CreatedAt" -> AttributeValues.S(createdAt.toString),
-      "LastModified" -> AttributeValues.S(createdAt.toString),
+      "Status" -> AttributeValues.S("inactive"),
+      "CreatedAt" -> AttributeValues.S(now.toString),
+      "LastModified" -> AttributeValues.S(now.toString),
       "IsSocial" -> AttributeValues.BOOL(false),
       "RequiresModeration" -> AttributeValues.BOOL(false)
     )
@@ -122,16 +123,16 @@ object AvatarAwsStore extends Store {
       .withItem(item.asJava)
     )
 
-
     // return Avatar
     val avatar = Avatar(
-      avatarId,
-      s"/images/$avatarId",  // TODO -- is /images the right place for them?
-      user,
-      file.getName,
-      Inactive,
-      createdAt,
-      createdAt
+      id = avatarId,
+      avatarUrl = s"http://$privateBucket/images/$avatarId",  // TODO -- is /images the right place for them?
+      href = s"$apiBaseUrl/avatars/$avatarId",
+      userId = user,
+      originalFilename = file.getName,
+      status = Inactive,
+      createdAt = now,
+      lastModified = now
     )
     avatar.right
   }

@@ -91,6 +91,12 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 
     // store.add() -> save to s3 and update dynamoDB
 
+
+//    val avatar = store.save(123, file) match {
+//      case \/-(success) => \/-(success.copy(href = baseUrl + success.href))
+//      case -\/(error) => -\/(error)
+//    }
+
     val avatar = store.save(123, file)
     getOrError(avatar)
   }
@@ -105,7 +111,10 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
         .description("The request includes the Avatar's new status")))
 
   def putAvatarStatus(): ActionResult = {
-    val avatar = store.get("123") // hack for now
+    val avatar = store.get("123") match {
+      case \/-(success) => \/-(success.copy(href = "foo"))
+      case -\/(error) => -\/(error)
+    }
     getOrError(avatar)
   }
 
