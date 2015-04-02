@@ -1,47 +1,53 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.store.AvatarStore
-import com.gu.entities.Avatar
-import org.json4s.native.Serialization.read
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatest.FunSuiteLike
-import org.scalatra.test.scalatest.ScalatraSuite
+import com.gu.entities._
+import com.gu.utils.TestHelpers
 
-import scala.util.Try
-
-class AvatarServletTests extends ScalatraSuite with FunSuiteLike {
+class AvatarServletTests extends TestHelpers {
 
   implicit val swagger = new AvatarSwagger
-  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer
 
   addServlet(new AvatarServlet(AvatarStore), "/*")
 
-  test("Management healthcheck should return OK") {
+  test("Healthcheck should return OK") {
     get("/management/healthcheck") {
       status should equal (200)
       body should include ("OK")
     }
   }
 
-  test("Return a list of avatars") {
-    get("/avatars") {
-      status should equal (200)
-      Try(read[AvatarList](body)).isSuccess should be (true)
-    }
+  test("Get avatars") {
+    getAvatars("/avatars")
   }
 
-  test("Return an avatar") {
-    get("/avatars/123") {
-      status should equal (200)
-      Try(read[Avatar](body)).isSuccess should be (true)
+  test("Get avatars by status") {
+    val statuses = Set(Inactive, Pending, Approved, Rejected)
+
+    for (status <- statuses) {
+      getAvatars(s"/avatars?status=${status.asString}", _.status == status)
     }
+
+    getAvatars(s"/avatars?status=${All.asString}")
   }
 
-  test("Return active avatar for a user") {
-    get("/avatars/user/123/active") {
-      status should equal (200)
-      Try(read[Avatar](body)).isSuccess should be (true)
-    }
+  test("Get avatar by ID") {
+    getAvatar("/avatars/123", _.id == "123")
   }
 
+  test("Get avatars by user ID") {
+    getAvatars(s"/avatars/user/123", _.id == "123")
+  }
+
+  test("Get active avatar by user ID") {
+    getAvatar(s"/avatars/user/123/active", a => a.id == "123" && a.isActive)
+  }
+
+  test("Post avatar") {
+    pending
+  }
+
+  test("Put avatar status") {
+    pending
+  }
 }

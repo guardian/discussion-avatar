@@ -2,6 +2,7 @@ package com.gu.adapters.http
 
 import com.gu.adapters.store.Store
 import com.gu.entities._
+import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
@@ -16,7 +17,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   with SwaggerSupport
   with FileUploadSupport {
 
-  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer
+  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer ++ JodaTimeSerializers.all
 
   protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
 
@@ -99,10 +100,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
         .description("The request includes the Avatar's new status")))
 
   def putAvatarStatus(): ActionResult = {
-    val avatar = store.get("123") match {
-      case \/-(success) => \/-(success.copy(href = "foo"))
-      case -\/(error) => -\/(error)
-    }
+    val avatar = store.get("123")
     getOrError(avatar)
   }
 

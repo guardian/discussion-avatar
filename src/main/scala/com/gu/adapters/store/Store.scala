@@ -30,8 +30,8 @@ sealed trait Store {
 
 object AvatarTestStore extends Store {
   val avatars = List(
-    Avatar("123-id", "http://avatar-url-1", "", 123, "foo.gif", Approved, new DateTime(), new DateTime()),
-    Avatar("abc-id", "http://avatar-url-2", "", 234, "bar.gif", Approved, new DateTime(), new DateTime())
+    Avatar("123-id", "http://api", "http://avatar-url-1", 123, "foo.gif", Approved, new DateTime(), new DateTime(), true),
+    Avatar("abc-id", "http://api", "http://avatar-url-2", 234, "bar.gif", Approved, new DateTime(), new DateTime(), false)
   )
 
   def get(filters: Filters): \/[Error, List[Avatar]] = avatars.right
@@ -124,13 +124,14 @@ object AvatarAwsStore extends Store {
     // return Avatar
     val avatar = Avatar(
       id = avatarId,
-      href = s"$apiBaseUrl/avatars/$avatarId",
+      url = s"$apiBaseUrl/avatars/$avatarId",
       avatarUrl = s"http://$privateBucket/avatars/$avatarId",  // TODO -- is /images the right place for them?
       userId = user,
       originalFilename = file.getName,
       status = Inactive,
       createdAt = now,
-      lastModified = now
+      lastModified = now,
+      isActive = false
     )
     avatar.right
   }
