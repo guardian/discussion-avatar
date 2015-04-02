@@ -1,16 +1,20 @@
 package com.gu.adapters.store
 
-import java.io.InputStream
 import java.util.UUID
 
+import com.gu.adapters.store.AttributeValues
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.regions.{Region, Regions}
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
+import com.amazonaws.services.dynamodbv2.document.Item
+import com.amazonaws.services.dynamodbv2.model.{AttributeValue, PutItemRequest}
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.entities.{Avatar, Error, Status, User, Inactive, Pending, Approved, Rejected}
+import com.gu.entities.{Approved, Avatar, Error, Inactive, Status, User}
 import com.typesafe.config.ConfigFactory
 import org.joda.time.DateTime
+import org.scalatra.servlet.FileItem
 
 import scalaz.Scalaz._
 import scalaz.\/
@@ -22,14 +26,14 @@ sealed trait Store {
   def get(user: User): \/[Error, List[Avatar]]
   def getActive(user: User): \/[Error, Avatar]
 
-  def save(user: Int, filename: String, file: InputStream, contentType: String): \/[Error, Avatar]
+  def save(user: Int, file: FileItem): \/[Error, Avatar]
   def updateStatus(id: String, status: Status): \/[Error, Avatar]
 }
 
 object AvatarTestStore extends Store {
   val avatars = List(
-    Avatar("123-id", "http://avatar-url-1", 123, "foo.gif", Approved, new DateTime()),
-    Avatar("abc-id", "http://avatar-url-2", 234, "bar.gif", Approved, new DateTime())
+    Avatar("123-id", "http://avatar-url-1", 123, "foo.gif", Approved, new DateTime(), new DateTime()),
+    Avatar("abc-id", "http://avatar-url-2", 234, "bar.gif", Approved, new DateTime(), new DateTime())
   )
 
   def get(filters: Filters): \/[Error, List[Avatar]] = avatars.right
@@ -37,7 +41,7 @@ object AvatarTestStore extends Store {
   def get(user: User): \/[Error, List[Avatar]] = avatars.right
   def getActive(user: User): \/[Error, Avatar] = avatars.head.right
 
-  def save(user: Int, filename: String, file: InputStream, contentType: String): \/[Error, Avatar] = ???
+  def save(user: Int, file: FileItem): \/[Error, Avatar] = ???
   def updateStatus(id: String, status: Status): \/[Error, Avatar] = ???
 }
 
@@ -46,21 +50,25 @@ object AvatarAwsStore extends Store {
   val s3 = new AmazonS3Client(new DefaultAWSCredentialsProviderChain())
   s3.setRegion(Region.getRegion(Regions.EU_WEST_1))
 
+  val dynamoDB = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
+  dynamoDB.setRegion(Region.getRegion(Regions.EU_WEST_1))
+
   val conf = ConfigFactory.load()
   val publicBucket = conf.getString("aws.s3.public")
   val privateBucket = conf.getString("aws.s3.private")
+  val dynamoDBTableName = conf.getString("aws.dynamodb.table")
 
   def get(filters: Filters): \/[Error, List[Avatar]] = ???
   def get(id: String): \/[Error, Avatar] = ???
   def get(user: User): \/[Error, List[Avatar]] = ???
   def getActive(user: User): \/[Error, Avatar] = ???
 
-  def save(user: Int, filename: String, file: InputStream, contentType: String): \/[Error, Avatar] = {
+  def save(user: Int, file: FileItem): \/[Error, Avatar] = {
 
     // debug
     println(user)
-    println(filename)
-    println(contentType)
+    println(file.getName)
+    println(file.getContentType)
 
     val avatarId = UUID.randomUUID.toString
     val createdAt = new DateTime()
@@ -69,28 +77,60 @@ object AvatarAwsStore extends Store {
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", filename)
-    metadata.setContentType(contentType)
+    metadata.addUserMetadata("original-filename", file.getName)
+    metadata.setContentLength(file.getSize)
+    metadata.setContentType(file.getContentType.get)
     metadata.setCacheControl("no-cache")  // FIXME -- set this to something sensible
 
     s3.putObject(new PutObjectRequest(
         privateBucket,
         s"images/$avatarId",
-        file,
+        file.getInputStream,
         metadata
       )
     )
 
-    // update DynamoDB
+    import scala.collection.JavaConverters._
+//    val item = new Item()
+//      .withPrimaryKey("UserId", user.toString)
+//      .withString("AvatarId", avatarId)
+//      .withString("Status", "inactive")
+//      .withString("OriginalFilename", file.getName)
+//      .withString("CreatedAt", createdAt.toString)
+//      .withString("LastModified", createdAt.toString)
+//      .withBoolean("IsSocial", false)
+//      .withBoolean("RequiresModeration", false)
+
+//    val item = Map[String, AttributeValue](
+//      "UserId" -> new AttributeValue().withS(user.toString),
+//      "AvatarId" -> new AttributeValue().withS(avatarId)
+//    ).asJava
+
+    val item = Map[String, AttributeValue](
+      "UserId" -> AttributeValues.N(user),
+      "ImageId" -> AttributeValues.S(avatarId),
+      "Status" -> AttributeValues.S("inactive"),
+      "OriginalFilename" -> AttributeValues.S(file.getName),
+      "CreatedAt" -> AttributeValues.S(createdAt.toString),
+      "LastModified" -> AttributeValues.S(createdAt.toString),
+      "IsSocial" -> AttributeValues.BOOL(false),
+      "RequiresModeration" -> AttributeValues.BOOL(false)
+    )
+
+    dynamoDB.putItem(new PutItemRequest()
+      .withTableName(dynamoDBTableName)
+      .withItem(item.asJava)
+    )
 
 
     // return Avatar
     val avatar = Avatar(
       avatarId,
-      s"/images/$avatarId",
+      s"/images/$avatarId",  // TODO -- is /images the right place for them?
       user,
-      filename,
+      file.getName,
       Inactive,
+      createdAt,
       createdAt
     )
     avatar.right

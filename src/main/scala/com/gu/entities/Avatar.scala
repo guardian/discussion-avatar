@@ -8,6 +8,7 @@ case class Avatar(
   userId: Int,
   originalFilename: String,
   status: Status,
-  createdAt: DateTime
+  createdAt: DateTime,
+  lastModified: DateTime
 )
 

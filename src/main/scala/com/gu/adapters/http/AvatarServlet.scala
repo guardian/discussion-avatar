@@ -89,31 +89,9 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 //      username <- user.publicFields.displayName
 //    }
 
-    // get body file "avatar"
-
-    // get original filename
-
-    // get contentType
-
-    // create Avatar type
-
     // store.add() -> save to s3 and update dynamoDB
 
-//    val newAvatar = Avatar(
-//      id = UUID.randomUUID().toString,
-//      avatarUrl = s"$avatarUrl/${obj.getKey}",
-//      userId = 123,
-//      originalFilename = file.getFieldName,
-//      status = Pending,
-//      createdAt = new DateTime()
-//    )
-
-    val avatar = store.save(
-      123, // FIXME
-      file.getName,
-      file.getInputStream,
-      file.getContentType.get
-    )
+    val avatar = store.save(123, file)
     getOrError(avatar)
   }
 
