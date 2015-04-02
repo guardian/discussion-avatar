@@ -1,20 +1,14 @@
 package com.gu.adapters.http
 
-import java.io.FileInputStream
-
 import com.gu.adapters.store.Store
 import com.gu.entities._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
-import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
+import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
+
 import scalaz.{-\/, \/, \/-}
-import org.scalatra.servlet.SizeConstraintExceededException
-import com.gu.identity.cookie.{ProductionKeys, IdentityCookieDecoder}
-import java.util.UUID
-import org.joda.time.DateTime
-import com.gu.entities.{Pending}
 
 class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   extends ScalatraServlet
@@ -90,12 +84,6 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 //    }
 
     // store.add() -> save to s3 and update dynamoDB
-
-
-//    val avatar = store.save(123, file) match {
-//      case \/-(success) => \/-(success.copy(href = baseUrl + success.href))
-//      case -\/(error) => -\/(error)
-//    }
 
     val avatar = store.save(123, file)
     getOrError(avatar)

@@ -2,11 +2,9 @@ package com.gu.adapters.store
 
 import java.util.UUID
 
-import com.gu.adapters.store.AttributeValues
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.regions.{Region, Regions}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
-import com.amazonaws.services.dynamodbv2.document.Item
 import com.amazonaws.services.dynamodbv2.model.{AttributeValue, PutItemRequest}
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
@@ -126,8 +124,8 @@ object AvatarAwsStore extends Store {
     // return Avatar
     val avatar = Avatar(
       id = avatarId,
-      avatarUrl = s"http://$privateBucket/images/$avatarId",  // TODO -- is /images the right place for them?
       href = s"$apiBaseUrl/avatars/$avatarId",
+      avatarUrl = s"http://$privateBucket/avatars/$avatarId",  // TODO -- is /images the right place for them?
       userId = user,
       originalFilename = file.getName,
       status = Inactive,
