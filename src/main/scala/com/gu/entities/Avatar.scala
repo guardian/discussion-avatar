@@ -11,5 +11,6 @@ case class Avatar(
   status: Status,
   createdAt: DateTime,
   lastModified: DateTime,
+  isSocial: Boolean,
   isActive: Boolean
 )
