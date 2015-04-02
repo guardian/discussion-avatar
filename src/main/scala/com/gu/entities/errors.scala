@@ -8,6 +8,7 @@ sealed trait Error {
 }
 case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
+case class RetrievalError(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
   def invalidFilters(errors: NonEmptyList[String]): InvalidFilters =
@@ -16,5 +17,6 @@ object Errors {
   def avatarNotFound(errors: NonEmptyList[String]): AvatarNotFound =
     AvatarNotFound("Avatar not found", errors)
 
-
+  def retrievalError(errors: NonEmptyList[String]): RetrievalError =
+    RetrievalError("Unable to retrieve Avatar", errors)
 }

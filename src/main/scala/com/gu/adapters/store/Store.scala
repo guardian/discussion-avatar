@@ -5,17 +5,22 @@ import java.util.UUID
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.regions.{Region, Regions}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
-import com.amazonaws.services.dynamodbv2.model.{AttributeValue, PutItemRequest}
+import com.amazonaws.services.dynamodbv2.document.Item
+import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.entities.{Approved, Avatar, Error, Inactive, Status, User}
 import com.typesafe.config.ConfigFactory
 import org.joda.time.DateTime
+import org.joda.time.format.{DateTimeFormatter, ISODateTimeFormat}
 import org.scalatra.servlet.FileItem
+import scala.collection.JavaConverters._
+import com.gu.entities.Errors.retrievalError
 
+import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
-import scalaz.\/
+import scalaz.{NonEmptyList, -\/, \/-, \/}
 
 
 sealed trait Store {
@@ -57,7 +62,51 @@ object AvatarAwsStore extends Store {
   val privateBucket = conf.getString("aws.s3.private")
   val dynamoDBTableName = conf.getString("aws.dynamodb.table")
 
-  def get(filters: Filters): \/[Error, List[Avatar]] = ???
+  val dateFormat = ISODateTimeFormat.dateTimeNoMillis
+
+  private def itemToAvatar(item: Map[String, AttributeValue]) = {
+    val avatarId = item("ImageId").getS
+    Avatar(
+      id = avatarId,
+      url = s"$apiBaseUrl/avatars/$avatarId",
+      avatarUrl = s"http://$privateBucket/avatars/$avatarId",
+      userId = item("UserId").getN.toInt,
+      originalFilename = item("OriginalFilename").getS,
+      status = Status(item("Status").getS),
+      createdAt = dateFormat.parseDateTime(item("CreatedAt").getS),
+      lastModified = dateFormat.parseDateTime(item("LastModified").getS),
+      isActive = false
+    )
+  }
+
+  def get(filters: Filters): \/[Error, List[Avatar]] = {
+
+    // query dynamodb for all avatars of a status (default is all avatars)
+
+    val items = Try {
+      dynamoDB.query(new QueryRequest()
+        .withTableName(dynamoDBTableName)
+        .withIndexName("Status-ImageId-index")
+        .addKeyConditionsEntry("Status", new Condition()
+        .withAttributeValueList(new AttributeValue(filters.status.asString))
+        .withComparisonOperator(ComparisonOperator.EQ)
+        )
+      )
+    }
+    println(items.getOrElse("nope"))
+
+    items match {
+      case Success(result) =>
+        val avatars = result.getItems.asScala
+          .map(_.asScala.toMap).map(itemToAvatar).toList
+        \/-(avatars)
+      case Failure(error) => -\/(retrievalError(NonEmptyList(error.getMessage)))
+    }
+
+    //import scala.collection.JavaConverters._
+    //items.getItems.asScala map (_.asScala.toMap) map (itemToAvatar) sortWith (_.lastModified isAfter _.lastModified)
+  }
+
   def get(id: String): \/[Error, Avatar] = ???
   def get(user: User): \/[Error, List[Avatar]] = ???
   def getActive(user: User): \/[Error, Avatar] = ???
@@ -89,6 +138,7 @@ object AvatarAwsStore extends Store {
       )
     )
 
+    // add to DynamoDB
     import scala.collection.JavaConverters._
 //    val item = new Item()
 //      .withPrimaryKey("UserId", user.toString)
@@ -125,7 +175,7 @@ object AvatarAwsStore extends Store {
     val avatar = Avatar(
       id = avatarId,
       url = s"$apiBaseUrl/avatars/$avatarId",
-      avatarUrl = s"http://$privateBucket/avatars/$avatarId",  // TODO -- is /images the right place for them?
+      avatarUrl = s"http://$privateBucket/avatars/$avatarId",
       userId = user,
       originalFilename = file.getName,
       status = Inactive,

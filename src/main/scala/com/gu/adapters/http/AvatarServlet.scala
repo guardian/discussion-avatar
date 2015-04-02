@@ -109,6 +109,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     case -\/(error) => error match {
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
+      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
     }
   }
 
