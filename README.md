@@ -3,6 +3,17 @@ Avatar Service
 
 **This service is a work in progress!**
 
+## Running
+### Configuration
+Populate `~/.aws/credentials` with
+```
+[default]
+aws_access_key_id=YOUR_ACCESS_KEY
+aws_secret_access_key=YOUR_SECRET_KEY
+```
+### Start the app
+`sbt run`
+
 ## Architecture
 
 http://blog.8thlight.com/uncle-bob/2012/08/13/the-clean-architecture.html
