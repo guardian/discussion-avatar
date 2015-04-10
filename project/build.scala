@@ -19,6 +19,7 @@ object AvatarBuild extends Build {
   val scalazVersion = "7.1.1"
   val identityCookieVersion = "3.44"
   val typesafeConfigVersion = "1.2.1"
+  val amazonawsVersion = "1.9.6"
 
   val guardianReleases = "Guardian releases" at "http://guardian.github.io/maven/repo-releases"
 
@@ -46,7 +47,8 @@ object AvatarBuild extends Build {
         "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
         "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion,
         "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
-        "com.typesafe" % "config" % typesafeConfigVersion
+        "com.typesafe" % "config" % typesafeConfigVersion,
+        "com.amazonaws" % "aws-java-sdk" % amazonawsVersion
       )
     )
   )

@@ -1,15 +1,16 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.store.Store
+import com.gu.entities.Errors.uploadError
 import com.gu.entities._
+import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
-import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
+import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-import scalaz.{-\/, \/, \/-}
-import org.scalatra.servlet.SizeConstraintExceededException
-import com.gu.identity.cookie.{ProductionKeys, IdentityCookieDecoder}
+
+import scalaz.{NonEmptyList, -\/, \/, \/-}
 
 class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   extends ScalatraServlet
@@ -17,11 +18,11 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   with SwaggerSupport
   with FileUploadSupport {
 
-  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer
+  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer ++ JodaTimeSerializers.all
 
   protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
 
-  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024)))
+  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024*1024)))
 
   before() {
     contentType = formats("json")
@@ -58,14 +59,24 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     getOrError(avatar)
   }
 
+  val getAvatarsForUserInfo =
+    (apiOperation[List[Avatar]]("getAvatarsForUser")
+      summary "Get avatars for user")
+
+  def getAvatarsForUser(userId: String): ActionResult = {
+    val user = User(params("userId").toInt)
+    val avatar = store.get(user)
+    getOrError(avatar)
+  }
+
   val getActiveAvatarForUserInfo =
     (apiOperation[List[Avatar]]("getActiveAvatarForUser")
       summary "Get active avatar for user")
 
-  def getActiveAvatarsForUser(userId: String): ActionResult = {
-    val user = User(params("userId"))
-    val avatar = store.get(user)
-    getOrError(avatar)
+  def getActiveAvatarForUser(): ActionResult = {
+    val user = User("123456".toInt) // FIXME -- get user id from cookie
+    val avatarUrl = store.getActive(user)
+    redirectOrError(avatarUrl)
   }
 
   val postAvatarInfo =
@@ -74,16 +85,22 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
       consumes "multipart/form-data")
 
   def postAvatar(): ActionResult = {
-    val file = fileParams("image")
-    val cd = new IdentityCookieDecoder(new ProductionKeys)
 
-//    for {
-//      cookie <- request.cookies.get("GU_U")
-//      user <- cd.getUserDataForGuU(cookie).map(_.user)
-//      username <- user.publicFields.displayName
-//    }
+    //    val cd = new IdentityCookieDecoder(new ProductionKeys)
 
-    val avatar = store.get("123") // hack for now
+    //    for {
+    //      cookie <- request.cookies.get("GU_U")
+    //      user <- cd.getUserDataForGuU(cookie).map(_.user)
+    //      username <- user.publicFields.displayName
+    //    }
+
+    val user = User("123456".toInt)
+
+    val avatar = request.contentType match {
+          case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(request.body) \ "url").values.toString)
+          case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, fileParams("image"))
+          case Some(invalid) => -\/(uploadError(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
+    }
     getOrError(avatar)
   }
 
@@ -96,16 +113,40 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
       bodyParam[StatusRequest]("")
         .description("The request includes the Avatar's new status")))
 
-  def putAvatarStatus(): ActionResult = {
-    val avatar = store.get("123") // hack for now
+  def putAvatarStatus(id: String): ActionResult = {
+    val status = Status((parse(request.body) \ "status").values.toString)
+    val avatar = store.updateStatus(id, status)
     getOrError(avatar)
+  }
+
+  val getAvatarStatsInfo =
+    (apiOperation[List[Avatar]]("getAvatarStats")
+      summary "Get avatars statistics")
+
+  def getAvatarStats: ActionResult = {
+    val stats = store.getStats
+    getOrError(stats)
   }
 
   def getOrError[A](r: \/[Error, A]): ActionResult = r match {
     case \/-(success) => Ok(success)
     case -\/(error) => error match {
+      case UploadError(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
+      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case DynamoDBError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+    }
+  }
+
+  def redirectOrError[A](r: \/[Error, A]): ActionResult = r match {
+    case \/-(success) => TemporaryRedirect(success.toString)
+    case -\/(error) => error match {
+      case UploadError(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
+      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
+      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case DynamoDBError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
     }
   }
 
@@ -116,11 +157,12 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   get("/avatars", operation(getAvatarsInfo))(getAvatars(params))
   get("/avatars/:id", operation(getAvatarInfo))(getAvatar(params("id")))
   get("/avatars/user/:userId",
-    operation(getActiveAvatarForUserInfo))(getActiveAvatarsForUser(params("userId")))
-  get("avatars/user/me/active", operation(getAvatarInfo))(getAvatar(params("id"))) // hack for now
+    operation(getAvatarsForUserInfo))(getAvatarsForUser(params("userId")))
+  get("/avatars/user/me/active", operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser())
 
   post("/avatars", operation(postAvatarInfo))(postAvatar())
-  put("/avatars/:id/status", operation(putAvatarStatusInfo))(putAvatarStatus())
+  put("/avatars/:id/status", operation(putAvatarStatusInfo))(putAvatarStatus(params("id")))
+  get("/avatars/stats", operation(getAvatarStatsInfo))(getAvatarStats)
 
   // for cdn endpoint (avatars.theguardian.com)
   //   /user/:id -> retrieve active avatar for a user
