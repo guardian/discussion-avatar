@@ -11,7 +11,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.entities.Errors.{dynamoDBError, retrievalError}
+import com.gu.entities.Errors.{dynamoRequestFailed, avatarRetrievalFailed}
 import com.gu.entities._
 import com.typesafe.config.ConfigFactory
 import org.joda.time.format.ISODateTimeFormat
@@ -109,7 +109,7 @@ object AvatarAwsStore extends Store {
 
     response match {
       case Success(avatars) => \/-(avatars sortWith(_.lastModified isAfter _.lastModified))
-      case Failure(error) => -\/(retrievalError(NonEmptyList(error.getMessage)))
+      case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
     }
   }
 
@@ -138,7 +138,7 @@ object AvatarAwsStore extends Store {
 
     response match {
       case Success(avatar) => \/-(avatar)
-      case Failure(error) => -\/(retrievalError(NonEmptyList(error.getMessage)))
+      case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
     }
   }
 
@@ -172,7 +172,7 @@ object AvatarAwsStore extends Store {
 
     response match {
       case Success(avatars) => \/-(avatars sortWith (_.lastModified isAfter _.lastModified))
-      case Failure(error) => -\/(retrievalError(NonEmptyList(error.getMessage)))
+      case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
     }
   }
 
@@ -369,7 +369,7 @@ object AvatarAwsStore extends Store {
 
     response match {
       case Success(count) => \/-(count.toString)
-      case Failure(error) => -\/(dynamoDBError(NonEmptyList(error.getMessage)))
+      case Failure(error) => -\/(dynamoRequestFailed(NonEmptyList(error.getMessage)))
     }
 
   }

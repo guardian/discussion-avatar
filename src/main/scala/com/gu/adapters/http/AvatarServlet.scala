@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.store.Store
-import com.gu.entities.Errors.uploadError
+import com.gu.entities.Errors.invalidContentType
 import com.gu.entities._
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
@@ -99,7 +99,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     val avatar = request.contentType match {
           case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(request.body) \ "url").values.toString)
           case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, fileParams("image"))
-          case Some(invalid) => -\/(uploadError(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
+          case Some(invalid) => -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
     }
     getOrError(avatar)
   }
@@ -131,22 +131,22 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   def getOrError[A](r: \/[Error, A]): ActionResult = r match {
     case \/-(success) => Ok(success)
     case -\/(error) => error match {
-      case UploadError(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
+      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case DynamoDBError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
     }
   }
 
   def redirectOrError[A](r: \/[Error, A]): ActionResult = r match {
     case \/-(success) => TemporaryRedirect(success.toString)
     case -\/(error) => error match {
-      case UploadError(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
+      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case DynamoDBError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
     }
   }
 
