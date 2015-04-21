@@ -18,7 +18,10 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   with SwaggerSupport
   with FileUploadSupport {
 
-  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer ++ JodaTimeSerializers.all
+  protected implicit val jsonFormats: Formats =
+    DefaultFormats +
+      new StatusSerializer ++
+      JodaTimeSerializers.all
 
   protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
 
@@ -39,10 +42,10 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   def dependencies(): ActionResult = NotImplemented(Message("Endpoint needs to be specified"))
 
   val getAvatarsInfo =
-    (apiOperation[List[Avatar]]("getAvatars")
-      summary "List all avatars"
-      parameter (queryParam[Option[String]]("status")
-      .description("The request includes a status to filter by")))
+    apiOperation[List[Avatar]]("getAvatars")
+      .summary("List all avatars")
+      .parameter(queryParam[Option[String]]("status")
+      .description("The request includes a status to filter by"))
 
   def getAvatars(params: Params): ActionResult = {
     val filters = Filters.fromParams(params)
@@ -60,8 +63,10 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   }
 
   val getAvatarsForUserInfo =
-    (apiOperation[List[Avatar]]("getAvatarsForUser")
-      summary "Get avatars for user")
+    apiOperation[List[Avatar]]("getAvatarsForUser")
+      .summary("Get avatars for user")
+      .parameter(pathParam[Int]("userId")
+        .description("The request includes the userId"))
 
   def getAvatarsForUser(userId: String): ActionResult = {
     val user = User(params("userId").toInt)
@@ -73,16 +78,24 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     (apiOperation[List[Avatar]]("getActiveAvatarForUser")
       summary "Get active avatar for user")
 
+  def getActiveAvatarForUser(user: User): ActionResult = {
+    val avatar = store.getActive(user)
+    getOrError(avatar)
+  }
+
+  val getActiveAvatarForUserFromCookieInfo =
+    apiOperation[List[Avatar]]("getActiveAvatarForUser")
+      .summary("Get active avatar for user")
+
   def getActiveAvatarForUser(): ActionResult = {
     val user = User("123456".toInt) // FIXME -- get user id from cookie
-    val avatarUrl = store.getActive(user)
-    redirectOrError(avatarUrl)
+    getActiveAvatarForUser(user)
   }
 
   val postAvatarInfo =
-    (apiOperation[Avatar]("postAvatar")
-      summary "Add a new avatar"
-      consumes "multipart/form-data")
+    apiOperation[Avatar]("postAvatar")
+      .summary("Add a new avatar")
+      .consumes("multipart/form-data")
 
   def postAvatar(): ActionResult = {
 
@@ -97,21 +110,21 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     val user = User("123456".toInt)
 
     val avatar = request.contentType match {
-          case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(request.body) \ "url").values.toString)
-          case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, fileParams("image"))
-          case Some(invalid) => -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
+      case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(request.body) \ "url").values.toString)
+      case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, fileParams("image"))
+      case Some(invalid) => -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
     }
     getOrError(avatar)
   }
 
   val putAvatarStatusInfo =
-    (apiOperation[Avatar]("putAvatarStatus")
-      summary "Update avatar status"
-      parameters (
-      pathParam[String]("id")
-        .description("The request includes the Avatar ID"),
-      bodyParam[StatusRequest]("")
-        .description("The request includes the Avatar's new status")))
+    apiOperation[Avatar]("putAvatarStatus")
+      .summary("Update avatar status")
+      .parameters(
+        pathParam[String]("id")
+          .description("The request includes the Avatar ID"),
+        bodyParam[StatusRequest]("")
+          .description("The request includes the Avatar's new status"))
 
   def putAvatarStatus(id: String): ActionResult = {
     val status = Status((parse(request.body) \ "status").values.toString)
@@ -128,19 +141,23 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
     getOrError(stats)
   }
 
-  def getOrError[A](r: \/[Error, A]): ActionResult = r match {
-    case \/-(success) => Ok(success)
-    case -\/(error) => error match {
-      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
-      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-    }
+  def getOrError(response: \/[Error, Any]): ActionResult = {
+    (handleSuccess orElse handleError)(response)
   }
 
-  def redirectOrError[A](r: \/[Error, A]): ActionResult = r match {
+  def redirectOrError(response: \/[Error, Any]): ActionResult = {
+    (handleRedirect orElse handleError)(response)
+  }
+
+  def handleSuccess: PartialFunction[\/[Error, Any], ActionResult] = {
+    case \/-(success) => Ok(success)
+  }
+
+  def handleRedirect: PartialFunction[\/[Error, Any], ActionResult] = {
     case \/-(success) => TemporaryRedirect(success.toString)
+  }
+
+  def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
     case -\/(error) => error match {
       case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
@@ -158,6 +175,11 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   get("/avatars/:id", operation(getAvatarInfo))(getAvatar(params("id")))
   get("/avatars/user/:userId",
     operation(getAvatarsForUserInfo))(getAvatarsForUser(params("userId")))
+
+  get("/avatars/user/:userId/active", operation(getActiveAvatarForUserInfo)) {
+    getActiveAvatarForUser(User(params("userId").toInt))
+  }
+
   get("/avatars/user/me/active", operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser())
 
   post("/avatars", operation(postAvatarInfo))(postAvatar())

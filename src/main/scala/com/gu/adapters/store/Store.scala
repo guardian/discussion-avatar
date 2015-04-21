@@ -17,6 +17,7 @@ import com.typesafe.config.ConfigFactory
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{DateTime, DateTimeZone}
 import org.scalatra.servlet.FileItem
+import com.gu.entities.Errors.avatarNotFound
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -28,7 +29,7 @@ sealed trait Store {
   def get(filters: Filters): \/[Error, List[Avatar]]
   def get(id: String): \/[Error, Avatar]
   def get(user: User): \/[Error, List[Avatar]]
-  def getActive(user: User): \/[Error, String]
+  def getActive(user: User): \/[Error, Avatar]
 
   def fetchImage(user: User, url: String): \/[Error, Avatar]
   def userUpload(user: User, file: FileItem): \/[Error, Avatar]
@@ -39,17 +40,58 @@ sealed trait Store {
 
 object AvatarTestStore extends Store {
   val avatars = List(
-    Avatar("123-id", "http://api", "http://avatar-url-1", 123, "foo.gif", Approved, new DateTime(), new DateTime(), isSocial = true, isActive = true),
-    Avatar("abc-id", "http://api", "http://avatar-url-2", 234, "bar.gif", Approved, new DateTime(), new DateTime(), isSocial = false, isActive = false)
+    Avatar(
+      "123",
+      "http://api",
+      "http://avatar-url-1",
+      123,
+      "foo.gif",
+      Approved,
+      new DateTime(),
+      new DateTime(),
+      isSocial = true,
+      isActive = true),
+    Avatar(
+      "abc",
+      "http://api",
+      "http://avatar-url-2",
+      234,
+      "bar.gif",
+      Approved,
+      new DateTime(),
+      new DateTime(),
+      isSocial = false,
+      isActive = false)
   )
 
-  def get(filters: Filters): \/[Error, List[Avatar]] = avatars.right
-  def get(id: String): \/[Error, Avatar] = avatars.head.right
-  def get(user: User): \/[Error, List[Avatar]] = avatars.right
-  def getActive(user: User): \/[Error, String] = avatars.head.avatarUrl.right
+  def find(p: Avatar => Boolean): \/[Error, Avatar] = avatars.find(p) match {
+    case Some(avatar) => avatar.right
+    case None => -\/(avatarNotFound(NonEmptyList("Avatar not found in test store!")))
+  }
+
+  def filter(p: Avatar => Boolean): \/[Error, List[Avatar]] = avatars.filter(p) match {
+    case Nil => -\/(avatarNotFound(NonEmptyList("No matching avatars in test store!")))
+    case avatars => avatars.right
+  }
+
+  def get(filters: Filters): \/[Error, List[Avatar]] = {
+    avatars.filter(_.status == filters.status).right
+  }
+
+  def get(id: String): \/[Error, Avatar] = find(_.id == id)
+
+  def get(user: User): \/[Error, List[Avatar]] = {
+    filter(_.userId == user.id)
+  }
+
+  def getActive(user: User): \/[Error, Avatar] = {
+    find(avatar => avatar.userId == user.id && avatar.isActive)
+  }
 
   def fetchImage(user: User, url: String): \/[Error, Avatar] = ???
+
   def userUpload(user: User, file: FileItem): \/[Error, Avatar] = ???
+
   def updateStatus(id: String, status: Status): \/[Error, Avatar] = ???
 
   def getStats: \/[Error, String] = ???
@@ -176,12 +218,12 @@ object AvatarAwsStore extends Store {
     }
   }
 
-  def getActive(user: User): \/[Error, String] = {
+  def getActive(user: User): \/[Error, Avatar] = {
 
     // FIXME -- more /user/me logic goes here!!!
 
     s"http://$publicBucket/users/${user.id}".right
-
+    ???
   }
 
   def fetchImage(user: User, url: String) = {
