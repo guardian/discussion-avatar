@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.entities.Status
+import com.gu.core.Status
 
 sealed trait RequestParam
 case class StatusRequest(status: String)

@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.store.Store
-import com.gu.entities._
+import com.gu.core._
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._

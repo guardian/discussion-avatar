@@ -1,7 +1,7 @@
 package com.gu.utils
 
-import com.gu.adapters.http.StatusSerializer
-import com.gu.entities.Avatar
+import com.gu.adapters.http.{ErrorResponse, StatusSerializer}
+import com.gu.core.Avatar
 import org.json4s.ext.JodaTimeSerializers
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest.ScalatraSuite
@@ -40,11 +40,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     get(uri, params, headers) {
       status should equal(200)
-      println(body)
       val avatar = Try(read[Avatar](body)).get
       p(avatar) should be (true)
     }
   }
 
   def getAvatar(uri: String): Unit = getAvatar(uri, _ => true)
+
+  def getError(uri: String, code: Int, p: ErrorResponse => Boolean): Unit = {
+    get(uri) {
+      status should equal(code)
+      val error = Try(read[ErrorResponse](body)).get
+      p(error) should be (true)
+    }
+  }
 }

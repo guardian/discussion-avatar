@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.store.AvatarTestStore
-import com.gu.entities._
+import com.gu.core._
 import com.gu.utils.TestHelpers
 
 class AvatarServletTests extends TestHelpers {
@@ -29,6 +29,13 @@ class AvatarServletTests extends TestHelpers {
     }
 
     getAvatars(s"/avatars?status=${All.asString}")
+  }
+
+  test("Error response if invalid status") {
+    getError(
+      "/avatars?status=badStatus",
+      400,
+      _.message == "Invalid filter parameters")
   }
 
   test("Get avatar by ID") {

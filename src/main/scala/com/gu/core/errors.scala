@@ -1,4 +1,4 @@
-package com.gu.entities
+package com.gu.core
 
 import scalaz.NonEmptyList
 
@@ -6,11 +6,11 @@ sealed trait Error {
   val message: String
   val errors: NonEmptyList[String]
 }
-case class InvalidContentType(message: String, errors: NonEmptyList[String]) extends Error
-case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
-case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
-case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) extends Error
-case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
+sealed case class InvalidContentType(message: String, errors: NonEmptyList[String]) extends Error
+sealed case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
+sealed case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
+sealed case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) extends Error
+sealed case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =

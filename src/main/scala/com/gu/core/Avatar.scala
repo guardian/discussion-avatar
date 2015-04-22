@@ -1,4 +1,4 @@
-package com.gu.entities
+package com.gu.core
 
 import org.joda.time.DateTime
 

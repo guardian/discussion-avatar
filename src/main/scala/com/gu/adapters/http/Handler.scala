@@ -1,8 +1,8 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.store.Store
-import com.gu.entities.Errors._
-import com.gu.entities._
+import com.gu.core.Errors._
+import com.gu.core._
 import org.json4s.jackson.JsonMethods.parse
 import org.scalatra._
 import org.scalatra.servlet.FileItem
@@ -11,7 +11,7 @@ import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 object Handler {
 
-  def getOrError(response: \/[Error, Any]): ActionResult = {
+  def withErrorHandling(response: => \/[Error, Any]): ActionResult = {
     (handleSuccess orElse handleError)(response)
   }
 
@@ -44,25 +44,29 @@ object Handler {
   def dependencies(): ActionResult = NotImplemented(Message("Endpoint needs to be specified"))
 
   def getAvatars(store: Store, params: Params): ActionResult = {
-    val filters = Filters.fromParams(params)
-    val avatars = filters flatMap store.get
-    getOrError(avatars)
+    withErrorHandling {
+      val filters = Filters.fromParams(params)
+      filters flatMap store.get
+    }
   }
 
   def getAvatar(store: Store, avatarId: String): ActionResult = {
-    val avatar = store.get(avatarId)
-    getOrError(avatar)
+    withErrorHandling {
+      store.get(avatarId)
+    }
   }
 
   def getAvatarsForUser(store: Store, userId: String): ActionResult = {
-    val user = User(userId.toInt) // TODO handle errors here gracefully
-    val avatar = store.get(user)
-    getOrError(avatar)
+    withErrorHandling {
+      val user = User(userId.toInt) // TODO handle errors here gracefully
+      store.get(user)
+    }
   }
 
   def getActiveAvatarForUser(store: Store, user: User): ActionResult = {
-    val avatar = store.getActive(user)
-    getOrError(avatar)
+    withErrorHandling {
+      store.getActive(user)
+    }
   }
 
   def postAvatar(
@@ -71,28 +75,29 @@ object Handler {
     body: String,
     image: FileItem): ActionResult = {
 
-    //    val cd = new IdentityCookieDecoder(new ProductionKeys)
+    withErrorHandling {
+      //    val cd = new IdentityCookieDecoder(new ProductionKeys)
 
-    //    for {
-    //      cookie <- request.cookies.get("GU_U")
-    //      user <- cd.getUserDataForGuU(cookie).map(_.user)
-    //      username <- user.publicFields.displayName
-    //    }
+      //    for {
+      //      cookie <- request.cookies.get("GU_U")
+      //      user <- cd.getUserDataForGuU(cookie).map(_.user)
+      //      username <- user.publicFields.displayName
+      //    }
 
-    val user = User("123456".toInt)
+      val user = User("123456".toInt)
 
-    val avatar = contentType match {
-      case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(body) \ "url").values.toString)
-      case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, image)
-      case Some(invalid) => -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
+      contentType match {
+        case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(body) \ "url").values.toString)
+        case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, image)
+        case Some(invalid) => -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
+      }
     }
-
-    getOrError(avatar)
   }
 
   def putAvatarStatus(store: Store, body: String, avatarId: String): ActionResult = {
-    val status = Status((parse(body) \ "status").values.toString) // TODO handle errors gracefully here
-    val avatar = store.updateStatus(avatarId, status)
-    getOrError(avatar)
+    withErrorHandling {
+      val status = Status((parse(body) \ "status").values.toString) // TODO handle errors gracefully here
+      store.updateStatus(avatarId, status)
+    }
   }
 }

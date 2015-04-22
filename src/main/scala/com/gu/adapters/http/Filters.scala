@@ -1,15 +1,15 @@
 package com.gu.adapters.http
 
-import com.gu.entities.Errors.invalidFilters
-import com.gu.entities._
-import org.scalatra.Params
+import com.gu.core.Errors.invalidFilters
+import com.gu.core._
+import org.scalatra.{ActionResult, Params}
 
 import scalaz._
 
 case class Filters(status: Status)
 
 object Filters {
-  def fromParams(params: Params): \/[InvalidFilters, Filters] = {
+  def fromParams[A](params: Params): \/[InvalidFilters, Filters] = {
     val status: Validation[NonEmptyList[String], Status] = params.get("status") match {
       case Some(Inactive.asString) => Success(Inactive)
       case Some(Approved.asString) => Success(Approved)

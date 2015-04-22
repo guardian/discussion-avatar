@@ -11,13 +11,12 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.entities.Errors.{dynamoRequestFailed, avatarRetrievalFailed}
-import com.gu.entities._
+import com.gu.core.Errors.{avatarNotFound, avatarRetrievalFailed, dynamoRequestFailed}
+import com.gu.core._
 import com.typesafe.config.ConfigFactory
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{DateTime, DateTimeZone}
 import org.scalatra.servlet.FileItem
-import com.gu.entities.Errors.avatarNotFound
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}

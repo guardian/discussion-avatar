@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.entities._
+import com.gu.core._
 import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 
