@@ -11,7 +11,7 @@ class AvatarServletTests extends TestHelpers {
   addServlet(new AvatarServlet(AvatarTestStore), "/*")
 
   test("Healthcheck should return OK") {
-    get("/management/healthcheck") {
+    get("/service/healthcheck") {
       status should equal (200)
       body should include ("OK")
     }
