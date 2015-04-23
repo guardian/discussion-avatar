@@ -3,7 +3,7 @@ package com.gu.adapters.http
 import com.gu.core.Status
 
 sealed trait RequestParam
-case class StatusRequest(status: String)
+case class StatusRequest(status: Status)
 case class AvatarRequest(
   userId: Int,
   originalFilename: String,

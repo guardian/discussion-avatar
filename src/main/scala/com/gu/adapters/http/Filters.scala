@@ -9,6 +9,7 @@ import scalaz._
 case class Filters(status: Status)
 
 object Filters {
+
   def fromParams[A](params: Params): \/[InvalidFilters, Filters] = {
     val status: Validation[NonEmptyList[String], Status] = params.get("status") match {
       case Some(Inactive.asString) => Success(Inactive)

@@ -3,12 +3,15 @@ package com.gu.adapters.http
 import com.gu.adapters.store.Store
 import com.gu.core.Errors._
 import com.gu.core._
+import com.gu.identity.cookie.{ProductionKeys, IdentityCookieDecoder}
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
+import com.gu.core.Errors.unableToReadUserCookie
+import scalaz.std.option.optionSyntax._
 
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
@@ -37,9 +40,11 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   get("/service/healthcheck") {
     Ok(Message("OK"))
   }
+
   get("/service/gtg") {
     NotImplemented(Message("Endpoint needs to be specified"))
   }
+  
   get("/service/dependencies") {
     NotImplemented(Message("Endpoint needs to be specified"))
   }
@@ -72,29 +77,35 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
 
   post("/avatars", operation(postAvatar)) {
     withErrorHandling {
-      //    val cd = new IdentityCookieDecoder(new ProductionKeys)
+      val cd = new IdentityCookieDecoder(new ProductionKeys)
+      val user = for {
+        cookie <- request.cookies.get("GU_U") \/> "No GU_U cookie in request"
+        user <- cd.getUserDataForGuU(cookie).map(_.user) \/> "Unable to extract user data from cookie"
+      } yield User(user.id.toInt)
 
-      //    for {
-      //      cookie <- request.cookies.get("GU_U")
-      //      user <- cd.getUserDataForGuU(cookie).map(_.user)
-      //      username <- user.publicFields.displayName
-      //    }
+      val userWithError = user.leftMap(error => unableToReadUserCookie(NonEmptyList(error)))
 
-      val user = User("123456".toInt)
-      val url = (parse(request.body) \ "url").values.toString
-      val image = fileParams("image")
+      userWithError flatMap { user =>
+        val url = (parse(request.body) \ "url").values.toString
+        val image = fileParams("image")
 
-      request.contentType match {
-        case Some("application/json") | Some("text/json") => store.fetchImage(user, url)
-        case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, image)
-        case Some(invalid) => -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
+        request.contentType match {
+          case Some("application/json") | Some("text/json") =>
+            store.fetchImage(user, url)
+          case Some(s) if s startsWith "multipart/form-data" =>
+            store.userUpload(user, image)
+          case Some(invalid) =>
+            -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
+          case None =>
+            -\/(invalidContentType(NonEmptyList("No content type specified.")))
+        }
       }
     }
   }
 
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
-      val status = Status((parse(request.body) \ "status").values.toString) // TODO handle errors gracefully here
+      val status = parsedBody.extract[StatusRequest].status // TODO handle errors gracefully
       store.updateStatus(params("id"), status)
     }
   }
