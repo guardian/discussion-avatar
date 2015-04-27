@@ -93,7 +93,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
           case Some("application/json") | Some("text/json") =>
             store.fetchImage(user, url)
           case Some(s) if s startsWith "multipart/form-data" =>
-            store.userUpload(user, image)
+            store.userUpload(user, image.getInputStream, image.getName)
           case Some(invalid) =>
             -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
           case None =>
@@ -140,6 +140,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
       case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
     }
   }
 }

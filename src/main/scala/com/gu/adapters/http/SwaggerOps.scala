@@ -38,7 +38,7 @@ trait SwaggerOps {
       .summary("Add a new avatar")
       .consumes("multipart/form-data")
       .parameters(
-        bodyParam[CreateAvatarRequest]("")
+        bodyParam[AvatarRequest]("")
           .description("The request includes "))
 
   def putAvatarStatus =

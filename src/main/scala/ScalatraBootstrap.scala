@@ -11,7 +11,7 @@ class ScalatraBootstrap extends LifeCycle {
 
   override def init(context: ServletContext) {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-    context.mount(new AvatarServlet(AvatarAwsStore), "/v1", "v1")
+    context.mount(new AvatarServlet(AvatarAwsStore()), "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")
   }
 }

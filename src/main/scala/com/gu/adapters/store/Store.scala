@@ -1,27 +1,146 @@
 package com.gu.adapters.store
 
+import java.io.InputStream
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.regions.{Region, Regions}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
+import com.amazonaws.services.dynamodbv2.document._
 import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpec}
-import com.amazonaws.services.dynamodbv2.document.{AttributeUpdate, DynamoDB, Item}
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.core.Errors.{avatarNotFound, avatarRetrievalFailed, dynamoRequestFailed}
+import com.gu.core.Errors.{avatarNotFound, avatarRetrievalFailed}
 import com.gu.core._
 import com.typesafe.config.ConfigFactory
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{DateTime, DateTimeZone}
-import org.scalatra.servlet.FileItem
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
+
+object ISODateFormatter {
+  val dateFormat = ISODateTimeFormat.dateTimeNoMillis
+  def parse(s: String): DateTime = dateFormat.parseDateTime(s)
+  def print(dt: DateTime): String = dateFormat.print(dt)
+}
+
+case class Dynamo(db: DynamoDB) {
+
+  val conf = ConfigFactory.load()
+  val apiBaseUrl = conf.getString("api.baseUrl")
+  val privateBucket = conf.getString("aws.s3.private")
+
+  def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
+    Avatar(
+      id = item.getString("AvatarId"),
+      url = s"$baseUrl/avatars/$id",
+      avatarUrl = s"http://$avatarUrl/avatars/$id",
+      userId = item.getString("userId").toInt,
+      originalFilename = item.getString("OriginalFilename"),
+      status = Status(item.getString("Status")),
+      createdAt = ISODateFormatter.parse(item.getString("CreatedAt")),
+      lastModified = ISODateFormatter.parse(item.getString("LastModified")),
+      isSocial = item.getString("isSocial").toBoolean,
+      isActive = item.getString("isActive").toBoolean
+    )
+  }
+
+  def get(table: String, id: String): Avatar = {
+    val item = db.getTable(table).getItem("AvatarId", id)
+    asAvatar(item, apiBaseUrl, privateBucket)
+  }
+
+  def query(table: String, index: String, key: String, value: String): List[Avatar] = {
+    val spec = new QuerySpec()
+      .withHashKey(key, value)
+      .withMaxPageSize(10)
+      .withMaxResultSize(100)
+    val items = db.getTable(table).getIndex(index).query(spec)
+
+    for {
+      page <- items.pages.asScala.toList
+      item <- page.asScala
+    } yield asAvatar(item, apiBaseUrl, privateBucket)
+  }
+
+  def put(table: String, avatar: Avatar): PutItemOutcome = {
+    val item = new Item()
+      .withPrimaryKey("AvatarId", avatar.id)
+      .withNumber("UserId", avatar.userId)
+      .withString("OriginalFilename", avatar.originalFilename)
+      .withString("Status", avatar.status.asString)
+      .withString("CreatedAt", ISODateFormatter.print(avatar.createdAt))
+      .withString("LastModified", ISODateFormatter.print(avatar.lastModified))
+      .withBoolean("IsSocial", avatar.isSocial)
+      .withBoolean("IsActive", avatar.isActive)
+
+    db.getTable(table).putItem(item)
+  }
+
+  def update(table: String, id: String, status: Status): Avatar = {
+    val spec = new UpdateItemSpec()
+      .withPrimaryKey("AvatarId", id)
+      .withAttributeUpdate(new AttributeUpdate("Status").put(status.asString))
+      .withReturnValues(ReturnValue.ALL_NEW)
+    val result = db.getTable(table).updateItem(spec)
+    asAvatar(result.getItem, apiBaseUrl, privateBucket)
+  }
+}
+
+object Dynamo {
+  def apply(): Dynamo = {
+    val client = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
+      .withRegion(Region.getRegion(Regions.EU_WEST_1))
+    Dynamo(new DynamoDB(client))
+  }
+}
+
+case class S3(client: AmazonS3Client) {
+
+  def getMetadata(bucket: String, key: String): \/[Error, ObjectMetadata] = {
+    val request = new GetObjectMetadataRequest(bucket, key)
+    client.getObjectMetadata(request).right
+  }
+
+  def copy(
+    fromBucket: String,
+    fromKey: String,
+    toBucket: String,
+    toKey: String): \/[Error, CopyObjectResult] = {
+
+    val request = new CopyObjectRequest(fromBucket, "fromKey", toBucket, "toKey")
+    client.copyObject(request).right
+  }
+
+  def put(
+    bucket: String,
+    key: String,
+    file: InputStream,
+    metadata: ObjectMetadata): \/[Error, PutObjectResult] = {
+
+    val request = new PutObjectRequest(bucket, key, file, metadata)
+    client.putObject(request).right
+  }
+
+  def delete(bucket: String, key: String): \/[Error, Unit] = {
+    val request = new DeleteObjectRequest(bucket, key)
+    client.deleteObject(request).right
+  }
+}
+
+object S3 {
+  def apply(): S3 = {
+    val client =
+      new AmazonS3Client(new DefaultAWSCredentialsProviderChain())
+        .withRegion(Region.getRegion(Regions.EU_WEST_1))
+    S3(client)
+  }
+}
 
 
 sealed trait Store {
@@ -31,10 +150,8 @@ sealed trait Store {
   def getActive(user: User): \/[Error, Avatar]
 
   def fetchImage(user: User, url: String): \/[Error, Avatar]
-  def userUpload(user: User, file: FileItem): \/[Error, Avatar]
+  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): \/[Error, Avatar]
   def updateStatus(id: String, status: Status): \/[Error, Avatar]
-
-  def getStats: \/[Error, String]
 }
 
 object AvatarTestStore extends Store {
@@ -89,94 +206,43 @@ object AvatarTestStore extends Store {
 
   def fetchImage(user: User, url: String): \/[Error, Avatar] = ???
 
-  def userUpload(user: User, file: FileItem): \/[Error, Avatar] = ???
+  def userUpload(
+    user: User, file: InputStream,
+    originalFilename: String,
+    isSocial: Boolean = false): \/[Error, Avatar] = ???
 
   def updateStatus(id: String, status: Status): \/[Error, Avatar] = ???
 
   def getStats: \/[Error, String] = ???
 }
 
-object AvatarAwsStore extends Store {
+case class AvatarAwsStore(s3: S3, dynamoDB: Dynamo) extends Store {
 
   val conf = ConfigFactory.load()
   val apiBaseUrl = conf.getString("api.baseUrl")
   val publicBucket = conf.getString("aws.s3.public")
   val privateBucket = conf.getString("aws.s3.private")
-  val dynamoDBTableName = conf.getString("aws.dynamodb.table")
-
-  val s3 = new AmazonS3Client(new DefaultAWSCredentialsProviderChain())
-  s3.setRegion(Region.getRegion(Regions.EU_WEST_1))
-
-  val client = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
-  client.setRegion(Region.getRegion(Regions.EU_WEST_1))
-
-  val dynamoDB = new DynamoDB(client)
-
-  val dateFormat = ISODateTimeFormat.dateTimeNoMillis
-
+  val dynamoTable = conf.getString("aws.dynamodb.table")
+  val statusIndex = "Status-AvatarId-index"
+  val userIndex = "UserId-AvatarId-index"
+  
   def get(filters: Filters): \/[Error, List[Avatar]] = {
-
-    // FIXME -- Return everything if all? or require status=pending&status=approved etc?
-
-    val index = dynamoDB.getTable(dynamoDBTableName).getIndex("Status-AvatarId-index")
-
-    val response = Try {
-
-      val items = index.query(new QuerySpec()
-        .withHashKey("Status", filters.status.asString)
-        .withMaxPageSize(2) // FIXME -- set to something real, 2 is just to test paging
-        .withMaxResultSize(100) // FIXME - set this to a realistic limit
-      )
-
-      (for {
-        page <- items.pages().asScala
-        item <- page.asScala
-      } yield {
-        val avatarId = item.getString("AvatarId")
-        Avatar(
-          id = avatarId,
-          url = s"$apiBaseUrl/avatars/$avatarId",
-          avatarUrl = s"http://$privateBucket/avatars/$avatarId",
-          userId = item.getInt("UserId"),
-          originalFilename = item.getString("OriginalFilename"),
-          status = Status(item.getString("Status")),
-          createdAt = dateFormat.parseDateTime(item.getString("CreatedAt")),
-          lastModified = dateFormat.parseDateTime(item.getString("LastModified")),
-          isSocial = false,
-          isActive = false
-        )
-      }).toList
+    val result = Try {
+      dynamoDB.query(
+        dynamoTable,
+        statusIndex,
+        "Status",
+        filters.status.asString)
     }
 
-    response match {
+    result match {
       case Success(avatars) => \/-(avatars sortWith(_.lastModified isAfter _.lastModified))
       case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
     }
   }
 
   def get(id: String): \/[Error, Avatar] = {
-
-    val table = dynamoDB.getTable(dynamoDBTableName)
-
-    val response = Try {
-
-      val item = table.getItem("AvatarId", id)
-
-      val avatarId = item.getString("AvatarId")
-      Avatar(
-        id = avatarId,
-        url = s"$apiBaseUrl/avatars/$avatarId",
-        avatarUrl = s"http://$privateBucket/avatars/$avatarId",
-        userId = item.getInt("UserId"),
-        originalFilename = item.getString("OriginalFilename"),
-        status = Status(item.getString("Status")),
-        createdAt = dateFormat.parseDateTime(item.getString("CreatedAt")),
-        lastModified = dateFormat.parseDateTime(item.getString("LastModified")),
-        isSocial = false,
-        isActive = false
-      )
-    }
-
+    val response = Try(dynamoDB.get(dynamoTable, id))
     response match {
       case Success(avatar) => \/-(avatar)
       case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
@@ -184,31 +250,12 @@ object AvatarAwsStore extends Store {
   }
 
   def get(user: User): \/[Error, List[Avatar]] = {
-
-    val index = dynamoDB.getTable(dynamoDBTableName).getIndex("UserId-AvatarId-index")
-
     val response = Try {
-
-      val items = index.query("UserId", user.id)
-
-      (for {
-        page <- items.pages().asScala
-        item <- page.asScala
-      } yield {
-        val avatarId = item.getString("AvatarId")
-        Avatar(
-          id = avatarId,
-          url = s"$apiBaseUrl/avatars/$avatarId",
-          avatarUrl = s"http://$privateBucket/avatars/$avatarId",
-          userId = item.getInt("UserId"),
-          originalFilename = item.getString("OriginalFilename"),
-          status = Status(item.getString("Status")),
-          createdAt = dateFormat.parseDateTime(item.getString("CreatedAt")),
-          lastModified = dateFormat.parseDateTime(item.getString("LastModified")),
-          isSocial = false,
-          isActive = false
-        )
-      }).toList
+      dynamoDB.query(
+        dynamoTable,
+        userIndex,
+        "UserId",
+        user.id.toString)
     }
 
     response match {
@@ -226,68 +273,11 @@ object AvatarAwsStore extends Store {
   }
 
   def fetchImage(user: User, url: String) = {
-
-    import java.net.URL
-
-    val file = new URL(url).openStream()
-
-    val avatarId = UUID.randomUUID.toString
-    val now = DateTime.now(DateTimeZone.UTC)
-
-    // copy to S3
-    val metadata = new ObjectMetadata()
-    metadata.addUserMetadata("avatar-id", avatarId)
-    metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", url)
-    // metadata.setContentLength(file.getSize)
-    // metadata.setContentType(file.getContentType.get)
-    metadata.setCacheControl("no-cache")  // FIXME -- set this to something sensible
-
-    s3.putObject(new PutObjectRequest(
-        privateBucket,
-        s"avatars/$avatarId",
-        file,
-        metadata
-      )
-    )
-    copyToPublic(user, avatarId)
-
-    val table = dynamoDB.getTable(dynamoDBTableName)
-
-    // Build the item
-    val item = new Item()
-      .withPrimaryKey("AvatarId", avatarId)
-      .withNumber("UserId", user.id)
-      .withString("OriginalFilename", url)
-      .withString("Status", Pending.asString)
-      .withString("CreatedAt", dateFormat.print(now))
-      .withString("LastModified", dateFormat.print(now))
-      .withBoolean("IsSocial", false)
-      .withBoolean("IsActive", false)
-
-    println(dateFormat.print(now))
-
-    // Write the item to the table
-    table.putItem(item)
-
-    // return Avatar
-    val avatar = Avatar(
-      id = avatarId,
-      url = s"$apiBaseUrl/avatars/$avatarId",
-      avatarUrl = s"http://$privateBucket/avatars/$avatarId",
-      userId = user.id,
-      originalFilename = url,
-      status = Inactive,
-      createdAt = now,
-      lastModified = now,
-      isSocial = true,
-      isActive = false
-    )
-    avatar.right
+    val file = new java.net.URL(url).openStream()
+    userUpload(user, file, url, true)
   }
 
-  def userUpload(user: User, file: FileItem): \/[Error, Avatar] = {
-
+  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): \/[Error, Avatar] = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
 
@@ -295,56 +285,37 @@ object AvatarAwsStore extends Store {
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", file.getName)
-    metadata.setContentLength(file.getSize)
-    metadata.setContentType(file.getContentType.get)
+    metadata.addUserMetadata("original-filename", originalFilename)
     metadata.setCacheControl("no-cache")  // FIXME -- set this to something sensible
 
-    s3.putObject(new PutObjectRequest(
-        privateBucket,
-        s"avatars/$avatarId",
-        file.getInputStream,
-        metadata
-      )
-    )
+    s3.put(
+      privateBucket,
+      s"avatars/$avatarId",
+      file,
+      metadata)
 
-    val table = dynamoDB.getTable(dynamoDBTableName)
+    copyToPublic(s3, user, avatarId)
 
-    // Build the item
-    val item = new Item()
-      .withPrimaryKey("AvatarId", avatarId)
-      .withNumber("UserId", user.id)
-      .withString("OriginalFilename", file.getName)
-      .withString("Status", Pending.asString)
-      .withString("CreatedAt", dateFormat.print(now))
-      .withString("LastModified", dateFormat.print(now))
-      .withBoolean("IsSocial", false)
-      .withBoolean("IsActive", false)
-
-    println(dateFormat.print(now))
-
-    // Write the item to the table
-    table.putItem(item)
-
-    // return Avatar
     val avatar = Avatar(
       id = avatarId,
       url = s"$apiBaseUrl/avatars/$avatarId",
       avatarUrl = s"http://$privateBucket/avatars/$avatarId",
       userId = user.id,
-      originalFilename = file.getName,
+      originalFilename = originalFilename,
       status = Pending,
       createdAt = now,
       lastModified = now,
-      isSocial = false,
-      isActive = false
-    )
+      isSocial = true,
+      isActive = false)
+
+    dynamoDB.put(dynamoTable, avatar)
+
     avatar.right
   }
 
-  def copyToPublic(user: User, avatarId: String) = {
+  def copyToPublic(s3: S3, user: User, avatarId: String) = {
     println(s"copy to public s3://$privateBucket/avatars/$avatarId -> s3://$publicBucket/user/${user.id.toString}")
-    s3.copyObject(
+    s3.copy(
       privateBucket,
       s"avatars/$avatarId",
       publicBucket,
@@ -353,65 +324,33 @@ object AvatarAwsStore extends Store {
   }
 
   def deleteFromPublic(user: User) = {
-    s3.deleteObject(
+    s3.delete(
       publicBucket,
       s"user/${user.id.toString}"
     )
   }
 
   def updateStatus(id: String, status: Status): \/[Error, Avatar] = {
+    val oldAvatar = dynamoDB.get(dynamoTable, id)
+    val oldStatus = Status(oldAvatar.status.asString)
+    val user = User(oldAvatar.userId)
 
-    val table = dynamoDB.getTable(dynamoDBTableName)
+    if (status == oldStatus) {
+      oldAvatar.right
+    } else {
+      val updatedAvatar = dynamoDB.update(dynamoTable, id, status)
 
-    val update = new UpdateItemSpec()
-      .withPrimaryKey("AvatarId", id)
-      .withAttributeUpdate(
-        new AttributeUpdate("Status").put(status.asString)
-      )
-      .withReturnValues(ReturnValue.ALL_NEW)
+      status match {
+        case Approved => copyToPublic(s3, user, id)
+        case Rejected if oldAvatar.isActive => deleteFromPublic(user)
+        case _ =>
+      }
 
-    val outcome = table.updateItem(update)
-    val item = outcome.getItem
-
-    val avatarId = item.getString("AvatarId")
-    val user = User(item.getInt("UserId"))
-
-    // get uuid of this user's avatar in public and if same as this one delete from public
-    val userMetadata = s3.getObjectMetadata(privateBucket, s"avatars/$avatarId").getUserMetadata
-    val avatarIdOfPublic = userMetadata.get("avatar-id")
-
-    status match {
-      case Approved => copyToPublic(user, avatarId) // FIXME -- set isActive=true and false for others
-      case Rejected => if (avatarIdOfPublic.equals(avatarId)) deleteFromPublic(user) // FIXME -- opp. of above
-      case _ => None
+      updatedAvatar.right
     }
-
-    Avatar(
-      id = id,
-      url = s"$apiBaseUrl/avatars/$avatarId",
-      avatarUrl = s"http://$privateBucket/avatars/$avatarId",
-      userId = user.id,
-      originalFilename = item.getString("OriginalFilename"),
-      status = Status(item.getString("Status")),
-      createdAt = dateFormat.parseDateTime(item.getString("CreatedAt")),
-      lastModified = dateFormat.parseDateTime(item.getString("LastModified")),
-      isSocial = false,
-      isActive = false
-    ).right
   }
+}
 
-  def getStats = {
-
-    val table = dynamoDB.getTable(dynamoDBTableName)
-
-    val response = Try {
-      table.getDescription.getItemCount
-    }
-
-    response match {
-      case Success(count) => \/-(count.toString)
-      case Failure(error) => -\/(dynamoRequestFailed(NonEmptyList(error.getMessage)))
-    }
-
-  }
+object AvatarAwsStore {
+  def apply(): AvatarAwsStore = AvatarAwsStore(S3(), Dynamo())
 }
