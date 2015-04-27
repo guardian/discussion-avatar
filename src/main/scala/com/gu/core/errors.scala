@@ -12,6 +12,7 @@ sealed case class AvatarNotFound(message: String, errors: NonEmptyList[String]) 
 sealed case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) extends Error
 sealed case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
 sealed case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
+sealed case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =
@@ -27,6 +28,9 @@ object Errors {
 
   def avatarRetrievalFailed(errors: NonEmptyList[String]): AvatarRetrievalFailed =
     AvatarRetrievalFailed("Avatar retrieval failed", errors)
+
+  def ioFailed(errors: NonEmptyList[String]): IOFailed =
+    IOFailed("IO operation failed", errors)
 
   def dynamoRequestFailed(errors: NonEmptyList[String]): DynamoRequestFailed =
     DynamoRequestFailed("DynamoDB request failed", errors)

@@ -1,6 +1,7 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.store.AvatarTestStore
+import com.gu.adapters.http.store.{TestFileStore, TestKVStore}
+import com.gu.adapters.store.AvatarStore
 import com.gu.core._
 import com.gu.utils.TestHelpers
 
@@ -8,7 +9,7 @@ class AvatarServletTests extends TestHelpers {
 
   implicit val swagger = new AvatarSwagger
 
-  addServlet(new AvatarServlet(AvatarTestStore), "/*")
+  addServlet(new AvatarServlet(AvatarStore(new TestFileStore, new TestKVStore)), "/*")
 
   test("Healthcheck should return OK") {
     get("/service/healthcheck") {

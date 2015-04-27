@@ -1,21 +1,20 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.store.Store
-import com.gu.core.Errors._
+import com.gu.adapters.store.AvatarStore
+import com.gu.core.Errors.{unableToReadUserCookie, _}
 import com.gu.core._
-import com.gu.identity.cookie.{ProductionKeys, IdentityCookieDecoder}
+import com.gu.identity.cookie.{IdentityCookieDecoder, ProductionKeys}
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-import com.gu.core.Errors.unableToReadUserCookie
-import scalaz.std.option.optionSyntax._
 
+import scalaz.std.option.optionSyntax._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
-class AvatarServlet(store: Store)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore)(implicit val swagger: Swagger)
   extends ScalatraServlet
   with JacksonJsonSupport
   with SwaggerSupport
@@ -141,6 +140,7 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
       case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
     }
   }
 }

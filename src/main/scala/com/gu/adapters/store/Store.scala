@@ -12,24 +12,26 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.core.Errors.{avatarNotFound, avatarRetrievalFailed}
+import com.gu.adapters.utils.IO.io
+import com.gu.adapters.utils.ISODateFormatter
+import com.gu.core.Errors._
 import com.gu.core._
 import com.typesafe.config.ConfigFactory
-import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
-import scalaz.{-\/, NonEmptyList, \/, \/-}
+import scalaz.{NonEmptyList, \/}
 
-object ISODateFormatter {
-  val dateFormat = ISODateTimeFormat.dateTimeNoMillis
-  def parse(s: String): DateTime = dateFormat.parseDateTime(s)
-  def print(dt: DateTime): String = dateFormat.print(dt)
+trait KVStore {
+  def get(table: String, id: String): Error \/ Avatar
+  def query(table: String, index: String, userId: Int): Error \/ List[Avatar]
+  def query(table: String, index: String, status: Status): Error \/ List[Avatar]
+  def put(table: String, avatar: Avatar): Error \/ Avatar
+  def update(table: String, id: String, status: Status): Error \/ Avatar
 }
 
-case class Dynamo(db: DynamoDB) {
+case class Dynamo(db: DynamoDB) extends KVStore {
 
   val conf = ConfigFactory.load()
   val apiBaseUrl = conf.getString("api.baseUrl")
@@ -50,25 +52,39 @@ case class Dynamo(db: DynamoDB) {
     )
   }
 
-  def get(table: String, id: String): Avatar = {
-    val item = db.getTable(table).getItem("AvatarId", id)
-    asAvatar(item, apiBaseUrl, privateBucket)
+  def get(table: String, id: String): Error \/ Avatar = {
+    val item = io(db.getTable(table).getItem("AvatarId", id))
+    item.map(i => asAvatar(i, apiBaseUrl, privateBucket))
   }
 
-  def query(table: String, index: String, key: String, value: String): List[Avatar] = {
+  def query(
+    table: String,
+    index: String,
+    key: String,
+    value: String): Error \/ List[Avatar] = {
+
     val spec = new QuerySpec()
       .withHashKey(key, value)
       .withMaxPageSize(10)
       .withMaxResultSize(100)
-    val items = db.getTable(table).getIndex(index).query(spec)
 
-    for {
-      page <- items.pages.asScala.toList
-      item <- page.asScala
-    } yield asAvatar(item, apiBaseUrl, privateBucket)
+    val result = io(db.getTable(table).getIndex(index).query(spec))
+
+    for (items <- result.map(_.pages.asScala.toList)) yield {
+      val x = items.map(_.asScala).flatten
+      x.map(i => asAvatar(i, apiBaseUrl, privateBucket))
+    }
   }
 
-  def put(table: String, avatar: Avatar): PutItemOutcome = {
+  def query(table: String, index: String, userId: Int): Error \/ List[Avatar] = {
+    query(table, index, "UserId", userId.toString)
+  }
+
+  def query(table: String, index: String, status: Status): Error \/ List[Avatar] = {
+    query(table, index, "Status", status.asString)
+  }
+
+  def put(table: String, avatar: Avatar): Error \/ Avatar = {
     val item = new Item()
       .withPrimaryKey("AvatarId", avatar.id)
       .withNumber("UserId", avatar.userId)
@@ -79,16 +95,16 @@ case class Dynamo(db: DynamoDB) {
       .withBoolean("IsSocial", avatar.isSocial)
       .withBoolean("IsActive", avatar.isActive)
 
-    db.getTable(table).putItem(item)
+    io(db.getTable(table).putItem(item)) map (_ => avatar)
   }
 
-  def update(table: String, id: String, status: Status): Avatar = {
+  def update(table: String, id: String, status: Status): Error \/ Avatar = {
     val spec = new UpdateItemSpec()
       .withPrimaryKey("AvatarId", id)
       .withAttributeUpdate(new AttributeUpdate("Status").put(status.asString))
       .withReturnValues(ReturnValue.ALL_NEW)
-    val result = db.getTable(table).updateItem(spec)
-    asAvatar(result.getItem, apiBaseUrl, privateBucket)
+    val item = io(db.getTable(table).updateItem(spec)).map(_.getItem)
+    item.map(i => asAvatar(i, apiBaseUrl, privateBucket))
   }
 }
 
@@ -100,9 +116,25 @@ object Dynamo {
   }
 }
 
-case class S3(client: AmazonS3Client) {
+trait FileStore {
+  def copy(
+    fromBucket: String,
+    fromKey: String,
+    toBucket: String,
+    toKey: String): Error \/ Unit
 
-  def getMetadata(bucket: String, key: String): \/[Error, ObjectMetadata] = {
+  def put(
+    bucket: String,
+    key: String,
+    file: InputStream,
+    metadata: ObjectMetadata): Error \/ Unit
+
+  def delete(bucket: String, key: String): Error \/ Unit
+}
+
+case class S3(client: AmazonS3Client) extends FileStore {
+
+  def getMetadata(bucket: String, key: String): Error \/ ObjectMetadata = {
     val request = new GetObjectMetadataRequest(bucket, key)
     client.getObjectMetadata(request).right
   }
@@ -111,25 +143,25 @@ case class S3(client: AmazonS3Client) {
     fromBucket: String,
     fromKey: String,
     toBucket: String,
-    toKey: String): \/[Error, CopyObjectResult] = {
+    toKey: String): Error \/ Unit = {
 
     val request = new CopyObjectRequest(fromBucket, "fromKey", toBucket, "toKey")
-    client.copyObject(request).right
+    io(client.copyObject(request))
   }
 
   def put(
     bucket: String,
     key: String,
     file: InputStream,
-    metadata: ObjectMetadata): \/[Error, PutObjectResult] = {
+    metadata: ObjectMetadata): Error \/ Unit = {
 
     val request = new PutObjectRequest(bucket, key, file, metadata)
-    client.putObject(request).right
+    io(client.putObject(request))
   }
 
-  def delete(bucket: String, key: String): \/[Error, Unit] = {
+  def delete(bucket: String, key: String): Error \/ Unit = {
     val request = new DeleteObjectRequest(bucket, key)
-    client.deleteObject(request).right
+    io(client.deleteObject(request))
   }
 }
 
@@ -142,81 +174,7 @@ object S3 {
   }
 }
 
-
-sealed trait Store {
-  def get(filters: Filters): \/[Error, List[Avatar]]
-  def get(id: String): \/[Error, Avatar]
-  def get(user: User): \/[Error, List[Avatar]]
-  def getActive(user: User): \/[Error, Avatar]
-
-  def fetchImage(user: User, url: String): \/[Error, Avatar]
-  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): \/[Error, Avatar]
-  def updateStatus(id: String, status: Status): \/[Error, Avatar]
-}
-
-object AvatarTestStore extends Store {
-  val avatars = List(
-    Avatar(
-      "123",
-      "http://api",
-      "http://avatar-url-1",
-      123,
-      "foo.gif",
-      Approved,
-      new DateTime(),
-      new DateTime(),
-      isSocial = true,
-      isActive = true),
-    Avatar(
-      "abc",
-      "http://api",
-      "http://avatar-url-2",
-      234,
-      "bar.gif",
-      Approved,
-      new DateTime(),
-      new DateTime(),
-      isSocial = false,
-      isActive = false)
-  )
-
-  def find(p: Avatar => Boolean): \/[Error, Avatar] = avatars.find(p) match {
-    case Some(avatar) => avatar.right
-    case None => -\/(avatarNotFound(NonEmptyList("Avatar not found in test store!")))
-  }
-
-  def filter(p: Avatar => Boolean): \/[Error, List[Avatar]] = avatars.filter(p) match {
-    case Nil => -\/(avatarNotFound(NonEmptyList("No matching avatars in test store!")))
-    case avatars => avatars.right
-  }
-
-  def get(filters: Filters): \/[Error, List[Avatar]] = {
-    avatars.filter(_.status == filters.status).right
-  }
-
-  def get(id: String): \/[Error, Avatar] = find(_.id == id)
-
-  def get(user: User): \/[Error, List[Avatar]] = {
-    filter(_.userId == user.id)
-  }
-
-  def getActive(user: User): \/[Error, Avatar] = {
-    find(avatar => avatar.userId == user.id && avatar.isActive)
-  }
-
-  def fetchImage(user: User, url: String): \/[Error, Avatar] = ???
-
-  def userUpload(
-    user: User, file: InputStream,
-    originalFilename: String,
-    isSocial: Boolean = false): \/[Error, Avatar] = ???
-
-  def updateStatus(id: String, status: Status): \/[Error, Avatar] = ???
-
-  def getStats: \/[Error, String] = ???
-}
-
-case class AvatarAwsStore(s3: S3, dynamoDB: Dynamo) extends Store {
+case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
   val conf = ConfigFactory.load()
   val apiBaseUrl = conf.getString("api.baseUrl")
@@ -227,74 +185,43 @@ case class AvatarAwsStore(s3: S3, dynamoDB: Dynamo) extends Store {
   val userIndex = "UserId-AvatarId-index"
   
   def get(filters: Filters): \/[Error, List[Avatar]] = {
-    val result = Try {
-      dynamoDB.query(
-        dynamoTable,
-        statusIndex,
-        "Status",
-        filters.status.asString)
-    }
-
-    result match {
-      case Success(avatars) => \/-(avatars sortWith(_.lastModified isAfter _.lastModified))
-      case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
-    }
+    kvs.query(dynamoTable, statusIndex, filters.status)
   }
 
-  def get(id: String): \/[Error, Avatar] = {
-    val response = Try(dynamoDB.get(dynamoTable, id))
-    response match {
-      case Success(avatar) => \/-(avatar)
-      case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
-    }
+  def get(id: String): Error \/ Avatar = {
+    kvs.get(dynamoTable, id)
   }
 
   def get(user: User): \/[Error, List[Avatar]] = {
-    val response = Try {
-      dynamoDB.query(
-        dynamoTable,
-        userIndex,
-        "UserId",
-        user.id.toString)
-    }
+    val response = kvs.query(
+      dynamoTable,
+      userIndex,
+      user.id)
 
-    response match {
-      case Success(avatars) => \/-(avatars sortWith (_.lastModified isAfter _.lastModified))
-      case Failure(error) => -\/(avatarRetrievalFailed(NonEmptyList(error.getMessage)))
+    response.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified })
+  }
+
+  def getActive(user: User): Error \/ Avatar = {
+    get(user) flatMap { avatars =>
+      avatars.find(_.isActive).toRightDisjunction(
+        avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
     }
   }
 
-  def getActive(user: User): \/[Error, Avatar] = {
-
-    // FIXME -- more /user/me logic goes here!!!
-
-    s"http://$publicBucket/users/${user.id}".right
-    ???
-  }
-
-  def fetchImage(user: User, url: String) = {
+  def fetchImage(user: User, url: String): Error \/ Avatar = {
     val file = new java.net.URL(url).openStream()
     userUpload(user, file, url, true)
   }
 
-  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): \/[Error, Avatar] = {
+  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
 
-    // copy to S3
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
     metadata.setCacheControl("no-cache")  // FIXME -- set this to something sensible
-
-    s3.put(
-      privateBucket,
-      s"avatars/$avatarId",
-      file,
-      metadata)
-
-    copyToPublic(s3, user, avatarId)
 
     val avatar = Avatar(
       id = avatarId,
@@ -308,49 +235,48 @@ case class AvatarAwsStore(s3: S3, dynamoDB: Dynamo) extends Store {
       isSocial = true,
       isActive = false)
 
-    dynamoDB.put(dynamoTable, avatar)
-
-    avatar.right
+    for {
+      avatar <- kvs.put(dynamoTable, avatar)
+      _ <- fs.put(privateBucket, s"avatars/$avatarId", file, metadata)
+      _ <- copyToPublic(avatar)
+    } yield avatar
   }
 
-  def copyToPublic(s3: S3, user: User, avatarId: String) = {
-    println(s"copy to public s3://$privateBucket/avatars/$avatarId -> s3://$publicBucket/user/${user.id.toString}")
-    s3.copy(
+  def copyToPublic(avatar: Avatar): Error \/ Avatar = {
+    fs.copy(
       privateBucket,
-      s"avatars/$avatarId",
+      s"avatars/${avatar.id}",
       publicBucket,
-      s"user/${user.id.toString}"
-    )
+      s"user/${avatar.userId.toString}"
+    ) map (_ => avatar)
   }
 
-  def deleteFromPublic(user: User) = {
-    s3.delete(
+  def deleteFromPublic(avatar: Avatar): Error \/ Avatar = {
+    fs.delete(
       publicBucket,
-      s"user/${user.id.toString}"
-    )
+      s"user/${avatar.userId.toString}"
+    ) map (_ => avatar)
+  }
+
+  def updateS3(old: Avatar, updated: Avatar): Error \/ Avatar = updated.status match {
+    case Approved => copyToPublic(updated)
+    case Rejected if old.isActive => deleteFromPublic(updated)
+    case _ => updated.right
   }
 
   def updateStatus(id: String, status: Status): \/[Error, Avatar] = {
-    val oldAvatar = dynamoDB.get(dynamoTable, id)
-    val oldStatus = Status(oldAvatar.status.asString)
-    val user = User(oldAvatar.userId)
+    val oldAvatar = kvs.get(dynamoTable, id)
 
-    if (status == oldStatus) {
-      oldAvatar.right
-    } else {
-      val updatedAvatar = dynamoDB.update(dynamoTable, id, status)
-
-      status match {
-        case Approved => copyToPublic(s3, user, id)
-        case Rejected if oldAvatar.isActive => deleteFromPublic(user)
-        case _ =>
-      }
-
-      updatedAvatar.right
-    }
+    if (oldAvatar.exists(_.status == status)) {
+      oldAvatar
+    } else for {
+      old <- oldAvatar
+      updated <- kvs.update(dynamoTable, id, status)
+      _ <- updateS3(old, updated)
+    } yield updated
   }
 }
 
-object AvatarAwsStore {
-  def apply(): AvatarAwsStore = AvatarAwsStore(S3(), Dynamo())
+object AvatarStore {
+  def apply(): AvatarStore = AvatarStore(S3(), Dynamo())
 }
