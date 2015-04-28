@@ -1,9 +1,9 @@
-import sbt._
-import Keys._
-import org.scalatra.sbt._
-import org.scalatra.sbt.PluginKeys._
 import com.mojolly.scalate.ScalatePlugin._
-import ScalateKeys._
+import org.scalatra.sbt._
+import sbt.Keys._
+import sbt._
+import sbtassembly.AssemblyKeys._
+import sbtassembly._
 
 object AvatarBuild extends Build {
   val Organization = "com.gu"
@@ -49,7 +49,14 @@ object AvatarBuild extends Build {
         "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
         "com.typesafe" % "config" % typesafeConfigVersion,
         "com.amazonaws" % "aws-java-sdk" % amazonawsVersion
-      )
+      ),
+      assemblyMergeStrategy in assembly := {
+        case "version.txt" => MergeStrategy.discard
+        case "mime.types" => MergeStrategy.discard
+        case x =>
+          val oldStrategy = (assemblyMergeStrategy in assembly).value
+          oldStrategy(x)
+      }
     )
   )
 }
