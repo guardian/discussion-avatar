@@ -1,20 +1,20 @@
 package com.gu.adapters.http
 
+import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.store.AvatarStore
-import com.gu.core.Errors.{unableToReadUserCookie, _}
+import com.gu.core.Errors._
 import com.gu.core._
-import com.gu.identity.cookie.{IdentityCookieDecoder, ProductionKeys}
+import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
-import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
+import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.std.option.optionSyntax._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
-class AvatarServlet(store: AvatarStore)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
   extends ScalatraServlet
   with JacksonJsonSupport
   with SwaggerSupport
@@ -33,11 +33,17 @@ class AvatarServlet(store: AvatarStore)(implicit val swagger: Swagger)
   }
 
   error {
-    case e: SizeConstraintExceededException => RequestEntityTooLarge(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size", Nil))
+    case e: SizeConstraintExceededException =>
+      RequestEntityTooLarge(
+        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size", Nil))
+  }
+
+  notFound {
+    NotFound(ErrorResponse("Requested resource not found", Nil))
   }
 
   get("/service/healthcheck") {
-    Ok(Message("OK"))
+    Message("OK")
   }
 
   get("/service/gtg") {
@@ -76,29 +82,10 @@ class AvatarServlet(store: AvatarStore)(implicit val swagger: Swagger)
 
   post("/avatars", operation(postAvatar)) {
     withErrorHandling {
-      val cd = new IdentityCookieDecoder(new ProductionKeys)
-      val user = for {
-        cookie <- request.cookies.get("GU_U") \/> "No GU_U cookie in request"
-        user <- cd.getUserDataForGuU(cookie).map(_.user) \/> "Unable to extract user data from cookie"
-      } yield User(user.id.toInt)
-
-      val userWithError = user.leftMap(error => unableToReadUserCookie(NonEmptyList(error)))
-
-      userWithError flatMap { user =>
-        val url = (parse(request.body) \ "url").values.toString
-        val image = fileParams("image")
-
-        request.contentType match {
-          case Some("application/json") | Some("text/json") =>
-            store.fetchImage(user, url)
-          case Some(s) if s startsWith "multipart/form-data" =>
-            store.userUpload(user, image.getInputStream, image.getName)
-          case Some(invalid) =>
-            -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
-          case None =>
-            -\/(invalidContentType(NonEmptyList("No content type specified.")))
-        }
-      }
+      for {
+        user <- userFromCookie(decoder, request.cookies.get("GU_U"))
+        avatar <- uploadAvatar(request, user, fileParams)
+      } yield Created(avatar)
     }
   }
 
@@ -141,6 +128,21 @@ class AvatarServlet(store: AvatarStore)(implicit val swagger: Swagger)
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+    }
+  }
+
+  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ Avatar = {
+    request.contentType match {
+      case Some("application/json") | Some("text/json") =>
+        val url = (parse(request.body) \ "url").values.toString // HANDLE ERRORS HERE
+        store.fetchImage(user, url)
+      case Some(s) if s startsWith "multipart/form-data" =>
+        val image = fileParams("image")
+        store.userUpload(user, image.getInputStream, image.getName)
+      case Some(invalid) =>
+        -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
+      case None =>
+        -\/(invalidContentType(NonEmptyList("No content type specified.")))
     }
   }
 }

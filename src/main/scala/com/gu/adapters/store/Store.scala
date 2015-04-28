@@ -33,9 +33,8 @@ trait KVStore {
 
 case class Dynamo(db: DynamoDB) extends KVStore {
 
-  val conf = ConfigFactory.load()
-  val apiBaseUrl = conf.getString("api.baseUrl")
-  val privateBucket = conf.getString("aws.s3.private")
+  val apiUrl = Config.apiUrl
+  val privateBucket = Config.s3PrivateBucket
 
   def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
     Avatar(
@@ -54,7 +53,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
 
   def get(table: String, id: String): Error \/ Avatar = {
     val item = io(db.getTable(table).getItem("AvatarId", id))
-    item.map(i => asAvatar(i, apiBaseUrl, privateBucket))
+    item.map(i => asAvatar(i, apiUrl, privateBucket))
   }
 
   def query(
@@ -72,7 +71,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
 
     for (items <- result.map(_.pages.asScala.toList)) yield {
       val x = items.map(_.asScala).flatten
-      x.map(i => asAvatar(i, apiBaseUrl, privateBucket))
+      x.map(i => asAvatar(i, apiUrl, privateBucket))
     }
   }
 
@@ -104,7 +103,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .withAttributeUpdate(new AttributeUpdate("Status").put(status.asString))
       .withReturnValues(ReturnValue.ALL_NEW)
     val item = io(db.getTable(table).updateItem(spec)).map(_.getItem)
-    item.map(i => asAvatar(i, apiBaseUrl, privateBucket))
+    item.map(i => asAvatar(i, apiUrl, privateBucket))
   }
 }
 

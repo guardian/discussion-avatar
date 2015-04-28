@@ -6,7 +6,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.store.TestStoreHelpers.path
 import com.gu.adapters.store.{FileStore, KVStore}
 import com.gu.core.Errors.avatarNotFound
-import com.gu.core.{Approved, Avatar, Error, Status}
+import com.gu.core._
 import org.joda.time.DateTime
 
 import scalaz.Scalaz._
@@ -17,7 +17,9 @@ object TestStoreHelpers {
 }
 
 class TestFileStore extends FileStore {
-  private[this] var files: Map[String, String] = Map.empty
+  private[this] var files: Map[String, String] = Map(
+    (Config.s3PrivateBucket + "/avatars/345") -> "some-file"
+  )
 
   def copy(
     fromBucket: String,
@@ -63,12 +65,23 @@ class TestKVStore extends KVStore {
       isSocial = true,
       isActive = true),
     "Avatars-DEV/234" -> Avatar(
-      "abc",
+      "234",
       "http://api",
       "http://avatar-url-2",
       234,
       "bar.gif",
       Approved,
+      new DateTime(),
+      new DateTime(),
+      isSocial = false,
+      isActive = false),
+    "Avatars-DEV/345" -> Avatar(
+      "345",
+      "http://api",
+      "http://avatar-url-2",
+      345,
+      "gra.gif",
+      Pending,
       new DateTime(),
       new DateTime(),
       isSocial = false,

@@ -6,13 +6,13 @@ sealed trait Error {
   val message: String
   val errors: NonEmptyList[String]
 }
-sealed case class InvalidContentType(message: String, errors: NonEmptyList[String]) extends Error
-sealed case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
-sealed case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
-sealed case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) extends Error
-sealed case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
-sealed case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
-sealed case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
+case class InvalidContentType(message: String, errors: NonEmptyList[String]) extends Error
+case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
+case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
+case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) extends Error
+case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
+case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
+case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =
@@ -36,5 +36,5 @@ object Errors {
     DynamoRequestFailed("DynamoDB request failed", errors)
   
   def unableToReadUserCookie(errors: NonEmptyList[String]): UnableToReadUserCookie =
-    UnableToReadUserCookie("User cookie not provided in post request", errors)
+    UnableToReadUserCookie("Unable to read user cookie", errors)
 }
