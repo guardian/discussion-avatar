@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.entities.Avatar
+import com.gu.core.Avatar
 
 sealed trait ApiResponse
 case class Message(message: String) extends ApiResponse

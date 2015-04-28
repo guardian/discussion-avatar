@@ -1,26 +1,30 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.store.Store
-import com.gu.entities.Errors.uploadError
-import com.gu.entities._
+import com.gu.adapters.http.CookieDecoder.userFromCookie
+import com.gu.adapters.store.AvatarStore
+import com.gu.core.Errors._
+import com.gu.core._
+import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
-import org.scalatra.servlet.{FileUploadSupport, MultipartConfig, SizeConstraintExceededException}
+import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.{NonEmptyList, -\/, \/, \/-}
+import scalaz.{-\/, NonEmptyList, \/, \/-}
 
-class AvatarServlet(store: Store)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
   extends ScalatraServlet
   with JacksonJsonSupport
   with SwaggerSupport
+  with SwaggerOps
   with FileUploadSupport {
 
-  protected implicit val jsonFormats: Formats = DefaultFormats + new StatusSerializer ++ JodaTimeSerializers.all
-
-  protected val applicationDescription = "The Avatar API. Exposes operations for viewing, adding, and moderating Avatars"
+  protected implicit val jsonFormats: Formats =
+    DefaultFormats +
+      new StatusSerializer ++
+      JodaTimeSerializers.all
 
   configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024*1024)))
 
@@ -29,142 +33,116 @@ class AvatarServlet(store: Store)(implicit val swagger: Swagger)
   }
 
   error {
-    case e: SizeConstraintExceededException => RequestEntityTooLarge(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size", Nil))
+    case e: SizeConstraintExceededException =>
+      RequestEntityTooLarge(
+        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size", Nil))
   }
 
-  def healthcheck(): ActionResult = Ok(Message("OK"))
-
-  def gtg(): ActionResult = NotImplemented(Message("Endpoint needs to be specified"))
-
-  def dependencies(): ActionResult = NotImplemented(Message("Endpoint needs to be specified"))
-
-  val getAvatarsInfo =
-    (apiOperation[List[Avatar]]("getAvatars")
-      summary "List all avatars"
-      parameter (queryParam[Option[String]]("status")
-      .description("The request includes a status to filter by")))
-
-  def getAvatars(params: Params): ActionResult = {
-    val filters = Filters.fromParams(params)
-    val avatars = filters flatMap store.get
-    getOrError(avatars)
+  notFound {
+    NotFound(ErrorResponse("Requested resource not found", Nil))
   }
 
-  val getAvatarInfo =
-    (apiOperation[Avatar]("getAvatar")
-      summary "Retrieve avatar by ID")
-
-  def getAvatar(id: String): ActionResult = {
-    val avatar = store.get(id)
-    getOrError(avatar)
+  get("/service/healthcheck") {
+    Message("OK")
   }
 
-  val getAvatarsForUserInfo =
-    (apiOperation[List[Avatar]]("getAvatarsForUser")
-      summary "Get avatars for user")
-
-  def getAvatarsForUser(userId: String): ActionResult = {
-    val user = User(params("userId").toInt)
-    val avatar = store.get(user)
-    getOrError(avatar)
+  get("/service/gtg") {
+    NotImplemented(Message("Endpoint needs to be specified"))
+  }
+  
+  get("/service/dependencies") {
+    NotImplemented(Message("Endpoint needs to be specified"))
   }
 
-  val getActiveAvatarForUserInfo =
-    (apiOperation[List[Avatar]]("getActiveAvatarForUser")
-      summary "Get active avatar for user")
-
-  def getActiveAvatarForUser(): ActionResult = {
-    val user = User("123456".toInt) // FIXME -- get user id from cookie
-    val avatarUrl = store.getActive(user)
-    redirectOrError(avatarUrl)
-  }
-
-  val postAvatarInfo =
-    (apiOperation[Avatar]("postAvatar")
-      summary "Add a new avatar"
-      consumes "multipart/form-data")
-
-  def postAvatar(): ActionResult = {
-
-    //    val cd = new IdentityCookieDecoder(new ProductionKeys)
-
-    //    for {
-    //      cookie <- request.cookies.get("GU_U")
-    //      user <- cd.getUserDataForGuU(cookie).map(_.user)
-    //      username <- user.publicFields.displayName
-    //    }
-
-    val user = User("123456".toInt)
-
-    val avatar = request.contentType match {
-          case Some("application/json") | Some("text/json") => store.fetchImage(user, (parse(request.body) \ "url").values.toString)
-          case Some(s) if s startsWith "multipart/form-data" => store.userUpload(user, fileParams("image"))
-          case Some(invalid) => -\/(uploadError(NonEmptyList(s"'$invalid' is not a valid content type. Must be 'multipart/form-data' or 'application/json'.")))
-    }
-    getOrError(avatar)
-  }
-
-  val putAvatarStatusInfo =
-    (apiOperation[Avatar]("putAvatarStatus")
-      summary "Update avatar status"
-      parameters (
-      pathParam[String]("id")
-        .description("The request includes the Avatar ID"),
-      bodyParam[StatusRequest]("")
-        .description("The request includes the Avatar's new status")))
-
-  def putAvatarStatus(id: String): ActionResult = {
-    val status = Status((parse(request.body) \ "status").values.toString)
-    val avatar = store.updateStatus(id, status)
-    getOrError(avatar)
-  }
-
-  val getAvatarStatsInfo =
-    (apiOperation[List[Avatar]]("getAvatarStats")
-      summary "Get avatars statistics")
-
-  def getAvatarStats: ActionResult = {
-    val stats = store.getStats
-    getOrError(stats)
-  }
-
-  def getOrError[A](r: \/[Error, A]): ActionResult = r match {
-    case \/-(success) => Ok(success)
-    case -\/(error) => error match {
-      case UploadError(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
-      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case DynamoDBError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+  get("/avatars", operation(getAvatars)) {
+    withErrorHandling {
+      Filters.fromParams(params) flatMap store.get
     }
   }
 
-  def redirectOrError[A](r: \/[Error, A]): ActionResult = r match {
-    case \/-(success) => TemporaryRedirect(success.toString)
-    case -\/(error) => error match {
-      case UploadError(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
-      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case RetrievalError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case DynamoDBError(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+  get("/avatars/:id", operation(getAvatar)) {
+    withErrorHandling {
+      store.get(params("id"))
     }
   }
 
-  get("/management/healthcheck")(healthcheck())
-  get("/management/gtg")(gtg())
-  get("/management/dependencies")(dependencies())
+  get("/avatars/user/:userId", operation(getAvatarsForUser)) {
+    withErrorHandling {
+      val user = User(params("userId").toInt)
+      store.get(user)
+    }
+  }
 
-  get("/avatars", operation(getAvatarsInfo))(getAvatars(params))
-  get("/avatars/:id", operation(getAvatarInfo))(getAvatar(params("id")))
-  get("/avatars/user/:userId",
-    operation(getAvatarsForUserInfo))(getAvatarsForUser(params("userId")))
-  get("/avatars/user/me/active", operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser())
+  get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
+    withErrorHandling {
+      val user = User(params("userId").toInt)
+      store.getActive(user)
+    }
+  }
 
-  post("/avatars", operation(postAvatarInfo))(postAvatar())
-  put("/avatars/:id/status", operation(putAvatarStatusInfo))(putAvatarStatus(params("id")))
-  get("/avatars/stats", operation(getAvatarStatsInfo))(getAvatarStats)
+  post("/avatars", operation(postAvatar)) {
+    withErrorHandling {
+      for {
+        user <- userFromCookie(decoder, request.cookies.get("GU_U"))
+        avatar <- uploadAvatar(request, user, fileParams)
+      } yield Created(avatar)
+    }
+  }
+
+  put("/avatars/:id/status", operation(putAvatarStatus)) {
+    withErrorHandling {
+      val status = parsedBody.extract[StatusRequest].status // TODO handle errors gracefully
+      store.updateStatus(params("id"), status)
+    }
+  }
+
+  //get("/avatars/user/me/active", operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser())
+  //get("/avatars/stats", operation(getAvatarStatsInfo))(getAvatarStats)
 
   // for cdn endpoint (avatars.theguardian.com)
   //   /user/:id -> retrieve active avatar for a user
   //   /user/me  -> retrieve active avatar for me (via included cookie)
+
+  def withErrorHandling(response: => \/[Error, Any]): ActionResult = {
+    (handleSuccess orElse handleError)(response)
+  }
+
+  def redirectOrError(response: \/[Error, Any]): ActionResult = {
+    (handleRedirect orElse handleError)(response)
+  }
+
+  def handleSuccess: PartialFunction[\/[Error, Any], ActionResult] = {
+    case \/-(success) => Ok(success)
+  }
+
+  def handleRedirect: PartialFunction[\/[Error, Any], ActionResult] = {
+    case \/-(success) => TemporaryRedirect(success.toString)
+  }
+
+  def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
+    case -\/(error) => error match {
+      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
+      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
+      case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+    }
+  }
+
+  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ Avatar = {
+    request.contentType match {
+      case Some("application/json") | Some("text/json") =>
+        val url = (parse(request.body) \ "url").values.toString // HANDLE ERRORS HERE
+        store.fetchImage(user, url)
+      case Some(s) if s startsWith "multipart/form-data" =>
+        val image = fileParams("image")
+        store.userUpload(user, image.getInputStream, image.getName)
+      case Some(invalid) =>
+        -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
+      case None =>
+        -\/(invalidContentType(NonEmptyList("No content type specified.")))
+    }
+  }
 }

@@ -1,4 +1,4 @@
-package com.gu.entities
+package com.gu.core
 
 sealed trait Status { def asString: String }
 case object All extends Status { val asString = "all" }
