@@ -2,10 +2,10 @@ package com.gu.utils
 
 import java.io.File
 
-import com.gu.adapters.http.{ErrorResponse, StatusSerializer}
-import com.gu.core.Avatar
+import com.gu.adapters.http.{StatusRequest, ErrorResponse, StatusSerializer}
+import com.gu.core.{Status, Approved, Avatar}
 import org.json4s.ext.JodaTimeSerializers
-import org.json4s.native.Serialization.read
+import org.json4s.native.Serialization._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.scalatest.ScalatraSuite
@@ -69,6 +69,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     post("/avatars", Nil, List("image" -> file), Map("Cookie" -> ("GU_U=" + guuCookie))) {
       status should equal(201)
       val avatar = read[Avatar](body)
+      p(avatar) should be (true)
+      getAvatar(s"/avatars/${avatar.id}", p)
+    }
+  }
+
+  def put(uri: String, toStatus: Status, p: Avatar => Boolean): Unit = {
+    val sr = StatusRequest(toStatus)
+
+    put(uri, write(sr)) {
+      status should equal(200)
+      val avatar = read[Avatar](body)
+      p(avatar) should be (true)
       getAvatar(s"/avatars/${avatar.id}", p)
     }
   }

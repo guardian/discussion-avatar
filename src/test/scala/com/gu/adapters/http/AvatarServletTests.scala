@@ -73,13 +73,7 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Put avatar status") {
-    val requestBody = StatusRequest(Approved)
-    put("/avatars/345/status", write(requestBody)) {
-      status should equal(200)
-      val avatar = read[Avatar](body)
-      avatar.status should be(Approved)
-      getAvatar(s"/avatars/${avatar.id}", _.status == Approved)
-    }
+    put("/avatars/345/status", Approved, _.status == Approved)
   }
 
   test("Endpoint not found") {
