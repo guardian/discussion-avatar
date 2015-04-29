@@ -47,6 +47,10 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
   def getAvatar(uri: String): Unit = getAvatar(uri, _ => true)
 
+  def getAvatar(uri: String, guuCookie: String, p: Avatar => Boolean): Unit = {
+    getAvatar(uri, p, Nil, Map("Cookie" -> ("GU_U=" + guuCookie)))
+  }
+
   def getError(uri: String, code: Int, p: ErrorResponse => Boolean): Unit = {
     get(uri) {
       status should equal(code)

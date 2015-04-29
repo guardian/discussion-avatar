@@ -12,8 +12,9 @@ object CookieDecoder {
 
   def userFromCookie(decoder: IdentityCookieDecoder, cookie: Option[String]): Error \/ User = {
     val user = for {
-      cook <- cookie \/> "No GU_U cookie in request"
-      user <- Try(decoder.getUserDataForGuU(cook)).toOption.flatten.map(_.user) \/> "Unable to extract user data from cookie"
+      cook <- cookie.toRightDisjunction("No GU_U cookie in request")
+      user <- Try(decoder.getUserDataForGuU(cook)).toOption.flatten.map(_.user)
+        .toRightDisjunction("Unable to extract user data from cookie")
     } yield User(user.id.toInt)
 
     user.leftMap(error => unableToReadUserCookie(NonEmptyList(error)))

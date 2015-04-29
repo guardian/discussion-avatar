@@ -201,12 +201,21 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }
 
   def getActive(user: User): Error \/ Avatar = {
-    get(user) flatMap { avatars =>
-      avatars.find(_.isActive).toRightDisjunction(
-        avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
-    }
+    for {
+      avatars <- get(user)
+      avatar <- avatars.find(_.isActive)
+        .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
+    } yield avatar
   }
 
+  def getPersonal(user: User): Error \/ Avatar = {
+    for {
+      avatars <- get(user)
+      avatar <- avatars.find(a => a.isActive || a.status == Inactive)
+        .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
+    } yield avatar
+  }
+  
   def fetchImage(user: User, url: String): Error \/ Avatar = {
     val file = new java.net.URL(url).openStream()
     userUpload(user, file, url, true)

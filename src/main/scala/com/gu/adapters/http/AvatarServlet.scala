@@ -80,6 +80,15 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  get("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
+    withErrorHandling {
+      for {
+        user <- userFromCookie(decoder, request.cookies.get("GU_U"))
+        avatar <- store.getPersonal(user)
+      } yield avatar
+    }
+  }
+
   post("/avatars", operation(postAvatar)) {
     withErrorHandling {
       for {

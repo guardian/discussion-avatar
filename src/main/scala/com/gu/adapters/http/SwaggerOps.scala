@@ -26,12 +26,13 @@ trait SwaggerOps {
       .description("The request includes the userId"))
 
   def getActiveAvatarForUser =
-    (apiOperation[List[Avatar]]("getActiveAvatarForUser")
-      summary "Get active avatar for user")
-
-  def getActiveAvatarForUserFromCookie =
     apiOperation[List[Avatar]]("getActiveAvatarForUser")
       .summary("Get active avatar for user")
+      .parameter(pathParam[Int]("userId"))
+
+  def getPersonalAvatarForUser =
+    apiOperation[List[Avatar]]("getPersonalAvatarForUser")
+      .summary("Get personal avatar for user. This is a non-public endpoint, user cookie must be provided.")
 
   def postAvatar =
     apiOperation[Avatar]("postAvatar")

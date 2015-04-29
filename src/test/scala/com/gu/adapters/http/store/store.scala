@@ -85,6 +85,17 @@ class TestKVStore extends KVStore {
       new DateTime(),
       new DateTime(),
       isSocial = false,
+      isActive = false),
+    "Avatars-DEV/456" -> Avatar(
+      "456",
+      "http://api",
+      "http://avatar-url-2",
+      21801602,
+      "gra.gif",
+      Inactive,
+      new DateTime(),
+      new DateTime(),
+      isSocial = true,
       isActive = false)
   )
 

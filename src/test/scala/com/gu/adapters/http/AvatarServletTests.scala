@@ -52,6 +52,14 @@ class AvatarServletTests extends TestHelpers {
     getAvatar(s"/avatars/user/123/active", a => a.id == "123" && a.isActive)
   }
 
+  test("Get personal avatar by user ID") {
+    val (userId, cookie) = Config.preProdCookie
+    getAvatar(
+      s"/avatars/user/me/active",
+      cookie,
+      a => a.userId == userId && a.status == Inactive)
+  }
+
   test("Post avatar") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = Config.preProdCookie
