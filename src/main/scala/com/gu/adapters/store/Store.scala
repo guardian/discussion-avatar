@@ -17,6 +17,7 @@ import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core._
 import com.typesafe.config.ConfigFactory
+import com.gu.core.Config
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
@@ -175,13 +176,12 @@ object S3 {
 
 case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
-  val conf = ConfigFactory.load()
-  val apiBaseUrl = conf.getString("api.baseUrl")
-  val publicBucket = conf.getString("aws.s3.public")
-  val privateBucket = conf.getString("aws.s3.private")
-  val dynamoTable = conf.getString("aws.dynamodb.table")
-  val statusIndex = "Status-AvatarId-index"
-  val userIndex = "UserId-AvatarId-index"
+  val apiBaseUrl = Config.apiUrl
+  val publicBucket = Config.s3PublicBucket
+  val privateBucket = Config.s3PrivateBucket
+  val dynamoTable = Config.dynamoTable
+  val statusIndex = Config.statusIndex
+  val userIndex = Config.userIndex
   
   def get(filters: Filters): \/[Error, List[Avatar]] = {
     kvs.query(dynamoTable, statusIndex, filters.status)
