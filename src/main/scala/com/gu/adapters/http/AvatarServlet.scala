@@ -56,7 +56,10 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
 
   get("/avatars", operation(getAvatars)) {
     withErrorHandling {
-      Filters.fromParams(params) flatMap store.get
+      for {
+        filters <- Filters.fromParams(params)
+        avatars <- store.get(filters)
+      } yield avatars
     }
   }
 
@@ -105,9 +108,6 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
-  //get("/avatars/user/me/active", operation(getActiveAvatarForUserInfo))(getActiveAvatarForUser())
-  //get("/avatars/stats", operation(getAvatarStatsInfo))(getAvatarStats)
-
   // for cdn endpoint (avatars.theguardian.com)
   //   /user/:id -> retrieve active avatar for a user
   //   /user/me  -> retrieve active avatar for me (via included cookie)
@@ -121,7 +121,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   def handleSuccess: PartialFunction[\/[Error, Any], ActionResult] = {
-    case \/-(success) => Ok(success)
+    case \/-(success) => Ok(success) // TODO should we enumerate success cases too?
   }
 
   def handleRedirect: PartialFunction[\/[Error, Any], ActionResult] = {
