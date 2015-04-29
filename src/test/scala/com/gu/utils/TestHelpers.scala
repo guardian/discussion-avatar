@@ -2,8 +2,8 @@ package com.gu.utils
 
 import java.io.File
 
-import com.gu.adapters.http.{StatusRequest, ErrorResponse, StatusSerializer}
-import com.gu.core.{Status, Approved, Avatar}
+import com.gu.adapters.http.{ErrorResponse, StatusRequest, StatusSerializer}
+import com.gu.core.{Avatar, Status}
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.native.Serialization._
 import org.json4s.{DefaultFormats, Formats}

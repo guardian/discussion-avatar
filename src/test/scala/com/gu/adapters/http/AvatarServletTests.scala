@@ -6,8 +6,6 @@ import com.gu.adapters.http.store.{TestFileStore, TestKVStore}
 import com.gu.adapters.store.AvatarStore
 import com.gu.core._
 import com.gu.utils.TestHelpers
-import org.json4s.native.Serialization._
-import org.json4s.native.Serialization.write
 
 class AvatarServletTests extends TestHelpers {
 
