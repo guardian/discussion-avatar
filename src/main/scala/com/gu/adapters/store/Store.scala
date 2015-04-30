@@ -40,19 +40,20 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       id = item.getString("AvatarId"),
       url = s"$baseUrl/avatars/$id",
       avatarUrl = s"http://$avatarUrl/avatars/$id",
-      userId = item.getString("userId").toInt,
+      userId = item.getString("UserId").toInt,
       originalFilename = item.getString("OriginalFilename"),
       status = Status(item.getString("Status")),
       createdAt = ISODateFormatter.parse(item.getString("CreatedAt")),
       lastModified = ISODateFormatter.parse(item.getString("LastModified")),
-      isSocial = item.getString("isSocial").toBoolean,
-      isActive = item.getString("isActive").toBoolean
+      isSocial = item.getString("IsSocial").toBoolean,
+      isActive = item.getString("IsActive").toBoolean
     )
   }
 
   def get(table: String, id: String): Error \/ Avatar = {
-    val item = io(db.getTable(table).getItem("AvatarId", id))
-    item.map(i => asAvatar(i, apiUrl, privateBucket))
+    io(db.getTable(table).getItem("AvatarId", id))
+      .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
+      .map(item => asAvatar(item, apiUrl, privateBucket))
   }
 
   def query(
@@ -109,7 +110,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
 object Dynamo {
   def apply(): Dynamo = {
     val client = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
-      .withRegion(Region.getRegion(Regions.EU_WEST_1))
+    client.setRegion(Region.getRegion(Regions.EU_WEST_1))
     Dynamo(new DynamoDB(client))
   }
 }
@@ -165,9 +166,8 @@ case class S3(client: AmazonS3Client) extends FileStore {
 
 object S3 {
   def apply(): S3 = {
-    val client =
-      new AmazonS3Client(new DefaultAWSCredentialsProviderChain())
-        .withRegion(Region.getRegion(Regions.EU_WEST_1))
+    val client = new AmazonS3Client(new DefaultAWSCredentialsProviderChain())
+    client.setRegion(Region.getRegion(Regions.EU_WEST_1))
     S3(client)
   }
 }

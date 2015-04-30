@@ -31,7 +31,6 @@ class AvatarServletTests extends TestHelpers {
   test("Get avatars by status") {
     val statuses = Set(Inactive, Pending, Approved, Rejected)
     statuses.foreach(s => getAvatars(s"/avatars?status=${s.asString}", _.status == s))
-    getAvatars(s"/avatars?status=${All.asString}")
   }
 
   test("Error response if invalid status") {

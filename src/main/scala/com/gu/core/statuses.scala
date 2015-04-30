@@ -1,7 +1,6 @@
 package com.gu.core
 
 sealed trait Status { def asString: String }
-case object All extends Status { val asString = "all" }
 case object Inactive extends Status { val asString = "inactive" }
 case object Pending extends Status { val asString = "pending" }
 case object Approved extends Status { val asString = "approved" }

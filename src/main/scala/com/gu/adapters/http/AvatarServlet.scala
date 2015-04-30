@@ -169,6 +169,6 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
 
   def userFromRequest(userId: String): Error \/ User = {
     Try(User(userId.toInt)).toOption
-      .toRightDisjunction(invalidUserId(NonEmptyList("Must be an integer")))
+      .toRightDisjunction(invalidUserId(NonEmptyList(s"Expected integer, found: $userId")))
   }
 }

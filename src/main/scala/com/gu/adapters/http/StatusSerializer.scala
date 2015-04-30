@@ -10,13 +10,11 @@ class StatusSerializer extends CustomSerializer[Status](format => (
     case JString(Pending.asString) => Pending
     case JString(Approved.asString) => Approved
     case JString(Rejected.asString) => Rejected
-    case JString(All.asString) => All
   },
   {
     case Inactive => JString(Inactive.asString)
     case Pending  => JString(Pending.asString)
     case Approved => JString(Approved.asString)
     case Rejected => JString(Rejected.asString)
-    case All      => JString(All.asString)
   }
 ))
