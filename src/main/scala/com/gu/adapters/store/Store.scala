@@ -70,9 +70,9 @@ case class Dynamo(db: DynamoDB) extends KVStore {
 
     val result = io(db.getTable(table).getIndex(index).query(spec))
 
-    for (items <- result.map(_.pages.asScala.toList)) yield {
-      val x = items.map(_.asScala).flatten
-      x.map(i => asAvatar(i, apiUrl, privateBucket))
+    for (pages <- result.map(_.pages.asScala.toList)) yield {
+      val items = pages.map(_.asScala).flatten
+      items.map(item => asAvatar(item, apiUrl, privateBucket))
     }
   }
 
