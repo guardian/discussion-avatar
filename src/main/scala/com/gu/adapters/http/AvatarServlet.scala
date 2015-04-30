@@ -3,15 +3,19 @@ package com.gu.adapters.http
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.store.AvatarStore
 import com.gu.core.Errors._
+import com.gu.core.Success
 import com.gu.core._
 import com.gu.identity.cookie.IdentityCookieDecoder
+import org.json4s.JsonAST.JValue
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
+import scalaz.Scalaz._
 
+import scala.util.{Failure, Try}
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
@@ -59,27 +63,31 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         filters <- Filters.fromParams(params)
         avatars <- store.get(filters)
-      } yield avatars
+      } yield FoundAvatars(avatars)
     }
   }
 
   get("/avatars/:id", operation(getAvatar)) {
     withErrorHandling {
-      store.get(params("id"))
+      store.get(params("id")).map(FoundAvatar)
     }
   }
 
   get("/avatars/user/:userId", operation(getAvatarsForUser)) {
     withErrorHandling {
-      val user = User(params("userId").toInt)
-      store.get(user)
+      for {
+        user <- userFromRequest(params("userId"))
+        avatars <- store.get(user)
+      } yield FoundAvatars(avatars)
     }
   }
 
   get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
     withErrorHandling {
-      val user = User(params("userId").toInt)
-      store.getActive(user)
+      for {
+        user <- userFromRequest(params("userId"))
+        active <- store.getActive(user)
+      } yield FoundAvatar(active)
     }
   }
 
@@ -88,7 +96,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromCookie(decoder, request.cookies.get("GU_U"))
         avatar <- store.getPersonal(user)
-      } yield avatar
+      } yield FoundAvatar(avatar)
     }
   }
 
@@ -97,14 +105,16 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromCookie(decoder, request.cookies.get("GU_U"))
         avatar <- uploadAvatar(request, user, fileParams)
-      } yield Created(avatar)
+      } yield CreatedAvatar(avatar)
     }
   }
 
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
-      val status = parsedBody.extract[StatusRequest].status // TODO handle errors gracefully
-      store.updateStatus(params("id"), status)
+      for {
+        sr <- statusRequestFromBody(parsedBody)
+        update <- store.updateStatus(params("id"), sr.status)
+      } yield UpdatedAvatar(update)
     }
   }
 
@@ -112,20 +122,15 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   //   /user/:id -> retrieve active avatar for a user
   //   /user/me  -> retrieve active avatar for me (via included cookie)
 
-  def withErrorHandling(response: => \/[Error, Any]): ActionResult = {
+  def withErrorHandling(response: => \/[Error, Success]): ActionResult = {
     (handleSuccess orElse handleError)(response)
   }
 
-  def redirectOrError(response: \/[Error, Any]): ActionResult = {
-    (handleRedirect orElse handleError)(response)
-  }
-
-  def handleSuccess: PartialFunction[\/[Error, Any], ActionResult] = {
-    case \/-(success) => Ok(success) // TODO should we enumerate success cases too?
-  }
-
-  def handleRedirect: PartialFunction[\/[Error, Any], ActionResult] = {
-    case \/-(success) => TemporaryRedirect(success.toString)
+  def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
+    case \/-(success) => success match {
+      case CreatedAvatar(avatar) => Created(avatar)
+      case okay => Ok(okay.body)
+    }
   }
 
   def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
@@ -137,6 +142,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
+      case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
     }
   }
 
@@ -153,5 +160,15 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case None =>
         -\/(invalidContentType(NonEmptyList("No content type specified.")))
     }
+  }
+
+  def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
+    Try(parsedBody.extract[StatusRequest]).toOption
+      .toRightDisjunction(unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
+  }
+
+  def userFromRequest(userId: String): Error \/ User = {
+    Try(User(userId.toInt)).toOption
+      .toRightDisjunction(invalidUserId(NonEmptyList("Must be an integer")))
   }
 }

@@ -13,6 +13,9 @@ case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) 
 case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
 case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
+case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
+case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends Error
+
 
 object Errors {
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =
@@ -37,4 +40,12 @@ object Errors {
   
   def unableToReadUserCookie(errors: NonEmptyList[String]): UnableToReadUserCookie =
     UnableToReadUserCookie("Unable to read user cookie", errors)
+
+  def unableToReadStatusRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
+      UnableToReadStatusRequest("Unable to read status request", errors)
+  }
+
+  def invalidUserId(errors: NonEmptyList[String]): InvalidUserId = {
+    InvalidUserId("Invalid user ID", errors)
+  }
 }

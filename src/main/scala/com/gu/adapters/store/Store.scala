@@ -15,9 +15,7 @@ import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.IO.io
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
-import com.gu.core._
-import com.typesafe.config.ConfigFactory
-import com.gu.core.Config
+import com.gu.core.{Config, _}
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
