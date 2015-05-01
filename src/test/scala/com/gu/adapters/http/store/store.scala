@@ -53,7 +53,7 @@ class TestFileStore extends FileStore {
 
 class TestKVStore extends KVStore {
   private[this] var docs: Map[String, Avatar] = Map(
-    "Avatars-DEV/123" -> Avatar(
+    Config.dynamoTable + "/123" -> Avatar(
       "123",
       "http://api",
       "http://avatar-url-1",
@@ -64,7 +64,7 @@ class TestKVStore extends KVStore {
       new DateTime(),
       isSocial = true,
       isActive = true),
-    "Avatars-DEV/234" -> Avatar(
+    Config.dynamoTable + "/234" -> Avatar(
       "234",
       "http://api",
       "http://avatar-url-2",
@@ -75,7 +75,7 @@ class TestKVStore extends KVStore {
       new DateTime(),
       isSocial = false,
       isActive = false),
-    "Avatars-DEV/345" -> Avatar(
+    Config.dynamoTable + "/345" -> Avatar(
       "345",
       "http://api",
       "http://avatar-url-2",
@@ -86,7 +86,7 @@ class TestKVStore extends KVStore {
       new DateTime(),
       isSocial = false,
       isActive = false),
-    "Avatars-DEV/456" -> Avatar(
+    Config.dynamoTable +"/456" -> Avatar(
       "456",
       "http://api",
       "http://avatar-url-2",
