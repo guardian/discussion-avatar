@@ -58,11 +58,11 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .map(item => asAvatar(item, apiUrl, privateBucket))
   }
 
-  def query(
+  def query[A](
     table: String,
     index: String,
     key: String,
-    value: String): Error \/ List[Avatar] = {
+    value: A): Error \/ List[Avatar] = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
@@ -78,7 +78,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   }
 
   def query(table: String, index: String, userId: Int): Error \/ List[Avatar] = {
-    query(table, index, "UserId", userId.toString)
+    query(table, index, "UserId", userId)
   }
 
   def query(table: String, index: String, status: Status): Error \/ List[Avatar] = {
