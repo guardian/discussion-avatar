@@ -36,8 +36,10 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   val privateBucket = Config.s3PrivateBucket
 
   def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
+    val id = item.getString("AvatarId")
+
     Avatar(
-      id = item.getString("AvatarId"),
+      id = id,
       url = s"$baseUrl/avatars/$id",
       avatarUrl = s"http://$avatarUrl/avatars/$id",
       userId = item.getString("UserId").toInt,
