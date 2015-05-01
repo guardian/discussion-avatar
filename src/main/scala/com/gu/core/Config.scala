@@ -17,8 +17,8 @@ object Config {
   }
 
   val dynamoTable = conf.getString("aws.dynamodb.table")
-  val statusIndex = "Status-AvatarId-index"
-  val userIndex = "UserId-AvatarId-index"
+  val statusIndex = "Status-index"
+  val userIndex = "UserId-index"
 
   val s3PrivateBucket = conf.getString("aws.s3.private")
   val s3PublicBucket = conf.getString("aws.s3.public")
