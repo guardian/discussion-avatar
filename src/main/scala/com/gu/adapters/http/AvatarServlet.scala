@@ -69,7 +69,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
 
   get("/avatars/:id", operation(getAvatar)) {
     withErrorHandling {
-      store.get(params("id")).map(FoundAvatar)
+      for {
+        avatar <- store.get(params("id"))
+      } yield FoundAvatar(avatar)
     }
   }
 
