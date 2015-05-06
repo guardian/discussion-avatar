@@ -146,7 +146,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     toBucket: String,
     toKey: String): Error \/ Unit = {
 
-    val request = new CopyObjectRequest(fromBucket, "fromKey", toBucket, "toKey")
+    val request = new CopyObjectRequest(fromBucket, fromKey, toBucket, toKey)
     io(client.copyObject(request))
   }
 
