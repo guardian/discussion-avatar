@@ -10,7 +10,7 @@ object Config {
   val apiUrl = conf.getString("api.baseUrl")
   val stage = conf.getString("stage")
 
-  val preProdCookie = 21801602 -> "WyIyMTgwMTYwMiIsIiIsIm5pY2xvbmciLCIyIiwxNDMxNDQyMzQzMTcxLDEsMTQwNzUxMzI0NzAwMCx0cnVlXQ.MCwCFE9aEQJiPrNu2YO1b2iHYH5RrODqAhRHVyMipXWjp61KqabWqbp5ICm_LQ"
+  val preProdCookie = 21801602 -> "WyIyMTgwMTYwMiIsIiIsIm5pY2xvbmciLCIyIiwxNDM5MjI0NTk4MDcyLDEsMTQwNzUxMzI0NzAwMCx0cnVlXQ.MCwCFCVF9u4tC6_dQJ6AFJArmBsfLp43AhR3YmlIfrlc9ZppczxpHDOVybEJbQ"
   val cookieDecoder = stage match {
     case "PROD" => new IdentityCookieDecoder(new ProductionKeys)
     case _ => new IdentityCookieDecoder(new PreProductionKeys)
