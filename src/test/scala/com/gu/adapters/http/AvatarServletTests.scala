@@ -18,10 +18,7 @@ class AvatarServletTests extends TestHelpers {
     "/*")
 
   test("Healthcheck should return OK") {
-    get("/service/healthcheck") {
-      status should equal (200)
-      body should include ("OK")
-    }
+    getOk("/service/healthcheck", _.body == "OK")
   }
 
   test("Get avatars") {
@@ -73,7 +70,12 @@ class AvatarServletTests extends TestHelpers {
     put("/avatars/345/status", Approved, _.status == Approved)
   }
 
-  test("Endpoint not found") {
-    getError("/avatars/does/not/exist", 404, _.message == "Requested resource not found")
+  test("Error on Avatar not found") {
+    getError("/avatars/does-not-exist", 404, _.message == "Avatar not found")
+  }
+
+  test("Support CORS") {
+    val headers = Map("Origin" -> "http://example.com")
+    getOk("/avatars", _.headers("Access-Control-Allow-Origin") == "*", Nil, headers)
   }
 }

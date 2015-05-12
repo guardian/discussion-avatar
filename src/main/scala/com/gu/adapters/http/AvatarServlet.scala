@@ -23,7 +23,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   with JacksonJsonSupport
   with SwaggerSupport
   with SwaggerOps
-  with FileUploadSupport {
+  with FileUploadSupport
+  with CorsSupport {
 
   protected implicit val jsonFormats: Formats =
     DefaultFormats +
@@ -36,6 +37,13 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     contentType = formats("json")
   }
 
+  methodNotAllowed { _ =>
+    if (routes.matchingMethodsExcept(Options, requestPath).isEmpty)
+      doNotFound() // correct for options("*") CORS behaviour
+    else
+      MethodNotAllowed(ErrorResponse("Method not supported", Nil))
+  }
+
   error {
     case e: SizeConstraintExceededException =>
       RequestEntityTooLarge(
@@ -44,6 +52,12 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
 
   notFound {
     NotFound(ErrorResponse("Requested resource not found", Nil))
+  }
+
+  options("/*") {
+    response.setHeader(
+      "Access-Control-Allow-Headers",
+      request.getHeader("Access-Control-Request-Headers"))
   }
 
   get("/service/healthcheck") {
