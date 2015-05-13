@@ -25,7 +25,7 @@ import scalaz.{NonEmptyList, \/}
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
   def query(table: String, index: String, userId: Int): Error \/ List[Avatar]
-  def query(table: String, index: String, status: Status): Error \/ List[Avatar]
+  def query(table: String, index: String, status: Status, last: Option[UUID]): Error \/ List[Avatar]
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status): Error \/ Avatar
 }
@@ -33,6 +33,7 @@ trait KVStore {
 case class Dynamo(db: DynamoDB) extends KVStore {
 
   val apiUrl = Config.apiUrl
+  val pageSize = Config.pageSize
   val privateBucket = Config.s3PrivateBucket
 
   def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
@@ -62,16 +63,23 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     table: String,
     index: String,
     key: String,
-    value: A): Error \/ List[Avatar] = {
+    value: A,
+    last: Option[UUID] = None): Error \/ List[Avatar] = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
-      .withMaxPageSize(10)
-      .withMaxResultSize(100)
+      .withMaxResultSize(pageSize)
+
+    if (last.isDefined) {
+      println(s"with $key=$value start AvatarId=${last.get}...")
+      spec.withExclusiveStartKey(key, value, "AvatarId", last.get.toString)
+    }
 
     val result = io(db.getTable(table).getIndex(index).query(spec))
 
-    for (pages <- result.map(_.pages.asScala.toList)) yield {
+    for {
+      pages <- result.map(_.pages.asScala.toList)
+    } yield {
       val items = pages.map(_.asScala).flatten
       items.map(item => asAvatar(item, apiUrl, privateBucket))
     }
@@ -81,8 +89,8 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     query(table, index, "UserId", userId)
   }
 
-  def query(table: String, index: String, status: Status): Error \/ List[Avatar] = {
-    query(table, index, "Status", status.asString)
+  def query(table: String, index: String, status: Status, last: Option[UUID]): Error \/ List[Avatar] = {
+    query(table, index, "Status", status.asString, last)
   }
 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {
@@ -184,7 +192,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val userIndex = Config.userIndex
   
   def get(filters: Filters): \/[Error, List[Avatar]] = {
-    kvs.query(dynamoTable, statusIndex, filters.status)
+    kvs.query(dynamoTable, statusIndex, filters.status, filters.last)
   }
 
   def get(id: String): Error \/ Avatar = {

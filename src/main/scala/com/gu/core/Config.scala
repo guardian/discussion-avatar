@@ -8,6 +8,7 @@ object Config {
   private[this] val conf = ConfigFactory.load()
 
   val apiUrl = conf.getString("api.baseUrl")
+  val pageSize = 10
   val stage = conf.getString("stage")
 
   val preProdCookie = 21801602 -> "WyIyMTgwMTYwMiIsIiIsIm5pY2xvbmciLCIyIiwxNDMxNDQyMzQzMTcxLDEsMTQwNzUxMzI0NzAwMCx0cnVlXQ.MCwCFE9aEQJiPrNu2YO1b2iHYH5RrODqAhRHVyMipXWjp61KqabWqbp5ICm_LQ"

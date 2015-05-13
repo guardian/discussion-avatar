@@ -1,12 +1,17 @@
 package com.gu.adapters.http
 
+import java.util.UUID
+
 import com.gu.core.Errors.invalidFilters
 import com.gu.core._
 import org.scalatra.{ActionResult, Params}
 
 import scalaz._
 
-case class Filters(status: Status)
+case class Filters(
+  status: Status,
+  last: Option[UUID]
+)
 
 object Filters {
 
@@ -20,6 +25,19 @@ object Filters {
       case None => Success(Approved)
     }
 
-    status.bimap(invalidFilters, Filters.apply).disjunction
+    val UuidRegex = """(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)""".r
+
+    val last: Validation[NonEmptyList[String], Option[UUID]] = params.get("last") match {
+      case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
+      case Some(invalid) => Failure(NonEmptyList(s"Last token '$invalid' is not a valid UUID."))
+      case None => Success(None)
+    }
+
+    val filters = for {
+      s <- status
+      l <- last
+    } yield Filters(s, l)
+
+    filters.leftMap(invalidFilters).disjunction
   }
 }
