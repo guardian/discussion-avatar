@@ -71,7 +71,6 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .withMaxResultSize(pageSize)
 
     if (last.isDefined) {
-      println(s"with $key=$value start AvatarId=${last.get}...")
       spec.withExclusiveStartKey(key, value, "AvatarId", last.get.toString)
     }
 

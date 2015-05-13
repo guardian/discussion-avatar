@@ -25,6 +25,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   with SwaggerOps
   with FileUploadSupport {
 
+  val apiUrl = Config.apiUrl
+  val pageSize = Config.pageSize
+
   protected implicit val jsonFormats: Formats =
     DefaultFormats +
       new StatusSerializer ++
@@ -63,7 +66,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         filters <- Filters.fromParams(params)
         avatars <- store.get(filters)
-      } yield FoundAvatars(avatars)
+        last = avatars.lift(pageSize-1).map(_.id)
+      } yield FoundAvatars(avatars, last)
     }
   }
 
@@ -80,7 +84,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromRequest(params("userId"))
         avatars <- store.get(user)
-      } yield FoundAvatars(avatars)
+        last = avatars.lift(pageSize-1).map(_.id)
+      } yield FoundAvatars(avatars, last)
     }
   }
 
@@ -131,8 +136,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
-      case FoundAvatar(avatar) => Ok(SuccessResponse("uri", avatar, List(Link("root", "http://foo.com"))))
-      case FoundAvatars(avatars) => Ok(SuccessResponse("uri", avatars, List(Link("root", "http://foo.com"))))
+      case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, List()))
+      case FoundAvatars(avatars, last) => Ok(SuccessResponse(apiUrl, avatars, last.map( l => List(Link("next", s"$l"))).getOrElse(Nil)))
       case okay => Ok(okay.body)
     }
   }
