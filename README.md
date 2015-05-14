@@ -3,6 +3,13 @@ Avatar Service
 
 **This service is a work in progress!**
 
+## Running
+### Configuration
+You must [set up valid AWS Credentials](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/credentials.html#credentials-default). 
+
+### Start the app
+`sbt run`
+
 ## Architecture
 
 http://blog.8thlight.com/uncle-bob/2012/08/13/the-clean-architecture.html
@@ -16,7 +23,7 @@ calls code from, or uses models defined in, the `adapters` package.
 
 {profile-id}.png
 
-jpg, png, gif <= 1mb
+jpg, png, gif (non-animated) <= 1mb
 
 Do not store multiple images per user.
 
