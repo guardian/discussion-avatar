@@ -5,12 +5,8 @@ Avatar Service
 
 ## Running
 ### Configuration
-Populate `~/.aws/credentials` with
-```
-[default]
-aws_access_key_id=YOUR_ACCESS_KEY
-aws_secret_access_key=YOUR_SECRET_KEY
-```
+You must [set up valid AWS Credentials](http://docs.aws.amazon.com/AWSSdkDocsJava/latest/DeveloperGuide/credentials.html#credentials-default). 
+
 ### Start the app
 `sbt run`
 
@@ -27,7 +23,7 @@ calls code from, or uses models defined in, the `adapters` package.
 
 {profile-id}.png
 
-jpg, png, gif <= 1mb
+jpg, png, gif (non-animated) <= 1mb
 
 Do not store multiple images per user.
 
