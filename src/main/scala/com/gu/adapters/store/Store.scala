@@ -25,7 +25,7 @@ import scalaz.{NonEmptyList, \/}
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
   def query(table: String, index: String, userId: Int): Error \/ List[Avatar]
-  def query(table: String, index: String, status: Status, last: Option[UUID]): Error \/ List[Avatar]
+  def query(table: String, index: String, status: Status, cursor: Option[UUID]): Error \/ List[Avatar]
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status): Error \/ Avatar
 }
@@ -64,14 +64,14 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     index: String,
     key: String,
     value: A,
-    last: Option[UUID] = None): Error \/ List[Avatar] = {
+    cursor: Option[UUID] = None): Error \/ List[Avatar] = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
       .withMaxResultSize(pageSize)
 
-    if (last.isDefined) {
-      spec.withExclusiveStartKey(key, value, "AvatarId", last.get.toString)
+    if (cursor.isDefined) {
+      spec.withExclusiveStartKey(key, value, "AvatarId", cursor.get.toString)
     }
 
     val result = io(db.getTable(table).getIndex(index).query(spec))
@@ -88,8 +88,8 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     query(table, index, "UserId", userId)
   }
 
-  def query(table: String, index: String, status: Status, last: Option[UUID]): Error \/ List[Avatar] = {
-    query(table, index, "Status", status.asString, last)
+  def query(table: String, index: String, status: Status, cursor: Option[UUID]): Error \/ List[Avatar] = {
+    query(table, index, "Status", status.asString, cursor)
   }
 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {
@@ -191,7 +191,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val userIndex = Config.userIndex
   
   def get(filters: Filters): \/[Error, List[Avatar]] = {
-    kvs.query(dynamoTable, statusIndex, filters.status, filters.last)
+    kvs.query(dynamoTable, statusIndex, filters.status, filters.cursor)
   }
 
   def get(id: String): Error \/ Avatar = {

@@ -66,8 +66,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         filters <- Filters.fromParams(params)
         avatars <- store.get(filters)
-        last = avatars.lift(pageSize-1).map(_.id)
-      } yield FoundAvatars(avatars, last)
+        cursor = avatars.lift(pageSize-1).map(_.id)
+      } yield FoundAvatars(avatars, cursor)
     }
   }
 
@@ -84,8 +84,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromRequest(params("userId"))
         avatars <- store.get(user)
-        last = avatars.lift(pageSize-1).map(_.id)
-      } yield FoundAvatars(avatars, last)
+        cursor = avatars.lift(pageSize-1).map(_.id)
+      } yield FoundAvatars(avatars, cursor)
     }
   }
 
@@ -137,7 +137,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
       case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, List()))
-      case FoundAvatars(avatars, last) => Ok(SuccessResponse(apiUrl, avatars, last.map( l => List(Link("next", s"$l"))).getOrElse(Nil)))
+      case FoundAvatars(avatars, cursor) => Ok(SuccessResponse(apiUrl, avatars, cursor.map( l => List(Link("next", s"$l"))).getOrElse(Nil)))
       case okay => Ok(okay.body)
     }
   }

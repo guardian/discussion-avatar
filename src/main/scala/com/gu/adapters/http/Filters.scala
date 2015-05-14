@@ -10,7 +10,7 @@ import scalaz._
 
 case class Filters(
   status: Status,
-  last: Option[UUID]
+  cursor: Option[UUID]
 )
 
 object Filters {
@@ -27,16 +27,16 @@ object Filters {
 
     val UuidRegex = """(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)""".r
 
-    val last: Validation[NonEmptyList[String], Option[UUID]] = params.get("last") match {
+    val cursor: Validation[NonEmptyList[String], Option[UUID]] = params.get("cursor") match {
       case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
-      case Some(invalid) => Failure(NonEmptyList(s"Last token '$invalid' is not a valid UUID."))
+      case Some(invalid) => Failure(NonEmptyList(s"Cursor '$invalid' is not a valid UUID."))
       case None => Success(None)
     }
 
     val filters = for {
       s <- status
-      l <- last
-    } yield Filters(s, l)
+      c <- cursor
+    } yield Filters(s, c)
 
     filters.leftMap(invalidFilters).disjunction
   }
