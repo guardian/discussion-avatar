@@ -6,6 +6,7 @@ import com.gu.core.Errors._
 import com.gu.core.Success
 import com.gu.core._
 import com.gu.identity.cookie.IdentityCookieDecoder
+import org.joda.time.DateTime
 import org.json4s.JsonAST.JValue
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{DefaultFormats, Formats}
@@ -111,6 +112,16 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  post("/migratedAvatar", operation(postMigratedAvatar)) {
+    withErrorHandling {
+      for {
+        mr <- migrateRequestFromBody(parsedBody)
+        user <- userFromRequest(mr.userId.toString)
+        avatar <- store.fetchMigratedImages(user, mr.image, mr.processedImage, mr.originalFilename, mr.createdAt, mr.isSocial)
+      } yield CreatedAvatar(avatar)
+    }
+  }
+
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
       for {
@@ -146,6 +157,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
     }
   }
 
@@ -167,6 +179,11 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
     Try(parsedBody.extract[StatusRequest]).toOption
       .toRightDisjunction(unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
+  }
+
+  def migrateRequestFromBody(parsedBody: JValue): Error \/ MigratedAvatarRequest = {
+    Try(parsedBody.extract[MigratedAvatarRequest]).toOption
+      .toRightDisjunction(unableToReadMigratedAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
   def userFromRequest(userId: String): Error \/ User = {

@@ -14,6 +14,7 @@ case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) ex
 case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
 case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
+case class UnableToReadMigratedAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends Error
 
 
@@ -43,6 +44,10 @@ object Errors {
 
   def unableToReadStatusRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
       UnableToReadStatusRequest("Unable to read status request", errors)
+  }
+
+  def unableToReadMigratedAvatarRequest(errors: NonEmptyList[String]): UnableToReadMigratedAvatarRequest = {
+      UnableToReadMigratedAvatarRequest("Unable to read migrated avatar request", errors)
   }
 
   def invalidUserId(errors: NonEmptyList[String]): InvalidUserId = {

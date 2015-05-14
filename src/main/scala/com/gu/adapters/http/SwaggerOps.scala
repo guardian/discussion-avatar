@@ -1,5 +1,7 @@
 package com.gu.adapters.http
 
+import java.util.Date
+
 import com.gu.core.Avatar
 import org.scalatra.swagger._
 
@@ -50,4 +52,11 @@ trait SwaggerOps {
           .description("The request includes the Avatar ID"),
         bodyParam[StatusRequest]("")
           .description("The request includes the Avatar's new status"))
-}
+
+  def postMigratedAvatar =
+    apiOperation[Avatar]("postMigratedAvatar")
+      .summary("Post an existing avatar (to perform a migration)")
+      .parameters(
+        bodyParam[MigratedAvatarRequest]("")
+          .description("The request includes all the details required to migrate an existing avatar")
+      )}

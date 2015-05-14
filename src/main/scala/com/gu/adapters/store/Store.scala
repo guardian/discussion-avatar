@@ -20,7 +20,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{\/-, -\/, NonEmptyList, \/}
 
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
@@ -219,12 +219,17 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   def fetchImage(user: User, url: String): Error \/ Avatar = {
     val file = new java.net.URL(url).openStream()
     userUpload(user, file, url, true)
+  }  
+  
+  def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
+    val imageFile: InputStream = new java.net.URL(image).openStream()
+    val processedImageFile: InputStream = new java.net.URL(processedImage).openStream()
+    migratedUserUpload(user, imageFile, processedImageFile, originalFilename,createdAt, isSocial)
   }
 
   def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
-
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
@@ -248,6 +253,39 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       _ <- fs.put(privateBucket, s"avatars/$avatarId", file, metadata)
       _ <- copyToPublic(avatar)
     } yield avatar
+  }
+
+
+  def migratedUserUpload(user: User, originalFile: InputStream, processedFile: InputStream, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
+    val avatarId = UUID.randomUUID.toString
+    val now = DateTime.now(DateTimeZone.UTC)
+
+     //getActive(user).swap
+      val metadata = new ObjectMetadata()
+      metadata.addUserMetadata("avatar-id", avatarId)
+      metadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
+      metadata.addUserMetadata("original-filename", originalFilename)
+      metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+
+      val avatar = Avatar(
+        id = avatarId,
+        url = s"$apiBaseUrl/avatars/$avatarId",
+        avatarUrl = s"http://$privateBucket/avatars/$avatarId",
+        userId = user.id,
+        originalFilename = originalFilename,
+        status = Approved,
+        createdAt = createdAt,
+        lastModified = now,
+        isSocial = isSocial,
+        isActive = true)
+
+      for {
+        avatar <- kvs.put(dynamoTable, avatar)
+        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, metadata)
+        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, metadata)
+        _ <- copyToPublic(avatar)
+      } yield avatar
+
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
