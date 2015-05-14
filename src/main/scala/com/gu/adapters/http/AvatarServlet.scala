@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
-import com.gu.adapters.store.AvatarStore
+import com.gu.adapters.store.{AvatarStore,QueryResponse}
 import com.gu.core.Errors._
 import com.gu.core.Success
 import com.gu.core._
@@ -65,9 +65,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         filters <- Filters.fromParams(params)
-        avatars <- store.get(filters)
-        cursor = avatars.lift(pageSize-1).map(_.id)
-      } yield FoundAvatars(avatars, cursor)
+        qr <- store.get(filters)
+        cursor = qr.avatars.lift(pageSize-1).map(_.id)
+      } yield FoundAvatars(qr.avatars, qr.hasMore, cursor)
     }
   }
 
@@ -83,9 +83,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         user <- userFromRequest(params("userId"))
-        avatars <- store.get(user)
-        cursor = avatars.lift(pageSize-1).map(_.id)
-      } yield FoundAvatars(avatars, cursor)
+        qr <- store.get(user)
+        cursor = qr.avatars.lift(pageSize-1).map(_.id)
+      } yield FoundAvatars(qr.avatars, qr.hasMore, cursor)
     }
   }
 
@@ -133,11 +133,17 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     (handleSuccess orElse handleError)(response)
   }
 
+//  def toLink(name: String, hasMore: Boolean, cursor: Option[String]): Option[Link] = {
+//
+//    if (hasMore)
+//      cursor.map( c => Link("next", s"$c")).getOrElse(None)
+//  }
+
   def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
-      case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, List()))
-      case FoundAvatars(avatars, cursor) => Ok(SuccessResponse(apiUrl, avatars, cursor.map( l => List(Link("next", s"$l"))).getOrElse(Nil)))
+      case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, Nil))
+      case FoundAvatars(avatars, hasMore, cursor) => Ok(SuccessResponse(apiUrl, avatars, cursor.map( l => List(Link("next", s"$l"))).getOrElse(Nil)))
       case okay => Ok(okay.body)
     }
   }
