@@ -133,17 +133,20 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     (handleSuccess orElse handleError)(response)
   }
 
-//  def toLink(name: String, hasMore: Boolean, cursor: Option[String]): Option[Link] = {
-//
-//    if (hasMore)
-//      cursor.map( c => Link("next", s"$c")).getOrElse(None)
-//  }
+  def links(hasMore: Boolean, first: Option[String], cursor: Option[String]): List[Link] = {
+
+    val status = params.get("status").map(s => s"status=$s&").getOrElse("")
+
+    val next = for (c <- cursor if hasMore) yield Link("next", s"$apiUrl${request.getPathInfo}?${status}cursor=$c")
+    val prev = for (f <- first if params.get("cursor").isDefined) yield Link("prev", s"$apiUrl${request.getPathInfo}?${status}cursor=$f")
+    List(prev, next).flatten
+  }
 
   def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
       case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, Nil))
-      case FoundAvatars(avatars, hasMore, cursor) => Ok(SuccessResponse(apiUrl, avatars, cursor.map( l => List(Link("next", s"$l"))).getOrElse(Nil)))
+      case FoundAvatars(avatars, hasMore, cursor) => Ok(SuccessResponse(apiUrl, avatars, links(hasMore, avatars.headOption.map(_.id), cursor)))
       case okay => Ok(okay.body)
     }
   }

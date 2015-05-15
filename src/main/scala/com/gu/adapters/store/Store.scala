@@ -85,7 +85,6 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       pages <- result.map(_.pages.asScala.toList)
       qr <- result.map(_.getLastLowLevelResult.getQueryResult)
     } yield {
-      println(qr.toString)
       val items = pages.map(_.asScala).flatten
         .map(item => asAvatar(item, apiUrl, privateBucket))
       QueryResponse(items, qr.getLastEvaluatedKey != null)
