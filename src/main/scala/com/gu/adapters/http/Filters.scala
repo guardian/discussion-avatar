@@ -10,7 +10,8 @@ import scalaz._
 
 case class Filters(
   status: Status,
-  cursor: Option[UUID]
+  cursor: Option[UUID],
+  reverse: Option[Boolean]
 )
 
 object Filters {
@@ -33,10 +34,16 @@ object Filters {
       case None => Success(None)
     }
 
+    val reverse: Validation[NonEmptyList[String], Option[Boolean]] = params.get("reverse") match {
+      case Some(_) => Success(Some(true))
+      case None => Success(None)
+    }
+
     val filters = for {
       s <- status
       c <- cursor
-    } yield Filters(s, c)
+      r <- reverse
+    } yield Filters(s, c, r)
 
     filters.leftMap(invalidFilters).disjunction
   }

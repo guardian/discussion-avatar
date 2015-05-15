@@ -29,8 +29,8 @@ case class QueryResponse(
 
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
-  def query(table: String, index: String, userId: Int, cursor: Option[UUID]): Error \/ QueryResponse
-  def query(table: String, index: String, status: Status, cursor: Option[UUID]): Error \/ QueryResponse
+  def query(table: String, index: String, userId: Int, cursor: Option[UUID], reverse: Option[Boolean]): Error \/ QueryResponse
+  def query(table: String, index: String, status: Status, cursor: Option[UUID], reverse: Option[Boolean]): Error \/ QueryResponse
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status): Error \/ Avatar
 }
@@ -69,7 +69,8 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     index: String,
     key: String,
     value: A,
-    cursor: Option[UUID] = None): Error \/ QueryResponse = {
+    cursor: Option[UUID] = None,
+    reverse: Option[Boolean]): Error \/ QueryResponse = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
@@ -79,6 +80,8 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       spec.withExclusiveStartKey(key, value, "AvatarId", cursor.get.toString)
     }
 
+    reverse.map(reverse => spec.withScanIndexForward(false))
+
     val result = io(db.getTable(table).getIndex(index).query(spec))
 
     for {
@@ -87,16 +90,17 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     } yield {
       val items = pages.map(_.asScala).flatten
         .map(item => asAvatar(item, apiUrl, privateBucket))
-      QueryResponse(items, qr.getLastEvaluatedKey != null)
+      val orderedItems = reverse.map(reverse => items.reverse).getOrElse(items)
+      QueryResponse(orderedItems, qr.getLastEvaluatedKey != null)
     }
   }
 
-  def query(table: String, index: String, userId: Int, cursor: Option[UUID]): Error \/ QueryResponse = {
-    query(table, index, "UserId", userId, cursor)
+  def query(table: String, index: String, userId: Int, cursor: Option[UUID], reverse: Option[Boolean]): Error \/ QueryResponse = {
+    query(table, index, "UserId", userId, cursor, reverse)
   }
 
-  def query(table: String, index: String, status: Status, cursor: Option[UUID]): Error \/ QueryResponse = {
-    query(table, index, "Status", status.asString, cursor)
+  def query(table: String, index: String, status: Status, cursor: Option[UUID], reverse: Option[Boolean]): Error \/ QueryResponse = {
+    query(table, index, "Status", status.asString, cursor, reverse)
   }
 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {
@@ -198,7 +202,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val userIndex = Config.userIndex
   
   def get(filters: Filters): \/[Error, QueryResponse] = {
-    kvs.query(dynamoTable, statusIndex, filters.status, filters.cursor)
+    kvs.query(dynamoTable, statusIndex, filters.status, filters.cursor, filters.reverse)
   }
 
   def get(id: String): Error \/ Avatar = {
@@ -211,7 +215,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
         dynamoTable,
         userIndex,
         user.id,
-        None)
+        None,
+        Some(false))
       // avatars <- qr.avatars.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified})
     } yield QueryResponse(qr.avatars, qr.hasMore)
   }

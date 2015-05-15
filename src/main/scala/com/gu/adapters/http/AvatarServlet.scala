@@ -138,7 +138,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     val status = params.get("status").map(s => s"status=$s&").getOrElse("")
 
     val next = for (c <- cursor if hasMore) yield Link("next", s"$apiUrl${request.getPathInfo}?${status}cursor=$c")
-    val prev = for (f <- first if params.get("cursor").isDefined) yield Link("prev", s"$apiUrl${request.getPathInfo}?${status}cursor=$f")
+    val prev = for (f <- first if params.get("cursor").isDefined) yield Link("prev", s"$apiUrl${request.getPathInfo}?${status}cursor=$f&reverse")
     List(prev, next).flatten
   }
 
