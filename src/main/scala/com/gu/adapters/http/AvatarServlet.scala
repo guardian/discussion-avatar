@@ -66,8 +66,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         filters <- Filters.fromParams(params)
         qr <- store.get(filters)
-        cursor = qr.avatars.lift(pageSize-1).map(_.id)
-      } yield FoundAvatars(qr.avatars, qr.hasMore, cursor)
+      } yield FoundAvatars(qr.avatars, qr.hasMore)
     }
   }
 
@@ -84,8 +83,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromRequest(params("userId"))
         qr <- store.get(user)
-        cursor = qr.avatars.lift(pageSize-1).map(_.id)
-      } yield FoundAvatars(qr.avatars, qr.hasMore, cursor)
+      } yield FoundAvatars(qr.avatars, qr.hasMore)
     }
   }
 
@@ -133,8 +131,10 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     (handleSuccess orElse handleError)(response)
   }
 
-  def links(hasMore: Boolean, first: Option[String], cursor: Option[String]): List[Link] = {
+  def links(avatars: List[Avatar], hasMore: Boolean): List[Link] = {
 
+    val cursor = avatars.lift(pageSize-1).map(_.id)
+    val first = avatars.headOption.map(_.id)
     val status = params.get("status").map(s => s"status=$s&").getOrElse("")
 
     val next = for (c <- cursor if hasMore) yield Link("next", s"$apiUrl${request.getPathInfo}?${status}since=$c")
@@ -146,7 +146,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
       case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, Nil))
-      case FoundAvatars(avatars, hasMore, cursor) => Ok(SuccessResponse(apiUrl, avatars, links(hasMore, avatars.headOption.map(_.id), cursor)))
+      case FoundAvatars(avatars, hasMore) => Ok(SuccessResponse(apiUrl, avatars, links(avatars, hasMore)))
       case okay => Ok(okay.body)
     }
   }

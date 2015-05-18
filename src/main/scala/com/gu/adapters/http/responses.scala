@@ -2,10 +2,7 @@ package com.gu.adapters.http
 
 import com.gu.core.Avatar
 
-case class Link(
-  rel: String,
-  href: String
-)
+case class Link(rel: String, href: String)
 
 sealed trait ApiResponse
 case class Message(message: String) extends ApiResponse
