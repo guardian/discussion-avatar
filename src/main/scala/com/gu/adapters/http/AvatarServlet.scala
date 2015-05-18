@@ -158,6 +158,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors.list))
     }
   }
 

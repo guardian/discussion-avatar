@@ -16,9 +16,14 @@ case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadMigratedAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends Error
+case class AvatarAlreadyExists(message: String, errors: NonEmptyList[String]) extends Error
 
 
 object Errors {
+
+  def avatarAlreadyExists(errors: NonEmptyList[String]): AvatarAlreadyExists =
+    AvatarAlreadyExists("Avatar already exists for this user ID", errors)
+
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =
     InvalidContentType(
       "Invalid content type. Support types are: 'multipart/form-data' or 'application/json'.",

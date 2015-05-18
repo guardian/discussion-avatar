@@ -19,6 +19,7 @@ import com.gu.core.{Config, _}
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 import scalaz.Scalaz._
 import scalaz.{\/-, -\/, NonEmptyList, \/}
 
@@ -260,7 +261,9 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
 
-     //getActive(user).swap
+    Try((getActive(user)).swap.toOption
+      .toRightDisjunction(avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar"))))
+
       val metadata = new ObjectMetadata()
       metadata.addUserMetadata("avatar-id", avatarId)
       metadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
