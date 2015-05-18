@@ -10,8 +10,8 @@ import scalaz._
 
 case class Filters(
   status: Status,
-  cursor: Option[UUID],
-  reverse: Option[Boolean]
+  since: Option[UUID],
+  until: Option[UUID]
 )
 
 object Filters {
@@ -28,22 +28,25 @@ object Filters {
 
     val UuidRegex = """(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)""".r
 
-    val cursor: Validation[NonEmptyList[String], Option[UUID]] = params.get("cursor") match {
+    val since: Validation[NonEmptyList[String], Option[UUID]] = params.get("since") match {
       case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
-      case Some(invalid) => Failure(NonEmptyList(s"Cursor '$invalid' is not a valid UUID."))
+      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for since."))
       case None => Success(None)
     }
 
-    val reverse: Validation[NonEmptyList[String], Option[Boolean]] = params.get("reverse") match {
-      case Some(_) => Success(Some(true))
+    val until: Validation[NonEmptyList[String], Option[UUID]] = params.get("until") match {
+      case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
+      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for until."))
       case None => Success(None)
     }
+
+    // FIXME: can't specify both 'since' and 'until'
 
     val filters = for {
       s <- status
-      c <- cursor
-      r <- reverse
-    } yield Filters(s, c, r)
+      f <- since
+      b <- until
+    } yield Filters(s, f, b)
 
     filters.leftMap(invalidFilters).disjunction
   }
