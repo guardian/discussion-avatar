@@ -13,23 +13,23 @@ import scalaz.{NonEmptyList, \/, \/-}
 
 object ImageValidator {
 
+  def notAnimated(image: InputStream): Boolean = {
+    val buffered = new BufferedInputStream(image)
+    val reader = ImageIO.getImageReadersBySuffix("GIF").next
+    val iis = ImageIO.createImageInputStream(buffered)
+    reader.setInput(iis)
+    reader.getNumImages(true) == 1
+  }
+
   def validate(image: InputStream): Error \/ InputStream = {
     // guessContentTypeFromStream only works with streams than support mark and reset
     val buffered = new BufferedInputStream(image)
-    val mimeType = attempt {
-      URLConnection.guessContentTypeFromStream(buffered) match {
-        case "image/png" | "image/jpeg" => true
-        case "image/gif" =>
-          val reader = ImageIO.getImageReadersBySuffix("GIF").next
-          val iis = ImageIO.createImageInputStream(buffered)
-          reader.setInput(iis)
-          reader.getNumImages(true) == 1
-        case a => false
-      }
-    }
+    val mimeType = attempt(URLConnection.guessContentTypeFromStream(buffered))
+      .leftMap(_ => invalidMimeType(NonEmptyList("Unable to verify mime type of file")))
 
-    mimeType match {
-      case \/-(true) => buffered.right
+    mimeType flatMap {
+      case "image/png" | "image/jpeg" => buffered.right
+      case "image/gif" if notAnimated(buffered) => buffered.right
       case _ => invalidMimeType(NonEmptyList("Uploaded images must be of type png, jpeg, or gif (non-animated)")).left
     }
   }
