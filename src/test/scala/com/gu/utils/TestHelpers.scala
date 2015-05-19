@@ -4,6 +4,7 @@ import java.io.File
 
 import com.gu.adapters.http.{ErrorResponse, StatusRequest, StatusSerializer}
 import com.gu.core.{Avatar, Status}
+import org.joda.time.DateTime
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.native.Serialization._
 import org.json4s.{DefaultFormats, Formats}
@@ -67,6 +68,23 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     p: Avatar => Boolean): Unit = {
 
     post("/avatars", Nil, List("image" -> file), Map("Cookie" -> ("GU_U=" + guuCookie))) {
+      status should equal(201)
+      val avatar = read[Avatar](body)
+      p(avatar) should be (true)
+      getAvatar(s"/avatars/${avatar.id}", p)
+    }
+  }
+  def postMigratedAvatar(
+    endpointUri: String,
+    image: String,
+    userId: Int,
+    processedImage: String,
+    isSocial: Boolean,
+    originalFilename: String,
+    createdAt: DateTime,
+    p: Avatar => Boolean): Unit = {
+
+    post("/avatars", Nil, List("image" -> image), Map("Content-type" -> ("application/json"))) {
       status should equal(201)
       val avatar = read[Avatar](body)
       p(avatar) should be (true)
