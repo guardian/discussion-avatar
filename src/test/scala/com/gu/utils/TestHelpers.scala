@@ -2,7 +2,7 @@ package com.gu.utils
 
 import java.io.File
 
-import com.gu.adapters.http.{ErrorResponse, StatusRequest, StatusSerializer}
+import com.gu.adapters.http._
 import com.gu.core.{Avatar, Status}
 import org.joda.time.DateTime
 import org.json4s.ext.JodaTimeSerializers
@@ -41,7 +41,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     get(uri, params, headers) {
       status should equal(200)
-      val avatars = read[List[Avatar]](body)
+      val avatars = read[AvatarsResponse](body).data
       avatars.forall(p) should be (true)
     }
   }
@@ -56,7 +56,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     get(uri, params, headers) {
       status should equal(200)
-      val avatar = read[Avatar](body)
+      val avatar = read[AvatarResponse](body).data
       p(avatar) should be (true)
     }
   }

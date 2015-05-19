@@ -1,10 +1,14 @@
 package com.gu.adapters.http
 
+import java.io.InputStream
+
 import com.gu.adapters.http.CookieDecoder.userFromCookie
+import com.gu.adapters.store.{AvatarStore,QueryResponse}
+import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.store.AvatarStore
+import com.gu.adapters.utils.Attempt.attempt
 import com.gu.core.Errors._
-import com.gu.core.Success
-import com.gu.core._
+import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.joda.time.DateTime
 import org.json4s.JsonAST.JValue
@@ -14,9 +18,7 @@ import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-import scalaz.Scalaz._
 
-import scala.util.{Failure, Try}
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
@@ -26,6 +28,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   with SwaggerOps
   with FileUploadSupport
   with CorsSupport {
+
+  val apiUrl = Config.apiUrl
+  val pageSize = Config.pageSize
 
   protected implicit val jsonFormats: Formats =
     DefaultFormats +
@@ -68,7 +73,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   get("/service/gtg") {
     NotImplemented(Message("Endpoint needs to be specified"))
   }
-  
+
   get("/service/dependencies") {
     NotImplemented(Message("Endpoint needs to be specified"))
   }
@@ -77,8 +82,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         filters <- Filters.fromParams(params)
-        avatars <- store.get(filters)
-      } yield FoundAvatars(avatars)
+        qr <- store.get(filters)
+      } yield FoundAvatars(qr.avatars, qr.hasMore)
     }
   }
 
@@ -94,8 +99,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         user <- userFromRequest(params("userId"))
-        avatars <- store.get(user)
-      } yield FoundAvatars(avatars)
+        qr <- store.get(user)
+      } yield FoundAvatars(qr.avatars, qr.hasMore)
     }
   }
 
@@ -145,17 +150,26 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
-  // for cdn endpoint (avatars.theguardian.com)
-  //   /user/:id -> retrieve active avatar for a user
-  //   /user/me  -> retrieve active avatar for me (via included cookie)
-
   def withErrorHandling(response: => \/[Error, Success]): ActionResult = {
     (handleSuccess orElse handleError)(response)
+  }
+
+  def links(avatars: List[Avatar], hasMore: Boolean): List[Link] = {
+
+    val cursor = avatars.lift(pageSize-1).map(_.id)
+    val first = avatars.headOption.map(_.id)
+    val status = params.get("status").map(s => s"status=$s&").getOrElse("")
+
+    val next = for (c <- cursor if hasMore) yield Link("next", s"$apiUrl${request.getPathInfo}?${status}since=$c")
+    val prev = for (f <- first if List("since", "until") exists params.contains) yield Link("prev", s"$apiUrl${request.getPathInfo}?${status}until=$f")
+    List(prev, next).flatten
   }
 
   def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
+      case FoundAvatar(avatar) => Ok(AvatarResponse(apiUrl, avatar, Nil))
+      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(apiUrl, avatars, links(avatars, hasMore)))
       case okay => Ok(okay.body)
     }
   }
@@ -165,25 +179,33 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case AvatarRetrievalFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
       case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors.list))
+      case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
     }
   }
 
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ Avatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
-        val url = (parse(request.body) \ "url").values.toString // HANDLE ERRORS HERE
-        store.fetchImage(user, url)
+        for {
+          req <- avatarRequestFromBody(request.body)
+          file <- fileFromUrl(user, req.url)
+          image <- validate(file)
+          upload <- store.userUpload(user, image, req.url, true)
+        } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
-        val image = fileParams("image")
-        store.userUpload(user, image.getInputStream, image.getName)
+        for {
+          fr <- fileFromBody(fileParams)
+          image <- validate(fr._2)
+          upload <- store.userUpload(user, image, fr._1, true)
+        } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
       case None =>
@@ -191,18 +213,35 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def avatarRequestFromBody(body: String): Error \/ AvatarRequest = {
+    attempt(parse(body).extract[AvatarRequest])
+      .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
+  }
+
+  def fileFromUrl(user: User, url: String): Error \/ InputStream = {
+    attempt(new java.net.URL(url).openStream())
+      .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
+  }
+
+  def fileFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
+    for {
+      file <- attempt(fileParams("image"))
+        .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
+    } yield (file.getName, file.getInputStream)
+  }
+
   def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
-    Try(parsedBody.extract[StatusRequest]).toOption
-      .toRightDisjunction(unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
+    attempt(parsedBody.extract[StatusRequest])
+      .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
   }
 
   def migrateRequestFromBody(parsedBody: JValue): Error \/ MigratedAvatarRequest = {
-    Try(parsedBody.extract[MigratedAvatarRequest]).toOption
-      .toRightDisjunction(unableToReadMigratedAvatarRequest(NonEmptyList("Could not parse request body")))
+    attempt(parsedBody.extract[MigratedAvatarRequest])
+      .leftMap(_ => unableToReadMigratedAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
   def userFromRequest(userId: String): Error \/ User = {
-    Try(User(userId.toInt)).toOption
-      .toRightDisjunction(invalidUserId(NonEmptyList(s"Expected integer, found: $userId")))
+    attempt(User(userId.toInt))
+      .leftMap(_ => invalidUserId(NonEmptyList("Expected integer, found: " + userId)))
   }
 }

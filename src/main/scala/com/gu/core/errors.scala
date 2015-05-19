@@ -9,13 +9,14 @@ sealed trait Error {
 case class InvalidContentType(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
-case class AvatarRetrievalFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
 case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadMigratedAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends Error
+case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
+case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarAlreadyExists(message: String, errors: NonEmptyList[String]) extends Error
 
 
@@ -35,27 +36,32 @@ object Errors {
   def avatarNotFound(errors: NonEmptyList[String]): AvatarNotFound =
     AvatarNotFound("Avatar not found", errors)
 
-  def avatarRetrievalFailed(errors: NonEmptyList[String]): AvatarRetrievalFailed =
-    AvatarRetrievalFailed("Avatar retrieval failed", errors)
-
   def ioFailed(errors: NonEmptyList[String]): IOFailed =
     IOFailed("IO operation failed", errors)
 
   def dynamoRequestFailed(errors: NonEmptyList[String]): DynamoRequestFailed =
     DynamoRequestFailed("DynamoDB request failed", errors)
-  
+
   def unableToReadUserCookie(errors: NonEmptyList[String]): UnableToReadUserCookie =
     UnableToReadUserCookie("Unable to read user cookie", errors)
 
   def unableToReadStatusRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
-      UnableToReadStatusRequest("Unable to read status request", errors)
+    UnableToReadStatusRequest("Unable to read status request", errors)
+  }
+
+  def unableToReadAvatarRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
+    UnableToReadStatusRequest("Unable to read avatar request", errors)
   }
 
   def unableToReadMigratedAvatarRequest(errors: NonEmptyList[String]): UnableToReadMigratedAvatarRequest = {
-      UnableToReadMigratedAvatarRequest("Unable to read migrated avatar request", errors)
+    UnableToReadMigratedAvatarRequest("Unable to read avatar request", errors)
   }
 
   def invalidUserId(errors: NonEmptyList[String]): InvalidUserId = {
     InvalidUserId("Invalid user ID", errors)
+  }
+
+  def invalidMimeType(errors: NonEmptyList[String]): InvalidMimeType = {
+    InvalidMimeType("Invalid mime type", errors)
   }
 }
