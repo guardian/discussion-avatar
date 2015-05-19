@@ -9,6 +9,7 @@ import org.json4s.ext.JodaTimeSerializers
 import org.json4s.native.Serialization._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.FunSuiteLike
+import org.scalatra.test.ClientResponse
 import org.scalatra.test.scalatest.ScalatraSuite
 
 class TestHelpers extends ScalatraSuite with FunSuiteLike {
@@ -17,6 +18,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     DefaultFormats +
       new StatusSerializer ++
       JodaTimeSerializers.all
+
+  def getOk(
+    uri: String,
+    p: ClientResponse => Boolean,
+    params: List[(String, String)] = Nil,
+    headers: Map[String, String] = Map()): Unit = {
+
+    get(uri, params, headers) {
+      status should equal (200)
+      p(response)
+    }
+  }
 
   def getAvatars(
     uri: String,
