@@ -17,6 +17,7 @@ class ImageValidatorTests extends FunSuite with Matchers {
       "src/test/resources/avatar.gif" -> true,
       "src/test/resources/avatar.png" -> true,
       "src/test/resources/avatar.jpg" -> true,
+      "src/test/resources/avatar-gif" -> true,
       "src/test/resources/avatar.svg" -> false
     )
 
