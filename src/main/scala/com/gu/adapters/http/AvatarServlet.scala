@@ -145,8 +145,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
-      case FoundAvatar(avatar) => Ok(SuccessResponse(apiUrl, avatar, Nil))
-      case FoundAvatars(avatars, hasMore) => Ok(SuccessResponse(apiUrl, avatars, links(avatars, hasMore)))
+      case FoundAvatar(avatar) => Ok(AvatarResponse(apiUrl, avatar, Nil))
+      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(apiUrl, avatars, links(avatars, hasMore)))
       case okay => Ok(okay.body)
     }
   }
