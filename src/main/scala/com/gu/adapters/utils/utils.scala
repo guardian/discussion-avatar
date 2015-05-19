@@ -26,10 +26,12 @@ object ISODateFormatter {
   def print(dt: DateTime): String = dateFormat.print(dt)
 }
 
-object IO {
+object Attempt {
+  def attempt[A](action: => A): Throwable \/ A = {
+    Try(action).toDisjunction
+  }
+
   def io[A](action: => A): Error \/ A = {
-    Try(action).toDisjunction.leftMap { error =>
-      ioFailed(NonEmptyList(error.getMessage))
-    }
+    attempt(action).leftMap(e => ioFailed(NonEmptyList(e.getMessage)))
   }
 }

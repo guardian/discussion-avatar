@@ -12,7 +12,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.IO.io
+import com.gu.adapters.utils.Attempt.io
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
@@ -68,6 +68,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .withHashKey(key, value)
       .withMaxPageSize(10)
       .withMaxResultSize(100)
+      .withScanIndexForward(false)
 
     val result = io(db.getTable(table).getIndex(index).query(spec))
 
@@ -216,11 +217,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield avatar
   }
   
-  def fetchImage(user: User, url: String): Error \/ Avatar = {
-    val file = new java.net.URL(url).openStream()
-    userUpload(user, file, url, true)
-  }
-
   def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)

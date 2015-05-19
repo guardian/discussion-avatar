@@ -2,7 +2,7 @@ package com.gu.adapters.http
 
 import com.gu.core.Errors.invalidFilters
 import com.gu.core._
-import org.scalatra.{ActionResult, Params}
+import org.scalatra.Params
 
 import scalaz._
 
