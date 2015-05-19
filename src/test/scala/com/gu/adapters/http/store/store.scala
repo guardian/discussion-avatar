@@ -1,10 +1,11 @@
 package com.gu.adapters.http.store
 
 import java.io.InputStream
+import java.util.UUID
 
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.store.TestStoreHelpers.path
-import com.gu.adapters.store.{FileStore, KVStore}
+import com.gu.adapters.store.{FileStore, KVStore, QueryResponse}
 import com.gu.core.Errors.avatarNotFound
 import com.gu.core._
 import org.joda.time.DateTime
@@ -103,12 +104,12 @@ class TestKVStore extends KVStore {
     docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
   }
 
-  def query(table: String, index: String, userId: Int): Error \/ List[Avatar] = {
-    docs.values.filter(_.userId == userId).toList.right
+  def query(table: String, index: String, userId: Int, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse = {
+    QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
   }
 
-  def query(table: String, index: String, status: Status): Error \/ List[Avatar] = {
-    docs.values.filter(_.status == status).toList.right
+  def query(table: String, index: String, status: Status, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse = {
+    QueryResponse(docs.values.filter(_.status == status).toList, hasMore = false).right
   }
 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {
