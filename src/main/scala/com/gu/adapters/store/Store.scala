@@ -12,7 +12,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.IO.io
+import com.gu.adapters.utils.Attempt.io
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
@@ -233,11 +233,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       avatar <- qr.avatars.find(a => a.isActive || a.status == Inactive)
         .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
     } yield avatar
-  }
-  
-  def fetchImage(user: User, url: String): Error \/ Avatar = {
-    val file = new java.net.URL(url).openStream()
-    userUpload(user, file, url, isSocial = true)
   }
 
   def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
