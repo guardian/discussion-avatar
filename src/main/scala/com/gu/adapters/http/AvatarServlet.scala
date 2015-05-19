@@ -3,6 +3,7 @@ package com.gu.adapters.http
 import java.io.InputStream
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
+import com.gu.adapters.store.{AvatarStore,QueryResponse}
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
@@ -26,6 +27,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   with SwaggerOps
   with FileUploadSupport
   with CorsSupport {
+
+  val apiUrl = Config.apiUrl
+  val pageSize = Config.pageSize
 
   protected implicit val jsonFormats: Formats =
     DefaultFormats +
@@ -77,8 +81,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         filters <- Filters.fromParams(params)
-        avatars <- store.get(filters)
-      } yield FoundAvatars(avatars)
+        qr <- store.get(filters)
+      } yield FoundAvatars(qr.avatars, qr.hasMore)
     }
   }
 
@@ -94,8 +98,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         user <- userFromRequest(params("userId"))
-        avatars <- store.get(user)
-      } yield FoundAvatars(avatars)
+        qr <- store.get(user)
+      } yield FoundAvatars(qr.avatars, qr.hasMore)
     }
   }
 
@@ -139,9 +143,22 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     (handleSuccess orElse handleError)(response)
   }
 
+  def links(avatars: List[Avatar], hasMore: Boolean): List[Link] = {
+
+    val cursor = avatars.lift(pageSize-1).map(_.id)
+    val first = avatars.headOption.map(_.id)
+    val status = params.get("status").map(s => s"status=$s&").getOrElse("")
+
+    val next = for (c <- cursor if hasMore) yield Link("next", s"$apiUrl${request.getPathInfo}?${status}since=$c")
+    val prev = for (f <- first if List("since", "until") exists params.contains) yield Link("prev", s"$apiUrl${request.getPathInfo}?${status}until=$f")
+    List(prev, next).flatten
+  }
+
   def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
     case \/-(success) => success match {
       case CreatedAvatar(avatar) => Created(avatar)
+      case FoundAvatar(avatar) => Ok(AvatarResponse(apiUrl, avatar, Nil))
+      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(apiUrl, avatars, links(avatars, hasMore)))
       case okay => Ok(okay.body)
     }
   }
