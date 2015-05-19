@@ -2,12 +2,13 @@ package com.gu.utils
 
 import java.io.File
 
-import com.gu.adapters.http.{ErrorResponse, StatusRequest, StatusSerializer}
+import com.gu.adapters.http._
 import com.gu.core.{Avatar, Status}
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.native.Serialization._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.FunSuiteLike
+import org.scalatra.test.ClientResponse
 import org.scalatra.test.scalatest.ScalatraSuite
 
 class TestHelpers extends ScalatraSuite with FunSuiteLike {
@@ -17,6 +18,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
       new StatusSerializer ++
       JodaTimeSerializers.all
 
+  def getOk(
+    uri: String,
+    p: ClientResponse => Boolean,
+    params: List[(String, String)] = Nil,
+    headers: Map[String, String] = Map()): Unit = {
+
+    get(uri, params, headers) {
+      status should equal (200)
+      p(response)
+    }
+  }
+
   def getAvatars(
     uri: String,
     p: Avatar => Boolean,
@@ -25,7 +38,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     get(uri, params, headers) {
       status should equal(200)
-      val avatars = read[List[Avatar]](body)
+      val avatars = read[AvatarsResponse](body).data
       avatars.forall(p) should be (true)
     }
   }
@@ -40,7 +53,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     get(uri, params, headers) {
       status should equal(200)
-      val avatar = read[Avatar](body)
+      val avatar = read[AvatarResponse](body).data
       p(avatar) should be (true)
     }
   }

@@ -12,7 +12,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.IO.io
+import com.gu.adapters.utils.Attempt.io
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
@@ -22,10 +22,15 @@ import scala.collection.JavaConverters._
 import scalaz.Scalaz._
 import scalaz.{NonEmptyList, \/}
 
+case class QueryResponse(
+  avatars: List[Avatar],
+  hasMore: Boolean
+)
+
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
-  def query(table: String, index: String, userId: Int): Error \/ List[Avatar]
-  def query(table: String, index: String, status: Status): Error \/ List[Avatar]
+  def query(table: String, index: String, userId: Int, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse
+  def query(table: String, index: String, status: Status, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status): Error \/ Avatar
 }
@@ -33,6 +38,7 @@ trait KVStore {
 case class Dynamo(db: DynamoDB) extends KVStore {
 
   val apiUrl = Config.apiUrl
+  val pageSize = Config.pageSize
   val privateBucket = Config.s3PrivateBucket
 
   def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
@@ -62,27 +68,37 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     table: String,
     index: String,
     key: String,
-    value: A): Error \/ List[Avatar] = {
+    value: A,
+    since: Option[UUID] = None,
+    until: Option[UUID] = None): Error \/ QueryResponse = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
-      .withMaxPageSize(10)
-      .withMaxResultSize(100)
+      .withMaxResultSize(pageSize)
+
+    List(since, until).flatten.map(cursor => spec.withExclusiveStartKey(key, value, "AvatarId", cursor.toString))
+
+    until.map(_ => spec.withScanIndexForward(false))
 
     val result = io(db.getTable(table).getIndex(index).query(spec))
 
-    for (pages <- result.map(_.pages.asScala.toList)) yield {
+    for {
+      pages <- result.map(_.pages.asScala.toList)
+      qr <- result.map(_.getLastLowLevelResult.getQueryResult)
+    } yield {
       val items = pages.map(_.asScala).flatten
-      items.map(item => asAvatar(item, apiUrl, privateBucket))
+        .map(item => asAvatar(item, apiUrl, privateBucket))
+      val orderedItems = until.map(_ => items.reverse).getOrElse(items)
+      QueryResponse(orderedItems, qr.getLastEvaluatedKey != null)
     }
   }
 
-  def query(table: String, index: String, userId: Int): Error \/ List[Avatar] = {
-    query(table, index, "UserId", userId)
+  def query(table: String, index: String, userId: Int, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse = {
+    query(table, index, "UserId", userId, since, until)
   }
 
-  def query(table: String, index: String, status: Status): Error \/ List[Avatar] = {
-    query(table, index, "Status", status.asString)
+  def query(table: String, index: String, status: Status, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse = {
+    query(table, index, "Status", status.asString, since, until)
   }
 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {
@@ -183,42 +199,40 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
   
-  def get(filters: Filters): \/[Error, List[Avatar]] = {
-    kvs.query(dynamoTable, statusIndex, filters.status)
+  def get(filters: Filters): \/[Error, QueryResponse] = {
+    kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until)
   }
 
   def get(id: String): Error \/ Avatar = {
     kvs.get(dynamoTable, id)
   }
 
-  def get(user: User): \/[Error, List[Avatar]] = {
-    val response = kvs.query(
-      dynamoTable,
-      userIndex,
-      user.id)
-
-    response.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified })
+  def get(user: User): \/[Error, QueryResponse] = {
+    for {
+      qr <- kvs.query(
+        dynamoTable,
+        userIndex,
+        user.id,
+        None,
+        None)
+      // avatars <- qr.avatars.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified})
+    } yield QueryResponse(qr.avatars, qr.hasMore)
   }
 
   def getActive(user: User): Error \/ Avatar = {
     for {
-      avatars <- get(user)
-      avatar <- avatars.find(_.isActive)
+      qr <- get(user)
+      avatar <- qr.avatars.find(_.isActive)
         .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
     } yield avatar
   }
 
   def getPersonal(user: User): Error \/ Avatar = {
     for {
-      avatars <- get(user)
-      avatar <- avatars.find(a => a.isActive || a.status == Inactive)
+      qr <- get(user)
+      avatar <- qr.avatars.find(a => a.isActive || a.status == Inactive)
         .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
     } yield avatar
-  }
-  
-  def fetchImage(user: User, url: String): Error \/ Avatar = {
-    val file = new java.net.URL(url).openStream()
-    userUpload(user, file, url, true)
   }
 
   def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {

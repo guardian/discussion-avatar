@@ -1,0 +1,36 @@
+package com.gu.adapters.http
+
+import java.io.{BufferedInputStream, InputStream}
+import java.net.URLConnection
+import javax.imageio.ImageIO
+
+import com.gu.adapters.utils.Attempt.attempt
+import com.gu.core.Error
+import com.gu.core.Errors.invalidMimeType
+
+import scalaz.Scalaz._
+import scalaz.{NonEmptyList, \/, \/-}
+
+object ImageValidator {
+
+  def notAnimated(image: InputStream): Boolean = {
+    val buffered = new BufferedInputStream(image)
+    val reader = ImageIO.getImageReadersBySuffix("GIF").next
+    val iis = ImageIO.createImageInputStream(buffered)
+    reader.setInput(iis)
+    reader.getNumImages(true) == 1
+  }
+
+  def validate(image: InputStream): Error \/ InputStream = {
+    // guessContentTypeFromStream only works with streams than support mark and reset
+    val buffered = new BufferedInputStream(image)
+    val mimeType = attempt(URLConnection.guessContentTypeFromStream(buffered))
+      .leftMap(_ => invalidMimeType(NonEmptyList("Unable to verify mime type of file")))
+
+    mimeType flatMap {
+      case "image/png" | "image/jpeg" => buffered.right
+      case "image/gif" if notAnimated(buffered) => buffered.right
+      case _ => invalidMimeType(NonEmptyList("Uploaded images must be of type png, jpeg, or gif (non-animated)")).left
+    }
+  }
+}
