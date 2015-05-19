@@ -11,6 +11,8 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.ClientResponse
 import org.scalatra.test.scalatest.ScalatraSuite
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
 
 class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
@@ -97,8 +99,19 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     createdAt: DateTime,
     p: Avatar => Boolean): Unit = {
 
-    post("/avatars", Nil, List("image" -> image), Map("Content-type" -> ("application/json"))) {
+   val createdAtString = "2015-05-14T15:35:09Z"
+
+    val json =
+      ("userId" -> userId) ~
+      ("image" -> image) ~
+      ("processedImage" -> processedImage) ~
+      ("createdAt" -> createdAtString) ~
+      ("isSocial" -> isSocial) ~
+      ("originalFilename" -> originalFilename)
+
+    post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
       status should equal(201)
+
       val avatar = read[Avatar](body)
       p(avatar) should be (true)
       getAvatar(s"/avatars/${avatar.id}", p)

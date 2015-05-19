@@ -6,6 +6,7 @@ import com.gu.adapters.http.store.{TestFileStore, TestKVStore}
 import com.gu.adapters.store.AvatarStore
 import com.gu.core._
 import com.gu.utils.TestHelpers
+import org.joda.time.DateTime
 
 class AvatarServletTests extends TestHelpers {
 
@@ -52,6 +53,22 @@ class AvatarServletTests extends TestHelpers {
       s"/avatars/user/me/active",
       cookie,
       a => a.userId == userId && a.status == Inactive)
+  }
+
+  test("Post migrated avatar") {
+    val image = new File("src/test/resources/avatar.gif").toURI.toString
+    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
+    val userId=991
+
+    postMigratedAvatar (
+      "/migratedAvatar",
+      image,
+      userId,
+      processedImage,
+      true,
+      "original.gif",
+      new DateTime(),
+      a => a.userId == userId && a.status == Approved)
   }
 
   test("Post avatar") {
