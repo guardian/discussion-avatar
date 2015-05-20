@@ -40,6 +40,6 @@ object Attempt {
 
 object InputStreamToByteArray {
   def apply(is: InputStream): Array[Byte] = {
-    Stream.continually(is.read).takeWhile(-1 !=).map(_.toByte).toArray
+    Stream.continually(is.read).takeWhile(-1 != _).map(_.toByte).toArray
   }
 }
