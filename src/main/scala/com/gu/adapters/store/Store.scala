@@ -244,11 +244,11 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
-    metadata.setCacheControl("no-cache")
+    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
     metadata.setContentLength(contentLength)
 
 
-    // FIXME -- set this to something sensible
+
 
     val avatar = Avatar(
       id = avatarId,
