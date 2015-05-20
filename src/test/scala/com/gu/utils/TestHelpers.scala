@@ -3,8 +3,9 @@ package com.gu.utils
 import java.io.File
 
 import com.gu.adapters.http._
+import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.{Avatar, Status}
-import org.joda.time.DateTime
+import org.joda.time.{DateTimeZone, DateTime}
 import org.json4s.ext.JodaTimeSerializers
 import org.json4s.native.Serialization._
 import org.json4s.{DefaultFormats, Formats}
@@ -99,17 +100,20 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     createdAt: DateTime,
     p: Avatar => Boolean): Unit = {
 
-   val createdAtString = "2015-05-14T15:35:09Z"
+    // TODO: Non UTC dates with offset are rejected, fix parser to be more lenient
+    val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
 
     val json =
       ("userId" -> userId) ~
       ("image" -> image) ~
       ("processedImage" -> processedImage) ~
-      ("createdAt" -> createdAtString) ~
+      ("createdAt" -> ISODateFormatter.print(utcDate))  ~
       ("isSocial" -> isSocial) ~
       ("originalFilename" -> originalFilename)
 
     post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
+
+      //dateString should be ("foo")
       status should equal(201)
 
       val avatar = read[Avatar](body)
