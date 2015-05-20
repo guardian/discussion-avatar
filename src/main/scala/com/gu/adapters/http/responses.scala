@@ -8,14 +8,14 @@ import scalaz.NonEmptyList
 case class Link(rel: String, href: String)
 
 sealed trait Argo
-case class Message(uri: Option[String], message: String, links: List[Link]) extends Argo
+case class Message(uri: Option[String], data: Map[String, String], links: List[Link]) extends Argo
 case class ErrorResponse(uri: Option[String], message: String, errors: List[String]) extends Argo
 case class CreatedAvatarResponse(uri: Option[String], data: Avatar) extends Argo
 case class AvatarResponse(uri: Option[String], data: Avatar, links: List[Link]) extends Argo
 case class AvatarsResponse(uri: Option[String], data: List[AvatarResponse], links: List[Link]) extends Argo
 
 object Message {
-  def apply(msg: String): Message = Message(None, msg, Nil)
+  def apply(msg: Map[String, String]): Message = Message(None, msg, Nil)
 }
 
 object AvatarResponse {

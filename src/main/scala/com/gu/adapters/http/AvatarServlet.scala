@@ -10,9 +10,8 @@ import com.gu.adapters.utils.InputStreamToByteArray
 import com.gu.core.Errors._
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
+import org.json4s.Formats
 import org.json4s.JsonAST.JValue
-import org.json4s.ext.JodaTimeSerializers
-import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
@@ -31,10 +30,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
 
-  protected implicit val jsonFormats: Formats =
-    DefaultFormats +
-      new StatusSerializer ++
-      JodaTimeSerializers.all
+  protected implicit val jsonFormats = JsonFormats.all
 
   configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024*1024)))
 
@@ -66,15 +62,29 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   get("/service/healthcheck") {
-    Message("OK")
+    Message(Map("status" -> "OK"))
   }
 
   get("/service/gtg") {
-    NotImplemented(Message("Endpoint needs to be specified"))
+    NotImplemented(ErrorResponse("Endpoint needs to be specified"))
   }
 
   get("/service/dependencies") {
-    NotImplemented(Message("Endpoint needs to be specified"))
+    NotImplemented(ErrorResponse("Endpoint needs to be specified"))
+  }
+
+  get("/") {
+    Message(
+      uri = Some(apiUrl),
+      data = Map("description" -> "The Guardian's Avatar API"),
+      links = List(
+        Link("avatars", apiUrl + "/avatars"),
+        Link("avatar", apiUrl + "/avatars/{id}"),
+        Link("user-avatars", apiUrl + "/avatars/user/{userId}"),
+        Link("user-active", apiUrl + "/avatars/user/{userId}/active"),
+        Link("me-active", apiUrl + "/avatars/user/me/active")
+      )
+    )
   }
 
   get("/avatars", operation(getAvatars)) {

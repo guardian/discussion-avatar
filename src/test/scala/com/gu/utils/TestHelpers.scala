@@ -3,20 +3,15 @@ package com.gu.utils
 import java.io.File
 
 import com.gu.adapters.http._
-import com.gu.core.{Config, Avatar, Status}
-import org.json4s.ext.JodaTimeSerializers
+import com.gu.core.{Config, Status}
 import org.json4s.native.Serialization._
-import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.ClientResponse
 import org.scalatra.test.scalatest.ScalatraSuite
 
 class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
-  protected implicit val jsonFormats: Formats =
-    DefaultFormats +
-      new StatusSerializer ++
-      JodaTimeSerializers.all
+  protected implicit val jsonFormats = JsonFormats.all
 
   def getOk(
     uri: String,
