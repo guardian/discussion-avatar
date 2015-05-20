@@ -247,9 +247,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
     metadata.setContentLength(contentLength)
 
-
-
-
     val avatar = Avatar(
       id = avatarId,
       url = s"$apiBaseUrl/avatars/$avatarId",
