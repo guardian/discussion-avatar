@@ -60,7 +60,23 @@ class AvatarServletTests extends TestHelpers {
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
     val userId=991
 
-    postMigratedAvatar (
+    postMigratedAvatar(201) (
+      "/migratedAvatar",
+      image,
+      userId,
+      processedImage,
+      true,
+      "original.gif",
+      new DateTime(),
+      a => a.userId == userId && a.status == Approved)
+  }
+
+  test("Reject invalid migrated avatar mime-type") {
+    val image = new File("src/test/resources/avatar.svg").toURI.toString
+    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
+    val userId=992
+
+    postMigratedAvatar(400) (
       "/migratedAvatar",
       image,
       userId,

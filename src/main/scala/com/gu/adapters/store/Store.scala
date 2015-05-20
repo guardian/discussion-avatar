@@ -250,7 +250,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       processedImage <- validate(processedImageFile)
       upload <- migratedUserUpload(user, InputStreamToByteArray(image), InputStreamToByteArray(processedImage), originalFilename,createdAt,isSocial)
     } yield (upload)
-    
+
   }
 
 

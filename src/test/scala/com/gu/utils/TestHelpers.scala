@@ -90,7 +90,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
       getAvatar(s"/avatars/${avatar.id}", p)
     }
   }
-  def postMigratedAvatar(
+  def postMigratedAvatar(expectedStatus: Int)(
     endpointUri: String,
     image: String,
     userId: Int,
@@ -112,13 +112,14 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
       ("originalFilename" -> originalFilename)
 
     post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
+      status should equal(expectedStatus)
 
-      //dateString should be ("foo")
-      status should equal(201)
-
-      val avatar = read[Avatar](body)
-      p(avatar) should be (true)
-      getAvatar(s"/avatars/${avatar.id}", p)
+      //Only get avatar if post is expected to succeed
+      if(expectedStatus.toString.startsWith("2")) {
+        val avatar = read[Avatar](body)
+        p(avatar) should be(true)
+        getAvatar(s"/avatars/${avatar.id}", p)
+      }
     }
   }
 
