@@ -288,17 +288,29 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
 
   def migratedUserUpload(user: User, originalFile: Array[Byte], processedFile: Array[Byte], originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
-    val avatarId = UUID.randomUUID.toString
-    val now = DateTime.now(DateTimeZone.UTC)
+    //.toRightDisjunction(avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar"))))
+    def migrate: Error \/ Avatar = ???
 
-    Try((getActive(user)).swap.toOption
-      .toRightDisjunction(avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar"))))
+
+//    for {
+//      _ <- getActive(user).swap
+//        .leftMap(_ => avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")))
+//      avatar <- migrate
+//    } yield avatar
+
+      val avatarId = UUID.randomUUID.toString
+      val now = DateTime.now(DateTimeZone.UTC)
+      val originalContentLength = originalFile.length
+      val processedContentLength = processedFile.length
+
+
 
       val metadata = new ObjectMetadata()
       metadata.addUserMetadata("avatar-id", avatarId)
       metadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
       metadata.addUserMetadata("original-filename", originalFilename)
       metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+      metadata.setContentLength(originalContentLength)
 
       val avatar = Avatar(
         id = avatarId,
@@ -318,8 +330,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
         _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, metadata)
         _ <- copyToPublic(avatar)
       } yield avatar
+    }
 
-  }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
     fs.copy(
