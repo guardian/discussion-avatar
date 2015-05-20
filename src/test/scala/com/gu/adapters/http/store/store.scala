@@ -1,6 +1,5 @@
 package com.gu.adapters.http.store
 
-import java.io.InputStream
 import java.util.UUID
 
 import com.amazonaws.services.s3.model.ObjectMetadata
@@ -39,7 +38,7 @@ class TestFileStore extends FileStore {
   def put(
     bucket: String,
     key: String,
-    file: InputStream,
+    file: Array[Byte],
     metadata: ObjectMetadata): Error \/ Unit = {
 
     files += path(bucket, key) -> file.toString // TODO FIX

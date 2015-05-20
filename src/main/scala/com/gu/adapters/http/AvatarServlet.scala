@@ -7,6 +7,7 @@ import com.gu.adapters.store.{AvatarStore,QueryResponse}
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
+import com.gu.adapters.utils.InputStreamToByteArray
 import com.gu.core.Errors._
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
@@ -198,13 +199,13 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
           req <- avatarRequestFromBody(request.body)
           file <- fileFromUrl(user, req.url)
           image <- validate(file)
-          upload <- store.userUpload(user, image, req.url, true)
+          upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
         } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
           fr <- fileFromBody(fileParams)
           image <- validate(fr._2)
-          upload <- store.userUpload(user, image, fr._1, true)
+          upload <- store.userUpload(user, InputStreamToByteArray(image), fr._1, true)
         } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))

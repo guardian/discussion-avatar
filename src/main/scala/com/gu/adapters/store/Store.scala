@@ -1,6 +1,6 @@
 package com.gu.adapters.store
 
-import java.io.InputStream
+import java.io.{InputStream, ByteArrayInputStream}
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
@@ -18,6 +18,7 @@ import com.gu.core.Errors._
 import com.gu.core.{Config, _}
 import org.joda.time.{DateTime, DateTimeZone}
 import com.gu.adapters.http.ImageValidator.validate
+import com.gu.adapters.utils.InputStreamToByteArray
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -145,7 +146,7 @@ trait FileStore {
   def put(
     bucket: String,
     key: String,
-    file: InputStream,
+    file: Array[Byte],
     metadata: ObjectMetadata): Error \/ Unit
 
   def delete(bucket: String, key: String): Error \/ Unit
@@ -171,10 +172,11 @@ case class S3(client: AmazonS3Client) extends FileStore {
   def put(
     bucket: String,
     key: String,
-    file: InputStream,
+    file: Array[Byte],
     metadata: ObjectMetadata): Error \/ Unit = {
 
-    val request = new PutObjectRequest(bucket, key, file, metadata)
+    val inputStream = new ByteArrayInputStream(file)
+    val request = new PutObjectRequest(bucket, key, inputStream, metadata)
     io(client.putObject(request))
   }
 
@@ -237,11 +239,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield avatar
   }
 
-  
-  def fetchImage(user: User, url: String): Error \/ Avatar = {
-    val file = new java.net.URL(url).openStream()
-    userUpload(user, file, url, true)
-  }  
+
   
   def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
     val imageFile: InputStream =  new java.net.URL(image).openStream()
@@ -250,22 +248,24 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     for {
       image <- validate(imageFile)
       processedImage <- validate(processedImageFile)
-      upload <- migratedUserUpload(user, image, processedImage, originalFilename,createdAt,isSocial)
+      upload <- migratedUserUpload(user, InputStreamToByteArray(image), InputStreamToByteArray(processedImage), originalFilename,createdAt,isSocial)
     } yield (upload)
-
-
-    migratedUserUpload(user, imageFile, processedImageFile, originalFilename,createdAt, isSocial)
+    
   }
 
 
-  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
+
+  def userUpload(user: User, file: Array[Byte], originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
+    val contentLength = file.length
+
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
-    metadata.setCacheControl("no-cache")  // FIXME -- set this to something sensible
+    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+    metadata.setContentLength(contentLength)
 
     val avatar = Avatar(
       id = avatarId,
@@ -287,7 +287,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }
 
 
-  def migratedUserUpload(user: User, originalFile: InputStream, processedFile: InputStream, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
+  def migratedUserUpload(user: User, originalFile: Array[Byte], processedFile: Array[Byte], originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
 
