@@ -1,6 +1,6 @@
 package com.gu.adapters.store
 
-import java.io.InputStream
+import java.io.{ByteArrayInputStream}
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
@@ -143,7 +143,7 @@ trait FileStore {
   def put(
     bucket: String,
     key: String,
-    file: InputStream,
+    file: Array[Byte],
     metadata: ObjectMetadata): Error \/ Unit
 
   def delete(bucket: String, key: String): Error \/ Unit
@@ -169,10 +169,11 @@ case class S3(client: AmazonS3Client) extends FileStore {
   def put(
     bucket: String,
     key: String,
-    file: InputStream,
+    file: Array[Byte],
     metadata: ObjectMetadata): Error \/ Unit = {
 
-    val request = new PutObjectRequest(bucket, key, file, metadata)
+    val inputStream = new ByteArrayInputStream(file)
+    val request = new PutObjectRequest(bucket, key, inputStream, metadata)
     io(client.putObject(request))
   }
 
@@ -235,15 +236,16 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield avatar
   }
 
-  def userUpload(user: User, file: InputStream, originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
+  def userUpload(user: User, file: Array[Byte], originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
-
+    val contentLength = file.length
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
-    metadata.setCacheControl("no-cache")  // FIXME -- set this to something sensible
+    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+    metadata.setContentLength(contentLength)
 
     val avatar = Avatar(
       id = avatarId,
