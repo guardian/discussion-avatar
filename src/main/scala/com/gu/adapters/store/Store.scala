@@ -17,6 +17,7 @@ import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
 import org.joda.time.{DateTime, DateTimeZone}
+import com.gu.adapters.http.ImageValidator.validate
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -243,8 +244,16 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }  
   
   def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
-    val imageFile: InputStream = new java.net.URL(image).openStream()
+    val imageFile: InputStream =  new java.net.URL(image).openStream()
     val processedImageFile: InputStream = new java.net.URL(processedImage).openStream()
+
+    for {
+      image <- validate(imageFile)
+      processedImage <- validate(processedImageFile)
+      upload <- migratedUserUpload(user, image, processedImage, originalFilename,createdAt,isSocial)
+    } yield (upload)
+
+
     migratedUserUpload(user, imageFile, processedImageFile, originalFilename,createdAt, isSocial)
   }
 
