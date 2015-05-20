@@ -36,8 +36,6 @@ object Attempt {
   def io[A](action: => A): Error \/ A = {
     attempt(action).leftMap(e => ioFailed(NonEmptyList(e.getMessage)))
   }
-
-
 }
 
 object InputStreamToByteArray {
