@@ -305,12 +305,19 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
 
 
-      val metadata = new ObjectMetadata()
-      metadata.addUserMetadata("avatar-id", avatarId)
-      metadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
-      metadata.addUserMetadata("original-filename", originalFilename)
-      metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-      metadata.setContentLength(originalContentLength)
+      val originalMetadata = new ObjectMetadata()
+      originalMetadata.addUserMetadata("avatar-id", avatarId)
+      originalMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
+      originalMetadata.addUserMetadata("original-filename", originalFilename)
+      originalMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+      originalMetadata.setContentLength(originalContentLength)
+
+    val processedMetadata = new ObjectMetadata()
+      processedMetadata.addUserMetadata("avatar-id", avatarId)
+      processedMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
+      processedMetadata.addUserMetadata("original-filename", originalFilename)
+      processedMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+      processedMetadata.setContentLength(processedContentLength)
 
       val avatar = Avatar(
         id = avatarId,
@@ -326,8 +333,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       for {
         avatar <- kvs.put(dynamoTable, avatar)
-        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, metadata)
-        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, metadata)
+        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, originalMetadata)
+        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, processedMetadata)
         _ <- copyToPublic(avatar)
       } yield avatar
     }
