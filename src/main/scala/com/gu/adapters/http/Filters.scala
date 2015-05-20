@@ -50,4 +50,13 @@ object Filters {
 
     filters.leftMap(invalidFilters).disjunction
   }
+
+  def queryString(f: Filters): String = {
+    val params = Set(
+      Some(f.status.asString),
+      f.since.map(_.toString),
+      f.until.map(_.toString)).flatten
+
+    params.mkString("?", "&", "")
+  }
 }

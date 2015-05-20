@@ -55,7 +55,6 @@ class TestKVStore extends KVStore {
   private[this] var docs: Map[String, Avatar] = Map(
     Config.dynamoTable + "/123" -> Avatar(
       "123",
-      "http://api",
       "http://avatar-url-1",
       123,
       "foo.gif",
@@ -66,7 +65,6 @@ class TestKVStore extends KVStore {
       isActive = true),
     Config.dynamoTable + "/234" -> Avatar(
       "234",
-      "http://api",
       "http://avatar-url-2",
       234,
       "bar.gif",
@@ -77,7 +75,6 @@ class TestKVStore extends KVStore {
       isActive = false),
     Config.dynamoTable + "/345" -> Avatar(
       "345",
-      "http://api",
       "http://avatar-url-2",
       345,
       "gra.gif",
@@ -88,7 +85,6 @@ class TestKVStore extends KVStore {
       isActive = false),
     Config.dynamoTable +"/456" -> Avatar(
       "456",
-      "http://api",
       "http://avatar-url-2",
       21801602,
       "gra.gif",

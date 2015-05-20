@@ -46,7 +46,6 @@ case class Dynamo(db: DynamoDB) extends KVStore {
 
     Avatar(
       id = id,
-      url = s"$baseUrl/avatars/$id",
       avatarUrl = s"http://$avatarUrl/avatars/$id",
       userId = item.getString("UserId").toInt,
       originalFilename = item.getString("OriginalFilename"),
@@ -200,15 +199,17 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
   
-  def get(filters: Filters): \/[Error, QueryResponse] = {
-    kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until)
+  def get(filters: Filters): \/[Error, FoundAvatars] = {
+    for {
+      qr <- kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until)
+    } yield FoundAvatars(qr. avatars, qr.hasMore)
   }
 
-  def get(id: String): Error \/ Avatar = {
-    kvs.get(dynamoTable, id)
+  def get(id: String): Error \/ FoundAvatar = {
+    kvs.get(dynamoTable, id) map FoundAvatar
   }
 
-  def get(user: User): \/[Error, QueryResponse] = {
+  def get(user: User): \/[Error, FoundAvatars] = {
     for {
       qr <- kvs.query(
         dynamoTable,
@@ -217,26 +218,31 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
         None,
         None)
       // avatars <- qr.avatars.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified})
-    } yield QueryResponse(qr.avatars, qr.hasMore)
+    } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
 
-  def getActive(user: User): Error \/ Avatar = {
+  def getActive(user: User): Error \/ FoundAvatar = {
     for {
-      qr <- get(user)
-      avatar <- qr.avatars.find(_.isActive)
+      found <- get(user)
+      avatar <- found.body.find(_.isActive)
         .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
-    } yield avatar
+    } yield FoundAvatar(avatar)
   }
 
-  def getPersonal(user: User): Error \/ Avatar = {
+  def getPersonal(user: User): Error \/ FoundAvatar = {
     for {
-      qr <- get(user)
-      avatar <- qr.avatars.find(a => a.isActive || a.status == Inactive)
+      found <- get(user)
+      avatar <- found.body.find(a => a.isActive || a.status == Inactive)
         .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
-    } yield avatar
+    } yield FoundAvatar(avatar)
   }
 
-  def userUpload(user: User, file: Array[Byte], originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
+  def userUpload(
+    user: User,
+    file: Array[Byte],
+    originalFilename: String,
+    isSocial: Boolean = false): Error \/ CreatedAvatar = {
+
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
     val contentLength = file.length
@@ -249,7 +255,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     val avatar = Avatar(
       id = avatarId,
-      url = s"$apiBaseUrl/avatars/$avatarId",
       avatarUrl = s"http://$privateBucket/avatars/$avatarId",
       userId = user.id,
       originalFilename = originalFilename,
@@ -262,7 +267,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     for {
       avatar <- kvs.put(dynamoTable, avatar)
       _ <- fs.put(privateBucket, s"avatars/$avatarId", file, metadata)
-    } yield avatar
+    } yield CreatedAvatar(avatar)
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
@@ -287,16 +292,16 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     case _ => updated.right
   }
 
-  def updateStatus(id: String, status: Status): \/[Error, Avatar] = {
+  def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
     val oldAvatar = kvs.get(dynamoTable, id)
 
     if (oldAvatar.exists(_.status == status)) {
-      oldAvatar
+      oldAvatar map UpdatedAvatar
     } else for {
       old <- oldAvatar
       updated <- kvs.update(dynamoTable, id, status)
       _ <- updateS3(old, updated)
-    } yield updated
+    } yield UpdatedAvatar(updated)
   }
 }
 
