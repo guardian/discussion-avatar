@@ -1,5 +1,7 @@
 package com.gu.adapters.utils
 
+import java.io.InputStream
+
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import com.gu.adapters.utils.ToTryOps.toTryOps
@@ -33,5 +35,13 @@ object Attempt {
 
   def io[A](action: => A): Error \/ A = {
     attempt(action).leftMap(e => ioFailed(NonEmptyList(e.getMessage)))
+  }
+
+
+}
+
+object InputStreamToByteArray {
+  def apply(is: InputStream): Array[Byte] = {
+    Stream.continually(is.read).takeWhile(-1 !=).map(_.toByte).toArray
   }
 }
