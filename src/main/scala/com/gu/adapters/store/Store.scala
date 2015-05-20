@@ -1,6 +1,6 @@
 package com.gu.adapters.store
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.{ByteArrayInputStream}
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
@@ -11,8 +11,6 @@ import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpe
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
-import com.amazonaws.util.IOUtils
-import com.amazonaws.util.LengthCheckInputStream
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt.io
 import com.gu.adapters.utils.ISODateFormatter
