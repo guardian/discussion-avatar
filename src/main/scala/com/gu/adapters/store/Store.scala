@@ -244,7 +244,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
   
 
-  def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ CreatedAvatar = {
+  def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ MigratedAvatar = {
 
     def fileFromUrl(url: String): Error \/ InputStream = {
       attempt(new java.net.URL(url).openStream())
@@ -292,15 +292,9 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }
 
 
-  def migratedUserUpload(user: User, originalFile: Array[Byte], processedFile: Array[Byte], originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ CreatedAvatar = {
-    def migrate: Error \/ Avatar = ???
+  def migratedUserUpload(user: User, originalFile: Array[Byte], processedFile: Array[Byte], originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ MigratedAvatar = {
 
-
-//    for {
-//      _ <- getActive(user).swap
-//        .leftMap(_ => avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")))
-//      avatar <- migrate
-//    } yield avatar
+    def migrate: Error \/ MigratedAvatar = {
 
       val avatarId = UUID.randomUUID.toString
       val now = DateTime.now(DateTimeZone.UTC)
@@ -309,19 +303,12 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
 
 
-      val originalMetadata = new ObjectMetadata()
-      originalMetadata.addUserMetadata("avatar-id", avatarId)
-      originalMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
-      originalMetadata.addUserMetadata("original-filename", originalFilename)
-      originalMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-      originalMetadata.setContentLength(originalContentLength)
+      val metadata = new ObjectMetadata()
+      metadata.addUserMetadata("avatar-id", avatarId)
+      metadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
+      metadata.addUserMetadata("original-filename", originalFilename)
+      metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
 
-    val processedMetadata = new ObjectMetadata()
-      processedMetadata.addUserMetadata("avatar-id", avatarId)
-      processedMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
-      processedMetadata.addUserMetadata("original-filename", originalFilename)
-      processedMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-      processedMetadata.setContentLength(processedContentLength)
 
       val avatar = Avatar(
         id = avatarId,
@@ -336,10 +323,19 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       for {
         avatar <- kvs.put(dynamoTable, avatar)
-        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, originalMetadata)
-        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, processedMetadata)
+        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, metadata)
+        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, metadata)
         _ <- copyToPublic(avatar)
-      } yield CreatedAvatar(avatar)
+      } yield MigratedAvatar(avatar)
+    }
+
+    for {
+      _ <- getActive(user).swap
+        .leftMap(_ => avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")))
+      avatar <- migrate
+    } yield avatar
+
+
     }
 
 

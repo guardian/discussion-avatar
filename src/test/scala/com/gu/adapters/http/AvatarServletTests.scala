@@ -87,6 +87,33 @@ class AvatarServletTests extends TestHelpers {
       a => a.data.userId == userId && a.data.status == Approved)
   }
 
+  test("Reject migration of already existing user") {
+
+    val image = new File("src/test/resources/avatar.gif").toURI.toString
+    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
+    val userId=999
+
+    postMigratedAvatar(201) (
+      "/migratedAvatar",
+      image,
+      userId,
+      processedImage,
+      true,
+      "original.gif",
+      new DateTime(),
+      a => a.data.userId == userId && a.data.status == Approved)
+
+    postMigratedAvatar(409) (
+      "/migratedAvatar",
+      image,
+      userId,
+      processedImage,
+      true,
+      "original.gif",
+      new DateTime(),
+      a => a.data.userId == userId && a.data.status == Approved)
+  }
+
   test("Post avatar") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = Config.preProdCookie

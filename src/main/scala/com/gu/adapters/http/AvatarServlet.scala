@@ -178,7 +178,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore))
       case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
-      case MigratedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+      case MigratedAvatar(avatar) => Created(AvatarResponse(avatar, url))
     }
   }
 
