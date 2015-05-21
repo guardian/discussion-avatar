@@ -173,6 +173,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     metadata: ObjectMetadata): Error \/ Unit = {
 
     val inputStream = new ByteArrayInputStream(file)
+    metadata.setContentLength(file.length)
     val request = new PutObjectRequest(bucket, key, inputStream, metadata)
     io(client.putObject(request))
   }
@@ -239,13 +240,11 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   def userUpload(user: User, file: Array[Byte], originalFilename: String, isSocial: Boolean = false): Error \/ Avatar = {
     val avatarId = UUID.randomUUID.toString
     val now = DateTime.now(DateTimeZone.UTC)
-    val contentLength = file.length
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId)
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
     metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-    metadata.setContentLength(contentLength)
 
     val avatar = Avatar(
       id = avatarId,
