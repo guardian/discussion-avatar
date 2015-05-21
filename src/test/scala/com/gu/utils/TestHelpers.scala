@@ -110,6 +110,12 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
       status should equal(expectedStatus)
+
+      if(status.toString.startsWith("2")) {
+        val avatar = read[AvatarResponse](body)
+        p(avatar) should be(true)
+        getAvatar(s"/avatars/${avatar.data.id}", p)
+      }
     }
   }
 
