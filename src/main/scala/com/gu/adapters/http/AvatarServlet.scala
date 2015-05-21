@@ -201,6 +201,22 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
+
+    fileFromBody(fileParams) match {
+      case e @ -\/(error) => e
+      case \/-((fname, stream)) =>
+        try {
+          val buffered = new BufferedInputStream(stream)
+          for {
+            mimeType <- validate(buffered)
+          } yield (InputStreamToByteArray(buffered), mimeType, fname)
+        } finally {
+          stream.close()
+        }
+    }
+  }
+
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
@@ -212,10 +228,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
         } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
-          fr <- fileFromBody(fileParams)
-          buffered = new BufferedInputStream(fr._2)
-          mimeType <- validate(buffered)
-          upload <- store.userUpload(user, InputStreamToByteArray(buffered), mimeType, fr._1, true)
+          bytesAndMimeTypeAndFname <- getFile(fileParams)
+          (bytes, mimeType, fname) = bytesAndMimeTypeAndFname
+          upload <- store.userUpload(user, bytes, mimeType, fname, true)
         } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))

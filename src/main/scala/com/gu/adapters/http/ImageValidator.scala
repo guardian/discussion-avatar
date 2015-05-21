@@ -40,7 +40,7 @@ object ImageValidator {
       .leftMap(_ => invalidMimeType(NonEmptyList("Unable to verify mime type of file")))
 
     mimeType flatMap {
-      case "image/png" | "image/jpeg" => "image/jpeg".right
+      case i @ ("image/png" | "image/jpeg") => i.right
       case "image/gif" if notAnimated(buffered) => "image/gif".right
       case _ => invalidMimeType(NonEmptyList("Uploaded images must be of type png, jpeg, or gif (non-animated)")).left
     }
