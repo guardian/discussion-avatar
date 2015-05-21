@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import java.io.InputStream
+import java.io.{BufferedInputStream, InputStream}
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.ImageValidator.validate
@@ -190,14 +190,19 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
         for {
           req <- avatarRequestFromBody(request.body)
           file <- fileFromUrl(req.url)
-          image <- validate(file)
-          upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
-        } yield upload
+          buffered = new BufferedInputStream(file)
+          mimeType <- validate(buffered)
+          upload <- store.userUpload(user, InputStreamToByteArray(buffered), mimeType, req.url, true)
+        } yield {
+
+          upload
+        }
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
           fr <- fileFromBody(fileParams)
-          image <- validate(fr._2)
-          upload <- store.userUpload(user, InputStreamToByteArray(image), fr._1, true)
+          buffered = new BufferedInputStream(fr._2)
+          mimeType <- validate(buffered)
+          upload <- store.userUpload(user, InputStreamToByteArray(buffered), mimeType, fr._1, true)
         } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))

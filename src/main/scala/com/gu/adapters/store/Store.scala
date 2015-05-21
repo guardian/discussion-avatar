@@ -241,6 +241,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   def userUpload(
     user: User,
     file: Array[Byte],
+    mimeType: String,
     originalFilename: String,
     isSocial: Boolean = false): Error \/ CreatedAvatar = {
 
@@ -251,6 +252,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
     metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+    metadata.setContentType(mimeType)
 
     val avatar = Avatar(
       id = avatarId,
