@@ -7,6 +7,7 @@ import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.InputStreamToByteArray
+import com.gu.adapters.utils.InputStreamToByteArray.FileFromURL
 import com.gu.core.Errors._
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
@@ -204,7 +205,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          file <- fileFromUrl(req.url)
+          file <- FileFromURL(req.url)
           image <- validate(file)
           upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
         } yield upload
@@ -224,11 +225,6 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   def avatarRequestFromBody(body: String): Error \/ AvatarRequest = {
     attempt(parse(body).extract[AvatarRequest])
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
-  }
-
-  def fileFromUrl(url: String): Error \/ InputStream = {
-    attempt(new java.net.URL(url).openStream())
-      .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
   }
 
   def fileFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {

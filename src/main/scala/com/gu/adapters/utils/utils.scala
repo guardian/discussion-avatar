@@ -2,6 +2,7 @@ package com.gu.adapters.utils
 
 import java.io.InputStream
 
+import com.gu.adapters.utils.Attempt._
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import com.gu.adapters.utils.ToTryOps.toTryOps
@@ -42,4 +43,13 @@ object InputStreamToByteArray {
   def apply(is: InputStream): Array[Byte] = {
     Stream.continually(is.read).takeWhile(-1 != _).map(_.toByte).toArray
   }
+
+object FileFromURL{
+  def apply(url: String): Error \/ InputStream = {
+    attempt(new java.net.URL(url).openStream())
+      .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
+  }
+
+}
+
 }

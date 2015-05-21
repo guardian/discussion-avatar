@@ -14,6 +14,7 @@ import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
 import com.gu.adapters.utils.ISODateFormatter
+import com.gu.adapters.utils.InputStreamToByteArray.FileFromURL
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
 import org.joda.time.{DateTime, DateTimeZone}
@@ -246,14 +247,9 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
   def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ MigratedAvatar = {
 
-    def fileFromUrl(url: String): Error \/ InputStream = {
-      attempt(new java.net.URL(url).openStream())
-        .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
-    }
-
     for {
-      imageFile <- fileFromUrl(image)
-      processedImageFile <- fileFromUrl(processedImage)
+      imageFile <- FileFromURL(image)
+      processedImageFile <- FileFromURL(processedImage)
       image <- validate(imageFile)
       processedImage <- validate(processedImageFile)
       upload <- migratedUserUpload(user, InputStreamToByteArray(image), InputStreamToByteArray(processedImage), originalFilename,createdAt,isSocial)
