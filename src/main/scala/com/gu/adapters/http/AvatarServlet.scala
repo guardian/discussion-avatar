@@ -187,9 +187,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
 
   def getUrl(url: String): Error \/ (Array[Byte], String) = {
 
-    fileFromUrl(url) match {
-    case e @ -\/(error) => e
-    case \/-(stream) =>
+    streamFromUrl(url) flatMap {
+      case (stream) =>
       try {
         val buffered = new BufferedInputStream(stream)
         for {
@@ -203,9 +202,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
 
   def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
 
-    fileFromBody(fileParams) match {
-      case e @ -\/(error) => e
-      case \/-((fname, stream)) =>
+    streamFromBody(fileParams) flatMap {
+      case ((fname, stream)) =>
         try {
           val buffered = new BufferedInputStream(stream)
           for {
@@ -244,12 +242,12 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def fileFromUrl(url: String): Error \/ InputStream = {
+  def streamFromUrl(url: String): Error \/ InputStream = {
     attempt(new java.net.URL(url).openStream())
       .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
   }
 
-  def fileFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
+  def streamFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
     for {
       file <- attempt(fileParams("image"))
         .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
