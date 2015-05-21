@@ -27,7 +27,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Get avatars by status") {
     val statuses = Set(Inactive, Pending, Approved, Rejected)
-    statuses.foreach(s => getAvatars(s"/avatars?status=${s.asString}", _.status == s))
+    statuses.foreach(s => getAvatars(s"/avatars?status=${s.asString}", _.data.status == s))
   }
 
   test("Error response if invalid status") {
@@ -35,15 +35,15 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Get avatar by ID") {
-    getAvatar("/avatars/123", _.id == "123")
+    getAvatar("/avatars/123", _.data.id == "123")
   }
 
   test("Get avatars by user ID") {
-    getAvatars(s"/avatars/user/123", _.id == "123")
+    getAvatars(s"/avatars/user/123", _.data.id == "123")
   }
 
   test("Get active avatar by user ID") {
-    getAvatar(s"/avatars/user/123/active", a => a.id == "123" && a.isActive)
+    getAvatar(s"/avatars/user/123/active", a => a.data.id == "123" && a.data.isActive)
   }
 
   test("Get personal avatar by user ID") {
@@ -51,7 +51,7 @@ class AvatarServletTests extends TestHelpers {
     getAvatar(
       s"/avatars/user/me/active",
       cookie,
-      a => a.userId == userId && a.status == Inactive)
+      a => a.data.userId == userId && a.data.status == Inactive)
   }
 
   test("Post avatar") {
@@ -63,11 +63,11 @@ class AvatarServletTests extends TestHelpers {
       file,
       userId,
       cookie,
-      a => a.userId == userId && a.status == Pending)
+      a => a.data.userId == userId && a.data.status == Pending)
   }
 
   test("Put avatar status") {
-    put("/avatars/345/status", Approved, _.status == Approved)
+    put("/avatars/345/status", Approved, _.data.status == Approved)
   }
 
   test("Error on Avatar not found") {
