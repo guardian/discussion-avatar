@@ -6,5 +6,6 @@ sealed trait Success {
 
 case class CreatedAvatar(body: Avatar) extends Success
 case class UpdatedAvatar(body: Avatar) extends Success
+case class MigratedAvatar(body: Avatar) extends Success
 case class FoundAvatar(body: Avatar) extends Success
 case class FoundAvatars(body: List[Avatar], hasMore: Boolean) extends Success

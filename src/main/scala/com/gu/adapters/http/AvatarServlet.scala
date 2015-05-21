@@ -3,7 +3,6 @@ package com.gu.adapters.http
 import java.io.InputStream
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
-import com.gu.adapters.store.{AvatarStore,QueryResponse}
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
@@ -11,10 +10,9 @@ import com.gu.adapters.utils.InputStreamToByteArray
 import com.gu.core.Errors._
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
-import org.joda.time.DateTime
+
+
 import org.json4s.JsonAST.JValue
-import org.json4s.ext.JodaTimeSerializers
-import org.json4s.{DefaultFormats, Formats}
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
@@ -33,10 +31,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
 
-  protected implicit val jsonFormats: Formats =
-    DefaultFormats +
-      new StatusSerializer ++
-      JodaTimeSerializers.all
+  protected implicit val jsonFormats = JsonFormats.all
 
   configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024*1024)))
 
@@ -48,17 +43,17 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     if (routes.matchingMethodsExcept(Options, requestPath).isEmpty)
       doNotFound() // correct for options("*") CORS behaviour
     else
-      MethodNotAllowed(ErrorResponse("Method not supported", Nil))
+      MethodNotAllowed(ErrorResponse("Method not supported"))
   }
 
   error {
     case e: SizeConstraintExceededException =>
       RequestEntityTooLarge(
-        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size", Nil))
+        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size"))
   }
 
   notFound {
-    NotFound(ErrorResponse("Requested resource not found", Nil))
+    NotFound(ErrorResponse("Requested resource not found"))
   }
 
   options("/*") {
@@ -68,23 +63,38 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   get("/service/healthcheck") {
-    Message("OK")
+    Message(Map("status" -> "OK"))
   }
 
   get("/service/gtg") {
-    NotImplemented(Message("Endpoint needs to be specified"))
+    NotImplemented(ErrorResponse("Endpoint needs to be specified"))
   }
 
   get("/service/dependencies") {
-    NotImplemented(Message("Endpoint needs to be specified"))
+    NotImplemented(ErrorResponse("Endpoint needs to be specified"))
+  }
+
+  get("/") {
+    Message(
+      uri = Some(apiUrl),
+      data = Map("description" -> "The Guardian's Avatar API"),
+      links = List(
+        Link("avatars", apiUrl + "/avatars"),
+        Link("avatar", apiUrl + "/avatars/{id}"),
+        Link("user-avatars", apiUrl + "/avatars/user/{userId}"),
+        Link("user-active", apiUrl + "/avatars/user/{userId}/active"),
+        Link("me-active", apiUrl + "/avatars/user/me/active")
+      )
+    )
   }
 
   get("/avatars", operation(getAvatars)) {
     withErrorHandling {
       for {
         filters <- Filters.fromParams(params)
-        qr <- store.get(filters)
-      } yield FoundAvatars(qr.avatars, qr.hasMore)
+        avatar <- store.get(filters)
+        url = Req(apiUrl, request.getPathInfo, filters)
+      } yield (avatar, url)
     }
   }
 
@@ -92,7 +102,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         avatar <- store.get(params("id"))
-      } yield FoundAvatar(avatar)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (avatar, req)
     }
   }
 
@@ -100,8 +111,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         user <- userFromRequest(params("userId"))
-        qr <- store.get(user)
-      } yield FoundAvatars(qr.avatars, qr.hasMore)
+        avatar <- store.get(user)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (avatar, req)
     }
   }
 
@@ -110,7 +122,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromRequest(params("userId"))
         active <- store.getActive(user)
-      } yield FoundAvatar(active)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (active, req)
     }
   }
 
@@ -119,7 +132,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         user <- userFromCookie(decoder, request.cookies.get("GU_U"))
         avatar <- store.getPersonal(user)
-      } yield FoundAvatar(avatar)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (avatar, req)
     }
   }
 
@@ -127,8 +141,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         user <- userFromCookie(decoder, request.cookies.get("GU_U"))
-        avatar <- uploadAvatar(request, user, fileParams)
-      } yield CreatedAvatar(avatar)
+        created <- uploadAvatar(request, user, fileParams)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (created, req)
     }
   }
 
@@ -137,8 +152,9 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       for {
         mr <- migrateRequestFromBody(parsedBody)
         user <- userFromRequest(mr.userId.toString)
-        avatar <- store.fetchMigratedImages(user, mr.image, mr.processedImage, mr.originalFilename, mr.createdAt, mr.isSocial)
-      } yield CreatedAvatar(avatar)
+        req = Req(apiUrl, request.getPathInfo)
+        created <- store.fetchMigratedImages(user, mr.image, mr.processedImage, mr.originalFilename, mr.createdAt, mr.isSocial)
+      } yield (created, req)
     }
   }
 
@@ -146,58 +162,49 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     withErrorHandling {
       for {
         sr <- statusRequestFromBody(parsedBody)
-        update <- store.updateStatus(params("id"), sr.status)
-      } yield UpdatedAvatar(update)
+        updated <- store.updateStatus(params("id"), sr.status)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (updated, req)
     }
   }
 
-  def withErrorHandling(response: => \/[Error, Success]): ActionResult = {
+  def withErrorHandling(response: => \/[Error, (Success, Req)]): ActionResult = {
     (handleSuccess orElse handleError)(response)
   }
 
-  def links(avatars: List[Avatar], hasMore: Boolean): List[Link] = {
-
-    val cursor = avatars.lift(pageSize-1).map(_.id)
-    val first = avatars.headOption.map(_.id)
-    val status = params.get("status").map(s => s"status=$s&").getOrElse("")
-
-    val next = for (c <- cursor if hasMore) yield Link("next", s"$apiUrl${request.getPathInfo}?${status}since=$c")
-    val prev = for (f <- first if List("since", "until") exists params.contains) yield Link("prev", s"$apiUrl${request.getPathInfo}?${status}until=$f")
-    List(prev, next).flatten
-  }
-
-  def handleSuccess: PartialFunction[\/[Error, Success], ActionResult] = {
-    case \/-(success) => success match {
-      case CreatedAvatar(avatar) => Created(avatar)
-      case FoundAvatar(avatar) => Ok(AvatarResponse(apiUrl, avatar, Nil))
-      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(apiUrl, avatars, links(avatars, hasMore)))
-      case okay => Ok(okay.body)
+  def handleSuccess: PartialFunction[\/[Error, (Success, Req)], ActionResult] = {
+    case \/-((success, url)) => success match {
+      case CreatedAvatar(avatar) => Created(AvatarResponse(avatar, url))
+      case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore))
+      case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+      case MigratedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
     }
   }
 
   def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
     case -\/(error) => error match {
-      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors.list))
-      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors.list))
-      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors.list))
-      case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
-      case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors.list))
-      case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors.list))
+      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors))
+      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors))
+      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
+      case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
+      case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
+      case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
     }
   }
 
-  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ Avatar = {
+  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          file <- fileFromUrl(user, req.url)
+          file <- fileFromUrl(req.url)
           image <- validate(file)
           upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
         } yield upload
@@ -219,7 +226,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def fileFromUrl(user: User, url: String): Error \/ InputStream = {
+  def fileFromUrl(url: String): Error \/ InputStream = {
     attempt(new java.net.URL(url).openStream())
       .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
   }
