@@ -1,7 +1,5 @@
 package com.gu.adapters.http
 
-import java.util.Date
-
 import com.gu.core.Avatar
 import org.scalatra.swagger._
 
