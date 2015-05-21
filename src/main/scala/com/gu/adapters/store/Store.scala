@@ -282,7 +282,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     for {
       avatar <- kvs.put(dynamoTable, avatar)
       _ <- fs.put(privateBucket, s"avatars/$avatarId", file, metadata)
-      _ <- copyToPublic(avatar)
     } yield avatar
   }
 
