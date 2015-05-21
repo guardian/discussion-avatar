@@ -189,7 +189,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          file <- fileFromUrl(user, req.url)
+          file <- fileFromUrl(req.url)
           image <- validate(file)
           upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
         } yield upload
@@ -211,7 +211,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def fileFromUrl(user: User, url: String): Error \/ InputStream = {
+  def fileFromUrl(url: String): Error \/ InputStream = {
     attempt(new java.net.URL(url).openStream())
       .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
   }
