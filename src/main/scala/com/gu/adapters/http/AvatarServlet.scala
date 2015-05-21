@@ -8,6 +8,7 @@ import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.InputStreamToByteArray
 import com.gu.core.Errors._
+import com.gu.core.Success
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.Formats
@@ -17,7 +18,7 @@ import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.{-\/, NonEmptyList, \/, \/-}
+import scalaz._
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
   extends ScalatraServlet
@@ -184,19 +185,31 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def getUrl(url: String): Error \/ (Array[Byte], String) = {
+
+    fileFromUrl(url) match {
+    case e @ -\/(error) => e
+    case \/-(stream) =>
+      try {
+        val buffered = new BufferedInputStream(stream)
+        for {
+          mimeType <- validate(buffered)
+        } yield (InputStreamToByteArray(buffered), mimeType)
+      } finally {
+        stream.close()
+      }
+    }
+  }
+
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          file <- fileFromUrl(req.url)
-          buffered = new BufferedInputStream(file)
-          mimeType <- validate(buffered)
-          upload <- store.userUpload(user, InputStreamToByteArray(buffered), mimeType, req.url, true)
-        } yield {
-
-          upload
-        }
+          bytesAndMimeType <- getUrl(req.url)
+          (bytes, mimeType) = bytesAndMimeType
+          upload <- store.userUpload(user, bytes, mimeType, req.url, true)
+        } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
           fr <- fileFromBody(fileParams)
