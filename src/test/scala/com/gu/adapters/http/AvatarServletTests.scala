@@ -61,7 +61,7 @@ class AvatarServletTests extends TestHelpers {
     val userId=991
 
     postMigratedAvatar(201) (
-      "/migratedAvatar",
+      "/migrateAvatar",
       image,
       userId,
       processedImage,
@@ -77,12 +77,12 @@ class AvatarServletTests extends TestHelpers {
     val userId=992
 
     postMigratedAvatar(400) (
-      "/migratedAvatar",
+      "/migrateAvatar",
       image,
       userId,
       processedImage,
       true,
-      "original.gif",
+      "avatar.svg",
       new DateTime(),
       a => a.data.userId == userId && a.data.status == Approved)
   }
@@ -94,7 +94,7 @@ class AvatarServletTests extends TestHelpers {
     val userId=999
 
     postMigratedAvatar(201) (
-      "/migratedAvatar",
+      "/migrateAvatar",
       image,
       userId,
       processedImage,
@@ -104,7 +104,7 @@ class AvatarServletTests extends TestHelpers {
       a => a.data.userId == userId && a.data.status == Approved)
 
     postMigratedAvatar(409) (
-      "/migratedAvatar",
+      "/migrateAvatar",
       image,
       userId,
       processedImage,

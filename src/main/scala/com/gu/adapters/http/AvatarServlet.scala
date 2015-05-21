@@ -147,7 +147,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
-  post("/migratedAvatar", operation(postMigratedAvatar)) {
+  post("/migrateAvatar", operation(postMigratedAvatar)) {
     withErrorHandling {
       for {
         mr <- migrateRequestFromBody(parsedBody)
