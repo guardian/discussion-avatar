@@ -12,7 +12,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.Attempt.io
+import com.gu.adapters.utils.Attempt._
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
@@ -241,11 +241,17 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
 
   
+
   def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ Avatar = {
-    val imageFile: InputStream =  new java.net.URL(image).openStream()
-    val processedImageFile: InputStream = new java.net.URL(processedImage).openStream()
+
+    def fileFromUrl(url: String): Error \/ InputStream = {
+      attempt(new java.net.URL(url).openStream())
+        .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
+    }
 
     for {
+      imageFile <- fileFromUrl(image)
+      processedImageFile <- fileFromUrl(processedImage)
       image <- validate(imageFile)
       processedImage <- validate(processedImageFile)
       upload <- migratedUserUpload(user, InputStreamToByteArray(image), InputStreamToByteArray(processedImage), originalFilename,createdAt,isSocial)
