@@ -186,7 +186,6 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   def getUrl(url: String): Error \/ (Array[Byte], String) = {
-
     streamFromUrl(url) flatMap {
       case (stream) =>
       try {
@@ -201,7 +200,6 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
-
     streamFromBody(fileParams) flatMap {
       case ((fname, stream)) =>
         try {
