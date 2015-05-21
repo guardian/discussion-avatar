@@ -86,53 +86,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     }
   }
-//  def postMigratedAvatar(expectedStatus: Int)(
-//    endpointUri: String,
-//    image: String,
-//    userId: Int,
-//    processedImage: String,
-//    isSocial: Boolean,
-//    originalFilename: String,
-//    createdAt: DateTime,
-//    p: Avatar => Boolean): Unit = {
-//
-//    // TODO: Non UTC dates with offset are rejected, fix parser to be more lenient
-//    val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
-//
-//    val json =
-//      ("userId" -> userId) ~
-//      ("image" -> image) ~
-//      ("processedImage" -> processedImage) ~
-//      ("createdAt" -> ISODateFormatter.print(utcDate))  ~
-//      ("isSocial" -> isSocial) ~
-//      ("originalFilename" -> originalFilename),
-//      p: AvatarResponse => Boolean): Unit = {
-//
-//    post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
-//      status should equal(expectedStatus)
-//    }
-//
-//
-//      //Only get avatar if post is expected to succeed
-//      if(expectedStatus.toString.startsWith("2")) {
-//        val avatar = read[AvatarResponse](body)
-//        p(avatar) should be (true)
-//        getAvatar(s"/avatars/${avatar.data.id}", p)
-//      }
-//    }
-//  }
-
 
   def postMigratedAvatar(expectedStatus: Int)(
-                          endpointUri: String,
-                          image: String,
-                          userId: Int,
-                          processedImage: String,
-                          isSocial: Boolean,
-                          originalFilename: String,
-                          createdAt: DateTime,
-                          p: AvatarResponse => Boolean): Unit = {
+    endpointUri: String,
+    image: String,
+    userId: Int,
+    processedImage: String,
+    isSocial: Boolean,
+    originalFilename: String,
+    createdAt: DateTime,
+    p: AvatarResponse => Boolean): Unit = {
 
+    // TODO: Non UTC dates with offset are rejected, fix parser to be more lenient
     val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
 
     val json =
