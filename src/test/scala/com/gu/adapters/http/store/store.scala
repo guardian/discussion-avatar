@@ -4,13 +4,13 @@ import java.util.UUID
 
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.store.TestStoreHelpers.path
-import com.gu.adapters.store.{FileStore, KVStore, QueryResponse}
+import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
 import com.gu.core.Errors.avatarNotFound
 import com.gu.core._
 import org.joda.time.DateTime
 
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{ NonEmptyList, \/ }
 
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
@@ -25,7 +25,8 @@ class TestFileStore extends FileStore {
     fromBucket: String,
     fromKey: String,
     toBucket: String,
-    toKey: String): Error \/ Unit = {
+    toKey: String
+  ): Error \/ Unit = {
 
     val oldPath = path(fromBucket, fromKey)
     val newPath = path(toBucket, toKey)
@@ -39,7 +40,8 @@ class TestFileStore extends FileStore {
     bucket: String,
     key: String,
     file: Array[Byte],
-    metadata: ObjectMetadata): Error \/ Unit = {
+    metadata: ObjectMetadata
+  ): Error \/ Unit = {
 
     files += path(bucket, key) -> file.toString // TODO FIX
     ().right
@@ -62,7 +64,8 @@ class TestKVStore extends KVStore {
       new DateTime(),
       new DateTime(),
       isSocial = true,
-      isActive = true),
+      isActive = true
+    ),
     Config.dynamoTable + "/234" -> Avatar(
       "234",
       "http://avatar-url-2",
@@ -72,7 +75,8 @@ class TestKVStore extends KVStore {
       new DateTime(),
       new DateTime(),
       isSocial = false,
-      isActive = false),
+      isActive = false
+    ),
     Config.dynamoTable + "/345" -> Avatar(
       "345",
       "http://avatar-url-2",
@@ -82,8 +86,9 @@ class TestKVStore extends KVStore {
       new DateTime(),
       new DateTime(),
       isSocial = false,
-      isActive = false),
-    Config.dynamoTable +"/456" -> Avatar(
+      isActive = false
+    ),
+    Config.dynamoTable + "/456" -> Avatar(
       "456",
       "http://avatar-url-2",
       21801602,
@@ -92,7 +97,8 @@ class TestKVStore extends KVStore {
       new DateTime(),
       new DateTime(),
       isSocial = true,
-      isActive = false)
+      isActive = false
+    )
   )
 
   def get(table: String, id: String): Error \/ Avatar = {

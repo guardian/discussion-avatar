@@ -1,39 +1,37 @@
 package com.gu.adapters.http
 
-import java.io.{BufferedInputStream, InputStream}
+import java.io.{ BufferedInputStream, InputStream }
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.ImageValidator.validate
-import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.InputStreamToByteArray
 import com.gu.core.Errors._
-import com.gu.core.Success
-import com.gu.core.{Success, _}
+import com.gu.core.{ Success, _ }
 import com.gu.identity.cookie.IdentityCookieDecoder
-import org.json4s.Formats
 import org.json4s.JsonAST.JValue
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
-import org.scalatra.swagger.{Swagger, SwaggerSupport}
+import org.scalatra.swagger.{ Swagger, SwaggerSupport }
+import com.gu.adapters.store.AvatarStore
 
 import scalaz._
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
-  extends ScalatraServlet
-  with JacksonJsonSupport
-  with SwaggerSupport
-  with SwaggerOps
-  with FileUploadSupport
-  with CorsSupport {
+    extends ScalatraServlet
+    with JacksonJsonSupport
+    with SwaggerSupport
+    with SwaggerOps
+    with FileUploadSupport
+    with CorsSupport {
 
   val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
 
   protected implicit val jsonFormats = JsonFormats.all
 
-  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024*1024)))
+  configureMultipartHandling(MultipartConfig(maxFileSize = Some(1024 * 1024)))
 
   before() {
     contentType = formats("json")
@@ -49,7 +47,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   error {
     case e: SizeConstraintExceededException =>
       RequestEntityTooLarge(
-        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size"))
+        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size")
+      )
   }
 
   notFound {
@@ -59,7 +58,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   options("/*") {
     response.setHeader(
       "Access-Control-Allow-Headers",
-      request.getHeader("Access-Control-Request-Headers"))
+      request.getHeader("Access-Control-Request-Headers")
+    )
   }
 
   get("/service/healthcheck") {
@@ -188,14 +188,14 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   def getUrl(url: String): Error \/ (Array[Byte], String) = {
     streamFromUrl(url) flatMap {
       case (stream) =>
-      try {
-        val buffered = new BufferedInputStream(stream)
-        for {
-          mimeType <- validate(buffered)
-        } yield (InputStreamToByteArray(buffered), mimeType)
-      } finally {
-        stream.close()
-      }
+        try {
+          val buffered = new BufferedInputStream(stream)
+          for {
+            mimeType <- validate(buffered)
+          } yield (InputStreamToByteArray(buffered), mimeType)
+        } finally {
+          stream.close()
+        }
     }
   }
 

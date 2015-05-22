@@ -1,7 +1,7 @@
 import java.util.TimeZone
 import javax.servlet.ServletContext
 
-import com.gu.adapters.http.{AvatarServlet, AvatarSwagger, ResourcesApp}
+import com.gu.adapters.http.{ AvatarServlet, AvatarSwagger, ResourcesApp }
 import com.gu.adapters.store.AvatarStore
 import com.gu.core.Config.cookieDecoder
 import org.scalatra._

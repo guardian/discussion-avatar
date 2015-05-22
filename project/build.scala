@@ -4,6 +4,8 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyKeys._
 import sbtassembly._
+import com.typesafe.sbt.SbtScalariform.{ScalariformKeys, scalariformSettings}
+import scalariform.formatter.preferences._
 
 object AvatarBuild extends Build {
   val Organization = "com.gu"
@@ -26,7 +28,7 @@ object AvatarBuild extends Build {
   lazy val project = Project (
     Name,
     file("."),
-    settings = ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ Seq(
+    settings = ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ scalariformSettings ++ Seq(
       organization := Organization,
       name := Name,
       version := Version,
@@ -56,7 +58,9 @@ object AvatarBuild extends Build {
         case x =>
           val oldStrategy = (assemblyMergeStrategy in assembly).value
           oldStrategy(x)
-      }
+      },
+      ScalariformKeys.preferences := ScalariformKeys.preferences.value
+        .setPreference(DoubleIndentClassDeclaration, true)
     )
   )
 }

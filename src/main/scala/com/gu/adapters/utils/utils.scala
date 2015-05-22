@@ -8,8 +8,8 @@ import com.gu.adapters.utils.ToTryOps.toTryOps
 import com.gu.core.Errors.ioFailed
 import com.gu.core.Error
 
-import scala.util.{Success, Failure, Try}
-import scalaz.{\/, NonEmptyList}
+import scala.util.{ Success, Failure, Try }
+import scalaz.{ \/, NonEmptyList }
 
 object ToTryOps {
   implicit def toTryOps[A](t: Try[A]) = TryOps(t)

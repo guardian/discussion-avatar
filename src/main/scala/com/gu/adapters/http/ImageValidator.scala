@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import java.io.{BufferedInputStream, InputStream}
+import java.io.{ BufferedInputStream, InputStream }
 import java.net.URLConnection
 import javax.imageio.ImageIO
 
@@ -9,7 +9,7 @@ import com.gu.core.Error
 import com.gu.core.Errors.invalidMimeType
 
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/, \/-}
+import scalaz.{ NonEmptyList, \/, \/- }
 
 object ImageValidator {
 

@@ -1,6 +1,6 @@
 package com.gu.core
 
-import com.gu.identity.cookie.{PreProductionKeys, ProductionKeys, IdentityCookieDecoder}
+import com.gu.identity.cookie.{ PreProductionKeys, ProductionKeys, IdentityCookieDecoder }
 import com.typesafe.config.ConfigFactory
 
 object Config {

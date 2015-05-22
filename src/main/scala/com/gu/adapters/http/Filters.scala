@@ -55,7 +55,8 @@ object Filters {
     val params = Set(
       Some(f.status.asString),
       f.since.map(_.toString),
-      f.until.map(_.toString)).flatten
+      f.until.map(_.toString)
+    ).flatten
 
     params.mkString("?", "&", "")
   }
