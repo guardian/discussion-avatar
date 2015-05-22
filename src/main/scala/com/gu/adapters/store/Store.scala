@@ -240,6 +240,17 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield FoundAvatar(avatar)
   }
 
+  def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
+
+    val metadata = new ObjectMetadata()
+    metadata.addUserMetadata("avatar-id", avatarId.toString)
+    metadata.addUserMetadata("user-id", user.toString)
+    metadata.addUserMetadata("original-filename", originalFilename)
+    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+    metadata.setContentType(mimeType)
+    metadata
+  }
+
   def userUpload(
     user: User,
     file: Array[Byte],
@@ -247,18 +258,12 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     originalFilename: String,
     isSocial: Boolean = false): Error \/ CreatedAvatar = {
 
-    val avatarId = UUID.randomUUID.toString
+    val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
-    val metadata = new ObjectMetadata()
-    metadata.addUserMetadata("avatar-id", avatarId)
-    metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", originalFilename)
-    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-    metadata.setContentType(mimeType)
 
     val avatar = Avatar(
-      id = avatarId,
-      avatarUrl = s"$avatarBaseUrl/avatars/$avatarId",
+      id = avatarId.toString,
+      avatarUrl = s"$avatarBaseUrl/avatars/$id",
       userId = user.id,
       originalFilename = originalFilename,
       status = Pending,
@@ -269,7 +274,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     for {
       avatar <- kvs.put(dynamoTable, avatar)
-      _ <- fs.put(privateBucket, s"avatars/$avatarId", file, metadata)
+      _ <- fs.put(privateBucket, s"avatars/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
   }
 
@@ -285,28 +290,12 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     def migrate: Error \/ Avatar = {
 
-      val avatarId = UUID.randomUUID.toString
+      val avatarId = UUID.randomUUID
       val now = DateTime.now(DateTimeZone.UTC)
-      val originalContentLength = originalFile.length
-      val processedContentLength = processedFile.length
-
-      val originalMetadata = new ObjectMetadata()
-      originalMetadata.addUserMetadata("avatar-id", avatarId)
-      originalMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
-      originalMetadata.addUserMetadata("original-filename", originalFilename)
-      originalMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-      originalMetadata.setContentType(originalFileMimeType)
-
-      val processedMetadata = new ObjectMetadata()
-      processedMetadata.addUserMetadata("avatar-id", avatarId)
-      processedMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
-      processedMetadata.addUserMetadata("original-filename", originalFilename)
-      processedMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-      processedMetadata.setContentType(processedFileMimeType)
 
       val avatar = Avatar(
-        id = avatarId,
-        avatarUrl = s"http://$privateBucket/avatars/$avatarId",
+        id = avatarId.toString,
+        avatarUrl = s"http://$privateBucket/avatars/$id",
         userId = user.id,
         originalFilename = originalFilename,
         status = Approved,
@@ -317,8 +306,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       for {
         avatar <- kvs.put(dynamoTable, avatar)
-        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, originalMetadata)
-        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, processedMetadata)
+        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
+        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
         _ <- copyToPublic(avatar)
       } yield avatar
     }
