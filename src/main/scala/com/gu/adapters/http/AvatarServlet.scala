@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import java.io.InputStream
+import java.io.{BufferedInputStream, InputStream}
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.ImageValidator.validate
@@ -8,6 +8,7 @@ import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.InputStreamToByteArray
 import com.gu.core.Errors._
+import com.gu.core.Success
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.Formats
@@ -17,7 +18,7 @@ import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.{-\/, NonEmptyList, \/, \/-}
+import scalaz._
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
   extends ScalatraServlet
@@ -184,20 +185,48 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def getUrl(url: String): Error \/ (Array[Byte], String) = {
+    streamFromUrl(url) flatMap {
+      case (stream) =>
+      try {
+        val buffered = new BufferedInputStream(stream)
+        for {
+          mimeType <- validate(buffered)
+        } yield (InputStreamToByteArray(buffered), mimeType)
+      } finally {
+        stream.close()
+      }
+    }
+  }
+
+  def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
+    streamFromBody(fileParams) flatMap {
+      case ((fname, stream)) =>
+        try {
+          val buffered = new BufferedInputStream(stream)
+          for {
+            mimeType <- validate(buffered)
+          } yield (InputStreamToByteArray(buffered), mimeType, fname)
+        } finally {
+          stream.close()
+        }
+    }
+  }
+
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          file <- fileFromUrl(req.url)
-          image <- validate(file)
-          upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
+          bytesAndMimeType <- getUrl(req.url)
+          (bytes, mimeType) = bytesAndMimeType
+          upload <- store.userUpload(user, bytes, mimeType, req.url, true)
         } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
-          fr <- fileFromBody(fileParams)
-          image <- validate(fr._2)
-          upload <- store.userUpload(user, InputStreamToByteArray(image), fr._1, true)
+          bytesAndMimeTypeAndFname <- getFile(fileParams)
+          (bytes, mimeType, fname) = bytesAndMimeTypeAndFname
+          upload <- store.userUpload(user, bytes, mimeType, fname, true)
         } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
@@ -211,12 +240,12 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def fileFromUrl(url: String): Error \/ InputStream = {
+  def streamFromUrl(url: String): Error \/ InputStream = {
     attempt(new java.net.URL(url).openStream())
       .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
   }
 
-  def fileFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
+  def streamFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
     for {
       file <- attempt(fileParams("image"))
         .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
