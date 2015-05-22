@@ -101,7 +101,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
 
     val json =
-      ("userId" -> userId) ~
+        ("userId" -> userId) ~
         ("image" -> image) ~
         ("processedImage" -> processedImage) ~
         ("createdAt" -> ISODateFormatter.print(utcDate)) ~
@@ -111,7 +111,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
       status should equal(expectedStatus)
 
-      if(status.toString.startsWith("2")) {
+      if(status == 201) {
         val avatar = read[AvatarResponse](body)
         p(avatar) should be(true)
         getAvatar(s"/avatars/${avatar.data.id}", p)
