@@ -6,8 +6,9 @@ import com.gu.adapters.utils.Attempt._
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import com.gu.adapters.utils.ToTryOps.toTryOps
-import com.gu.core.Errors.ioFailed
+import com.gu.core.Errors._
 import com.gu.core.Error
+import org.scalatra.servlet.FileItem
 
 import scala.util.{Success, Failure, Try}
 import scalaz.{\/, NonEmptyList}
@@ -43,13 +44,20 @@ object InputStreamToByteArray {
   def apply(is: InputStream): Array[Byte] = {
     Stream.continually(is.read).takeWhile(-1 != _).map(_.toByte).toArray
   }
+}
 
-object FileFromURL{
+object StreamFromUrl {
   def apply(url: String): Error \/ InputStream = {
     attempt(new java.net.URL(url).openStream())
       .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
   }
-
 }
 
+object StreamFromBody {
+  def apply(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
+    for {
+      file <- attempt(fileParams("image"))
+        .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
+    } yield (file.getName, file.getInputStream)
+  }
 }

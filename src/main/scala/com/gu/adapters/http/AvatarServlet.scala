@@ -1,25 +1,22 @@
 package com.gu.adapters.http
 
-import java.io.InputStream
+import java.io.BufferedInputStream
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
-import com.gu.adapters.utils.InputStreamToByteArray
-import com.gu.adapters.utils.InputStreamToByteArray.FileFromURL
+import com.gu.adapters.utils.{InputStreamToByteArray, StreamFromBody, StreamFromUrl}
 import com.gu.core.Errors._
 import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
-
-
 import org.json4s.JsonAST.JValue
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.{-\/, NonEmptyList, \/, \/-}
+import scalaz._
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
   extends ScalatraServlet
@@ -151,10 +148,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   post("/migrateAvatar", operation(postMigratedAvatar)) {
     withErrorHandling {
       for {
-        mr <- migrateRequestFromBody(parsedBody)
-        user <- userFromRequest(mr.userId.toString)
+        created <- fetchMigratedAvatar(request)
         req = Req(apiUrl, request.getPathInfo)
-        created <- store.fetchMigratedImages(user, mr.image, mr.processedImage, mr.originalFilename, mr.createdAt, mr.isSocial)
       } yield (created, req)
     }
   }
@@ -200,20 +195,48 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def getUrl(url: String): Error \/ (Array[Byte], String) = {
+    StreamFromUrl(url) flatMap {
+      case (stream) =>
+      try {
+        val buffered = new BufferedInputStream(stream)
+        for {
+          mimeType <- validate(buffered)
+        } yield (InputStreamToByteArray(buffered), mimeType)
+      } finally {
+        stream.close()
+      }
+    }
+  }
+
+  def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
+    StreamFromBody(fileParams) flatMap {
+      case ((fname, stream)) =>
+        try {
+          val buffered = new BufferedInputStream(stream)
+          for {
+            mimeType <- validate(buffered)
+          } yield (InputStreamToByteArray(buffered), mimeType, fname)
+        } finally {
+          stream.close()
+        }
+    }
+  }
+
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          file <- FileFromURL(req.url)
-          image <- validate(file)
-          upload <- store.userUpload(user, InputStreamToByteArray(image), req.url, true)
+          bytesAndMimeType <- getUrl(req.url)
+          (bytes, mimeType) = bytesAndMimeType
+          upload <- store.userUpload(user, bytes, mimeType, req.url, true)
         } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
-          fr <- fileFromBody(fileParams)
-          image <- validate(fr._2)
-          upload <- store.userUpload(user, InputStreamToByteArray(image), fr._1, true)
+          bytesAndMimeTypeAndFname <- getFile(fileParams)
+          (bytes, mimeType, fname) = bytesAndMimeTypeAndFname
+          upload <- store.userUpload(user, bytes, mimeType, fname, true)
         } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
@@ -222,16 +245,21 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def fetchMigratedAvatar(request: RichRequest): Error \/ CreatedAvatar = {
+    for {
+      req <- migrateRequestFromBody(request.body)
+      user <- userFromRequest(req.userId.toString)
+      imageBytesAndMimeType <- getUrl(req.image)
+      (imageBytes, imageMimeType) = imageBytesAndMimeType
+      processedImageBytesAndMimeType <- getUrl(req.processedImage)
+      (processedImageBytes, processedImageMimeType) = processedImageBytesAndMimeType
+      upload <- store.migratedUserUpload(user, imageBytes, imageMimeType, processedImageBytes, processedImageMimeType, req.originalFilename, req.createdAt, req.isSocial)
+    } yield upload
+  }
+
   def avatarRequestFromBody(body: String): Error \/ AvatarRequest = {
     attempt(parse(body).extract[AvatarRequest])
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
-  }
-
-  def fileFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
-    for {
-      file <- attempt(fileParams("image"))
-        .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
-    } yield (file.getName, file.getInputStream)
   }
 
   def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
@@ -239,8 +267,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def migrateRequestFromBody(parsedBody: JValue): Error \/ MigratedAvatarRequest = {
-    attempt(parsedBody.extract[MigratedAvatarRequest])
+  def migrateRequestFromBody(body: String): Error \/ MigratedAvatarRequest = {
+    attempt(parse(body).extract[MigratedAvatarRequest])
       .leftMap(_ => unableToReadMigratedAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 

@@ -1,6 +1,6 @@
 package com.gu.adapters.store
 
-import java.io.{InputStream, ByteArrayInputStream}
+import java.io.ByteArrayInputStream
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
@@ -14,17 +14,13 @@ import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
 import com.gu.adapters.utils.ISODateFormatter
-import com.gu.adapters.utils.InputStreamToByteArray.FileFromURL
 import com.gu.core.Errors._
 import com.gu.core.{Config, _}
 import org.joda.time.{DateTime, DateTimeZone}
-import com.gu.adapters.http.ImageValidator.validate
-import com.gu.adapters.utils.InputStreamToByteArray
 
 import scala.collection.JavaConverters._
-import scala.util.Try
 import scalaz.Scalaz._
-import scalaz.{\/-, -\/, NonEmptyList, \/}
+import scalaz.{NonEmptyList, \/}
 
 case class QueryResponse(
   avatars: List[Avatar],
@@ -44,13 +40,14 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
   val privateBucket = Config.s3PrivateBucket
+  val avatarBaseUrl = Config.avatarBaseUrl
 
-  def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
+  def asAvatar(item: Item, avatarUrl: String): Avatar = {
     val id = item.getString("AvatarId")
 
     Avatar(
       id = id,
-      avatarUrl = s"http://$avatarUrl/avatars/$id",
+      avatarUrl = s"$avatarUrl/avatars/$id",
       userId = item.getString("UserId").toInt,
       originalFilename = item.getString("OriginalFilename"),
       status = Status(item.getString("Status")),
@@ -64,7 +61,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   def get(table: String, id: String): Error \/ Avatar = {
     io(db.getTable(table).getItem("AvatarId", id))
       .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
-      .map(item => asAvatar(item, apiUrl, privateBucket))
+      .map(item => asAvatar(item, avatarBaseUrl))
   }
 
   def query[A](
@@ -90,7 +87,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       qr <- result.map(_.getLastLowLevelResult.getQueryResult)
     } yield {
       val items = pages.map(_.asScala).flatten
-        .map(item => asAvatar(item, apiUrl, privateBucket))
+        .map(item => asAvatar(item, avatarBaseUrl))
       val orderedItems = until.map(_ => items.reverse).getOrElse(items)
       QueryResponse(orderedItems, qr.getLastEvaluatedKey != null)
     }
@@ -124,7 +121,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .withAttributeUpdate(new AttributeUpdate("Status").put(status.asString))
       .withReturnValues(ReturnValue.ALL_NEW)
     val item = io(db.getTable(table).updateItem(spec)).map(_.getItem)
-    item.map(i => asAvatar(i, apiUrl, privateBucket))
+    item.map(i => asAvatar(i, avatarBaseUrl))
   }
 }
 
@@ -200,6 +197,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val apiBaseUrl = Config.apiUrl
   val publicBucket = Config.s3PublicBucket
   val privateBucket = Config.s3PrivateBucket
+  val avatarBaseUrl = Config.avatarBaseUrl
   val dynamoTable = Config.dynamoTable
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
@@ -242,23 +240,10 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield FoundAvatar(avatar)
   }
 
-
-  
-
-  def fetchMigratedImages(user: User, image: String, processedImage: String, originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ MigratedAvatar = {
-
-    for {
-      imageFile <- FileFromURL(image)
-      processedImageFile <- FileFromURL(processedImage)
-      image <- validate(imageFile)
-      processedImage <- validate(processedImageFile)
-      upload <- migratedUserUpload(user, InputStreamToByteArray(image), InputStreamToByteArray(processedImage), originalFilename,createdAt,isSocial)
-    } yield upload
-  }
-
   def userUpload(
     user: User,
     file: Array[Byte],
+    mimeType: String,
     originalFilename: String,
     isSocial: Boolean = false): Error \/ CreatedAvatar = {
 
@@ -269,10 +254,11 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
     metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+    metadata.setContentType(mimeType)
 
     val avatar = Avatar(
       id = avatarId,
-      avatarUrl = s"http://$privateBucket/avatars/$avatarId",
+      avatarUrl = s"$avatarBaseUrl/avatars/$avatarId",
       userId = user.id,
       originalFilename = originalFilename,
       status = Pending,
@@ -287,24 +273,36 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield CreatedAvatar(avatar)
   }
 
+  def migratedUserUpload(
+    user: User,
+    originalFile: Array[Byte],
+    originalFileMimeType: String,
+    processedFile: Array[Byte],
+    processedFileMimeType: String,
+    originalFilename: String,
+    createdAt: DateTime,
+    isSocial: Boolean): Error \/ CreatedAvatar = {
 
-  def migratedUserUpload(user: User, originalFile: Array[Byte], processedFile: Array[Byte], originalFilename: String, createdAt: DateTime, isSocial: Boolean): Error \/ MigratedAvatar = {
-
-    def migrate: Error \/ MigratedAvatar = {
+    def migrate: Error \/ Avatar = {
 
       val avatarId = UUID.randomUUID.toString
       val now = DateTime.now(DateTimeZone.UTC)
       val originalContentLength = originalFile.length
       val processedContentLength = processedFile.length
 
+      val originalMetadata = new ObjectMetadata()
+      originalMetadata.addUserMetadata("avatar-id", avatarId)
+      originalMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
+      originalMetadata.addUserMetadata("original-filename", originalFilename)
+      originalMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+      originalMetadata.setContentType(originalFileMimeType)
 
-
-      val metadata = new ObjectMetadata()
-      metadata.addUserMetadata("avatar-id", avatarId)
-      metadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
-      metadata.addUserMetadata("original-filename", originalFilename)
-      metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-
+      val processedMetadata = new ObjectMetadata()
+      processedMetadata.addUserMetadata("avatar-id", avatarId)
+      processedMetadata.addUserMetadata("user-id", user.toString) // FIXME - pass this in!
+      processedMetadata.addUserMetadata("original-filename", originalFilename)
+      processedMetadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+      processedMetadata.setContentType(processedFileMimeType)
 
       val avatar = Avatar(
         id = avatarId,
@@ -319,20 +317,18 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       for {
         avatar <- kvs.put(dynamoTable, avatar)
-        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, metadata)
-        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, metadata)
+        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, originalMetadata)
+        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, processedMetadata)
         _ <- copyToPublic(avatar)
-      } yield MigratedAvatar(avatar)
+      } yield avatar
     }
 
     for {
       _ <- getActive(user).swap
         .leftMap(_ => avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")))
       avatar <- migrate
-    } yield avatar
-
-
-    }
+    } yield CreatedAvatar(avatar)
+  }
 
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {

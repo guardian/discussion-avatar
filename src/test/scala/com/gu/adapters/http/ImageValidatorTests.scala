@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import java.io.{File, FileInputStream}
+import java.io._
 
 import org.scalatest.{FunSuite, Matchers}
 
@@ -9,7 +9,8 @@ class ImageValidatorTests extends FunSuite with Matchers {
   def test(path: String, isValid: Boolean): Unit = {
     val file = new File(path)
     val image = new FileInputStream(file)
-    ImageValidator.validate(image).isRight should be (isValid)
+    val buffered = new BufferedInputStream(image)
+    ImageValidator.validate(buffered).isRight should be (isValid)
   }
 
   test("Reject unsupported file types") {

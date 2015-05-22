@@ -23,4 +23,6 @@ object Config {
 
   val s3PrivateBucket = conf.getString("aws.s3.private")
   val s3PublicBucket = conf.getString("aws.s3.public")
+
+  val avatarBaseUrl = conf.getString("avatar.baseUrl")
 }
