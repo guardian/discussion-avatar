@@ -241,7 +241,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }
 
   def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
-
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId.toString)
     metadata.addUserMetadata("user-id", user.toString)
