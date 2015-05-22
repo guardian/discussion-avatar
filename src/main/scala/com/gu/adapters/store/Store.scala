@@ -40,13 +40,14 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
   val privateBucket = Config.s3PrivateBucket
+  val avatarBaseUrl = Config.avatarBaseUrl
 
-  def asAvatar(item: Item, baseUrl: String, avatarUrl: String): Avatar = {
+  def asAvatar(item: Item, avatarUrl: String): Avatar = {
     val id = item.getString("AvatarId")
 
     Avatar(
       id = id,
-      avatarUrl = s"http://$avatarUrl/avatars/$id",
+      avatarUrl = s"$avatarUrl/avatars/$id",
       userId = item.getString("UserId").toInt,
       originalFilename = item.getString("OriginalFilename"),
       status = Status(item.getString("Status")),
@@ -60,7 +61,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   def get(table: String, id: String): Error \/ Avatar = {
     io(db.getTable(table).getItem("AvatarId", id))
       .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
-      .map(item => asAvatar(item, apiUrl, privateBucket))
+      .map(item => asAvatar(item, avatarBaseUrl))
   }
 
   def query[A](
@@ -86,7 +87,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       qr <- result.map(_.getLastLowLevelResult.getQueryResult)
     } yield {
       val items = pages.map(_.asScala).flatten
-        .map(item => asAvatar(item, apiUrl, privateBucket))
+        .map(item => asAvatar(item, avatarBaseUrl))
       val orderedItems = until.map(_ => items.reverse).getOrElse(items)
       QueryResponse(orderedItems, qr.getLastEvaluatedKey != null)
     }
@@ -120,7 +121,7 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .withAttributeUpdate(new AttributeUpdate("Status").put(status.asString))
       .withReturnValues(ReturnValue.ALL_NEW)
     val item = io(db.getTable(table).updateItem(spec)).map(_.getItem)
-    item.map(i => asAvatar(i, apiUrl, privateBucket))
+    item.map(i => asAvatar(i, avatarBaseUrl))
   }
 }
 
@@ -196,6 +197,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val apiBaseUrl = Config.apiUrl
   val publicBucket = Config.s3PublicBucket
   val privateBucket = Config.s3PrivateBucket
+  val avatarBaseUrl = Config.avatarBaseUrl
   val dynamoTable = Config.dynamoTable
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
@@ -254,7 +256,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     val avatar = Avatar(
       id = avatarId,
-      avatarUrl = s"http://$privateBucket/avatars/$avatarId",
+      avatarUrl = s"$avatarBaseUrl/avatars/$avatarId",
       userId = user.id,
       originalFilename = originalFilename,
       status = Pending,
