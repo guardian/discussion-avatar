@@ -23,7 +23,8 @@ object AvatarResponse {
     AvatarResponse(
       Some(s"${req.base}/avatars/${avatar.id}"),
       avatar,
-      Nil)
+      Nil
+    )
   }
 }
 
