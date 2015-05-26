@@ -2,7 +2,7 @@ package com.gu.adapters.http
 
 import java.io.File
 
-import com.gu.adapters.http.store.{TestFileStore, TestKVStore}
+import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
 import com.gu.adapters.store.AvatarStore
 import com.gu.core._
 import com.gu.utils.TestHelpers
@@ -15,8 +15,10 @@ class AvatarServletTests extends TestHelpers {
   addServlet(
     new AvatarServlet(
       AvatarStore(new TestFileStore, new TestKVStore),
-      Config.cookieDecoder),
-    "/*")
+      Config.cookieDecoder
+    ),
+    "/*"
+  )
 
   test("Healthcheck should return OK") {
     getOk("/service/healthcheck", _.body == "OK")
@@ -52,7 +54,8 @@ class AvatarServletTests extends TestHelpers {
     getAvatar(
       s"/avatars/user/me/active",
       cookie,
-      a => a.data.userId == userId && a.data.status == Inactive)
+      a => a.data.userId == userId && a.data.status == Inactive
+    )
   }
 
   test("Post migrated avatar") {
@@ -123,7 +126,8 @@ class AvatarServletTests extends TestHelpers {
       file,
       userId,
       cookie,
-      a => a.data.userId == userId && a.data.status == Pending)
+      a => a.data.userId == userId && a.data.status == Pending
+    )
   }
 
   test("Put avatar status") {

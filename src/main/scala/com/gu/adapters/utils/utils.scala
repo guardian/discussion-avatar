@@ -10,8 +10,8 @@ import com.gu.core.Errors._
 import com.gu.core.Error
 import org.scalatra.servlet.FileItem
 
-import scala.util.{Success, Failure, Try}
-import scalaz.{\/, NonEmptyList}
+import scala.util.{ Success, Failure, Try }
+import scalaz.{ \/, NonEmptyList }
 
 object ToTryOps {
   implicit def toTryOps[A](t: Try[A]) = TryOps(t)

@@ -13,7 +13,7 @@ trait SwaggerOps {
     apiOperation[List[Avatar]]("getAvatars")
       .summary("List all avatars")
       .parameter(queryParam[Option[String]]("status")
-      .description("The request includes a status to filter by"))
+        .description("The request includes a status to filter by"))
 
   def getAvatar =
     apiOperation[Avatar]("getAvatar")
@@ -23,7 +23,7 @@ trait SwaggerOps {
     apiOperation[List[Avatar]]("getAvatarsForUser")
       .summary("Get avatars for user")
       .parameter(pathParam[Int]("userId")
-      .description("The request includes the userId"))
+        .description("The request includes the userId"))
 
   def getActiveAvatarForUser =
     apiOperation[List[Avatar]]("getActiveAvatarForUser")
@@ -40,7 +40,8 @@ trait SwaggerOps {
       .consumes("multipart/form-data")
       .parameters(
         bodyParam[AvatarRequest]("")
-          .description("The request includes "))
+          .description("The request includes ")
+      )
 
   def putAvatarStatus =
     apiOperation[Avatar]("putAvatarStatus")
@@ -49,7 +50,8 @@ trait SwaggerOps {
         pathParam[String]("id")
           .description("The request includes the Avatar ID"),
         bodyParam[StatusRequest]("")
-          .description("The request includes the Avatar's new status"))
+          .description("The request includes the Avatar's new status")
+      )
 
   def postMigratedAvatar =
     apiOperation[Avatar]("postMigratedAvatar")
@@ -57,4 +59,5 @@ trait SwaggerOps {
       .parameters(
         bodyParam[MigratedAvatarRequest]("")
           .description("The request includes all the details required to migrate an existing avatar")
-      )}
+      )
+}

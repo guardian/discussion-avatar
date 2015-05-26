@@ -1,13 +1,13 @@
 package com.gu.adapters.store
 
-import java.io.ByteArrayInputStream
+import java.io.{ ByteArrayInputStream }
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import com.amazonaws.regions.{Region, Regions}
+import com.amazonaws.regions.{ Region, Regions }
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
-import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpec}
+import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSpec }
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
@@ -15,12 +15,12 @@ import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
-import com.gu.core.{Config, _}
-import org.joda.time.{DateTime, DateTimeZone}
+import com.gu.core.{ Config, _ }
+import org.joda.time.{ DateTime, DateTimeZone }
 
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{ NonEmptyList, \/ }
 
 case class QueryResponse(
   avatars: List[Avatar],
@@ -70,7 +70,8 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     key: String,
     value: A,
     since: Option[UUID] = None,
-    until: Option[UUID] = None): Error \/ QueryResponse = {
+    until: Option[UUID] = None
+  ): Error \/ QueryResponse = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
@@ -138,13 +139,15 @@ trait FileStore {
     fromBucket: String,
     fromKey: String,
     toBucket: String,
-    toKey: String): Error \/ Unit
+    toKey: String
+  ): Error \/ Unit
 
   def put(
     bucket: String,
     key: String,
     file: Array[Byte],
-    metadata: ObjectMetadata): Error \/ Unit
+    metadata: ObjectMetadata
+  ): Error \/ Unit
 
   def delete(bucket: String, key: String): Error \/ Unit
 }
@@ -160,7 +163,8 @@ case class S3(client: AmazonS3Client) extends FileStore {
     fromBucket: String,
     fromKey: String,
     toBucket: String,
-    toKey: String): Error \/ Unit = {
+    toKey: String
+  ): Error \/ Unit = {
 
     val request = new CopyObjectRequest(fromBucket, fromKey, toBucket, toKey)
     io(client.copyObject(request))
@@ -170,7 +174,8 @@ case class S3(client: AmazonS3Client) extends FileStore {
     bucket: String,
     key: String,
     file: Array[Byte],
-    metadata: ObjectMetadata): Error \/ Unit = {
+    metadata: ObjectMetadata
+  ): Error \/ Unit = {
 
     val inputStream = new ByteArrayInputStream(file)
     metadata.setContentLength(file.length)
@@ -201,11 +206,11 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val dynamoTable = Config.dynamoTable
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
-  
+
   def get(filters: Filters): \/[Error, FoundAvatars] = {
     for {
       qr <- kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until)
-    } yield FoundAvatars(qr. avatars, qr.hasMore)
+    } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
 
   def get(id: String): Error \/ FoundAvatar = {
@@ -219,7 +224,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
         userIndex,
         user.id,
         None,
-        None)
+        None
+      )
       // avatars <- qr.avatars.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified})
     } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
@@ -255,7 +261,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     file: Array[Byte],
     mimeType: String,
     originalFilename: String,
-    isSocial: Boolean = false): Error \/ CreatedAvatar = {
+    isSocial: Boolean = false
+  ): Error \/ CreatedAvatar = {
 
     val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
@@ -269,7 +276,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       createdAt = now,
       lastModified = now,
       isSocial = true,
-      isActive = false)
+      isActive = false
+    )
 
     for {
       avatar <- kvs.put(dynamoTable, avatar)
@@ -285,7 +293,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     processedFileMimeType: String,
     originalFilename: String,
     createdAt: DateTime,
-    isSocial: Boolean): Error \/ CreatedAvatar = {
+    isSocial: Boolean
+  ): Error \/ CreatedAvatar = {
 
     def migrate: Error \/ Avatar = {
 
@@ -301,7 +310,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
         createdAt = createdAt,
         lastModified = now,
         isSocial = isSocial,
-        isActive = true)
+        isActive = true
+      )
 
       for {
         avatar <- kvs.put(dynamoTable, avatar)
@@ -317,7 +327,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       avatar <- migrate
     } yield CreatedAvatar(avatar)
   }
-
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
     fs.copy(

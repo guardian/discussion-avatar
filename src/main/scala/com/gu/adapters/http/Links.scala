@@ -2,14 +2,14 @@ package com.gu.adapters.http
 
 import java.util.UUID
 
-import com.gu.core.{Avatar, Config}
+import com.gu.core.{ Avatar, Config }
 
 object Links {
 
   val pageSize = Config.pageSize
 
   def links(avatars: List[Avatar], url: Req, hasMore: Boolean): List[Link] = {
-    val cursor = avatars.lift(pageSize-1).map(_.id)
+    val cursor = avatars.lift(pageSize - 1).map(_.id)
     val first = avatars.headOption.map(_.id)
     val query = url.filters
 

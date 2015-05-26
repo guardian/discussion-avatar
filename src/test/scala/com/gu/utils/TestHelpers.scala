@@ -3,11 +3,9 @@ package com.gu.utils
 import java.io.File
 
 import com.gu.adapters.http._
-
 import com.gu.adapters.utils.ISODateFormatter
-import com.gu.core.{Avatar}
-import org.joda.time.{DateTimeZone, DateTime}
-import com.gu.core.{Config, Status}
+import org.joda.time.{ DateTimeZone, DateTime }
+import com.gu.core.{ Config, Status }
 import org.json4s.native.Serialization._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.ClientResponse
@@ -23,10 +21,11 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     uri: String,
     p: ClientResponse => Boolean,
     params: List[(String, String)] = Nil,
-    headers: Map[String, String] = Map()): Unit = {
+    headers: Map[String, String] = Map()
+  ): Unit = {
 
     get(uri, params, headers) {
-      status should equal (200)
+      status should equal(200)
       p(response)
     }
   }
@@ -35,12 +34,13 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     uri: String,
     p: AvatarResponse => Boolean,
     params: List[(String, String)] = Nil,
-    headers: Map[String, String] = Map()) = {
+    headers: Map[String, String] = Map()
+  ) = {
 
     get(uri, params, headers) {
       status should equal(200)
       val avatars = read[AvatarsResponse](body).data
-      avatars.forall(p) should be (true)
+      avatars.forall(p) should be(true)
     }
   }
 
@@ -50,13 +50,14 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     uri: String,
     p: AvatarResponse => Boolean,
     params: List[(String, String)] = Nil,
-    headers: Map[String, String] = Map()): Unit = {
+    headers: Map[String, String] = Map()
+  ): Unit = {
 
     get(uri, params, headers) {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
-      avatar.uri should be (Some(Config.apiUrl + "/avatars/" + avatar.data.id))
-      p(avatar) should be (true)
+      avatar.uri should be(Some(Config.apiUrl + "/avatars/" + avatar.data.id))
+      p(avatar) should be(true)
     }
   }
 
@@ -70,7 +71,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     get(uri) {
       status should equal(code)
       val error = read[ErrorResponse](body)
-      p(error) should be (true)
+      p(error) should be(true)
     }
   }
 
@@ -79,11 +80,14 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     file: File,
     userId: Int,
     guuCookie: String,
-    p: AvatarResponse => Boolean): Unit = {
+    p: AvatarResponse => Boolean
+  ): Unit = {
 
     post("/avatars", Nil, List("image" -> file), Map("Cookie" -> ("GU_U=" + guuCookie))) {
       status should equal(201)
-
+      val avatar = read[AvatarResponse](body)
+      p(avatar) should be(true)
+      getAvatar(s"/avatars/${avatar.data.id}", p)
     }
   }
 
@@ -95,13 +99,14 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     isSocial: Boolean,
     originalFilename: String,
     createdAt: DateTime,
-    p: AvatarResponse => Boolean): Unit = {
+    p: AvatarResponse => Boolean
+  ): Unit = {
 
     // TODO: Non UTC dates with offset are rejected, fix parser to be more lenient
     val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
 
     val json =
-        ("userId" -> userId) ~
+      ("userId" -> userId) ~
         ("image" -> image) ~
         ("processedImage" -> processedImage) ~
         ("createdAt" -> ISODateFormatter.print(utcDate)) ~
@@ -111,7 +116,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
       status should equal(expectedStatus)
 
-      if(status == 201) {
+      if (status == 201) {
         val avatar = read[AvatarResponse](body)
         p(avatar) should be(true)
         getAvatar(s"/avatars/${avatar.data.id}", p)
@@ -119,15 +124,13 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-
-
   def put(uri: String, toStatus: Status, p: AvatarResponse => Boolean): Unit = {
     val sr = StatusRequest(toStatus)
 
     put(uri, write(sr)) {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
-      p(avatar) should be (true)
+      p(avatar) should be(true)
       getAvatar(s"/avatars/${avatar.data.id}", p)
     }
   }

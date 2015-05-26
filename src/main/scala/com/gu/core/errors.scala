@@ -28,7 +28,8 @@ object Errors {
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =
     InvalidContentType(
       "Invalid content type. Support types are: 'multipart/form-data' or 'application/json'.",
-      errors)
+      errors
+    )
 
   def invalidFilters(errors: NonEmptyList[String]): InvalidFilters =
     InvalidFilters("Invalid filter parameters", errors)
