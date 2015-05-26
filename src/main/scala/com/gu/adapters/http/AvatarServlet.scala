@@ -1,11 +1,11 @@
 package com.gu.adapters.http
 
-import java.io.{ BufferedInputStream, InputStream }
+import java.io.{ BufferedInputStream }
 
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.utils.Attempt.attempt
-import com.gu.adapters.utils.InputStreamToByteArray
+import com.gu.adapters.utils.{ InputStreamToByteArray, StreamFromBody, StreamFromUrl }
 import com.gu.core.Errors._
 import com.gu.core.{ Success, _ }
 import com.gu.identity.cookie.IdentityCookieDecoder
@@ -147,6 +147,15 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  post("/migrateAvatar", operation(postMigratedAvatar)) {
+    withErrorHandling {
+      for {
+        created <- fetchMigratedAvatar(request)
+        req = Req(apiUrl, request.getPathInfo)
+      } yield (created, req)
+    }
+  }
+
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
       for {
@@ -167,6 +176,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore))
       case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+      case MigratedAvatar(avatar) => Created(AvatarResponse(avatar, url))
     }
   }
 
@@ -182,11 +192,13 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
+      case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
     }
   }
 
   def getUrl(url: String): Error \/ (Array[Byte], String) = {
-    streamFromUrl(url) flatMap {
+    StreamFromUrl(url) flatMap {
       case (stream) =>
         try {
           val buffered = new BufferedInputStream(stream)
@@ -200,7 +212,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
-    streamFromBody(fileParams) flatMap {
+    StreamFromBody(fileParams) flatMap {
       case ((fname, stream)) =>
         try {
           val buffered = new BufferedInputStream(stream)
@@ -235,26 +247,31 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def fetchMigratedAvatar(request: RichRequest): Error \/ CreatedAvatar = {
+    for {
+      req <- migrateRequestFromBody(request.body)
+      user <- userFromRequest(req.userId.toString)
+      imageBytesAndMimeType <- getUrl(req.image)
+      (imageBytes, imageMimeType) = imageBytesAndMimeType
+      processedImageBytesAndMimeType <- getUrl(req.processedImage)
+      (processedImageBytes, processedImageMimeType) = processedImageBytesAndMimeType
+      upload <- store.migratedUserUpload(user, imageBytes, imageMimeType, processedImageBytes, processedImageMimeType, req.originalFilename, req.createdAt, req.isSocial)
+    } yield upload
+  }
+
   def avatarRequestFromBody(body: String): Error \/ AvatarRequest = {
     attempt(parse(body).extract[AvatarRequest])
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def streamFromUrl(url: String): Error \/ InputStream = {
-    attempt(new java.net.URL(url).openStream())
-      .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
-  }
-
-  def streamFromBody(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
-    for {
-      file <- attempt(fileParams("image"))
-        .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
-    } yield (file.getName, file.getInputStream)
-  }
-
   def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
     attempt(parsedBody.extract[StatusRequest])
       .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
+  }
+
+  def migrateRequestFromBody(body: String): Error \/ MigratedAvatarRequest = {
+    attempt(parse(body).extract[MigratedAvatarRequest])
+      .leftMap(_ => unableToReadMigratedAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
   def userFromRequest(userId: String): Error \/ User = {

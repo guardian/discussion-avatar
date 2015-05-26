@@ -12,7 +12,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.Attempt.io
+import com.gu.adapters.utils.Attempt._
 import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors._
 import com.gu.core.{ Config, _ }
@@ -246,6 +246,16 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     } yield FoundAvatar(avatar)
   }
 
+  def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
+    val metadata = new ObjectMetadata()
+    metadata.addUserMetadata("avatar-id", avatarId.toString)
+    metadata.addUserMetadata("user-id", user.toString)
+    metadata.addUserMetadata("original-filename", originalFilename)
+    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
+    metadata.setContentType(mimeType)
+    metadata
+  }
+
   def userUpload(
     user: User,
     file: Array[Byte],
@@ -254,18 +264,12 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     isSocial: Boolean = false
   ): Error \/ CreatedAvatar = {
 
-    val avatarId = UUID.randomUUID.toString
+    val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
-    val metadata = new ObjectMetadata()
-    metadata.addUserMetadata("avatar-id", avatarId)
-    metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", originalFilename)
-    metadata.setCacheControl("no-cache") // FIXME -- set this to something sensible
-    metadata.setContentType(mimeType)
 
     val avatar = Avatar(
-      id = avatarId,
-      avatarUrl = s"$avatarBaseUrl/avatars/$avatarId",
+      id = avatarId.toString,
+      avatarUrl = s"$avatarBaseUrl/avatars/$id",
       userId = user.id,
       originalFilename = originalFilename,
       status = Pending,
@@ -277,7 +281,50 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     for {
       avatar <- kvs.put(dynamoTable, avatar)
-      _ <- fs.put(privateBucket, s"avatars/$avatarId", file, metadata)
+      _ <- fs.put(privateBucket, s"avatars/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
+    } yield CreatedAvatar(avatar)
+  }
+
+  def migratedUserUpload(
+    user: User,
+    originalFile: Array[Byte],
+    originalFileMimeType: String,
+    processedFile: Array[Byte],
+    processedFileMimeType: String,
+    originalFilename: String,
+    createdAt: DateTime,
+    isSocial: Boolean
+  ): Error \/ CreatedAvatar = {
+
+    def migrate: Error \/ Avatar = {
+
+      val avatarId = UUID.randomUUID
+      val now = DateTime.now(DateTimeZone.UTC)
+
+      val avatar = Avatar(
+        id = avatarId.toString,
+        avatarUrl = s"http://$privateBucket/avatars/$id",
+        userId = user.id,
+        originalFilename = originalFilename,
+        status = Approved,
+        createdAt = createdAt,
+        lastModified = now,
+        isSocial = isSocial,
+        isActive = true
+      )
+
+      for {
+        avatar <- kvs.put(dynamoTable, avatar)
+        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
+        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
+        _ <- copyToPublic(avatar)
+      } yield avatar
+    }
+
+    for {
+      _ <- getActive(user).swap
+        .leftMap(_ => avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")))
+      avatar <- migrate
     } yield CreatedAvatar(avatar)
   }
 
