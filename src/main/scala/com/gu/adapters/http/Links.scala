@@ -20,7 +20,7 @@ object Links {
 
     val prev = for (f <- first if query.since.isDefined || query.until.isDefined) yield {
       val fs = query.copy(until = Some(UUID.fromString(f)), since = None)
-      Link("next", s"${url.base}${url.path}${Filters.queryString(fs)}")
+      Link("prev", s"${url.base}${url.path}${Filters.queryString(fs)}")
     }
 
     List(prev, next).flatten

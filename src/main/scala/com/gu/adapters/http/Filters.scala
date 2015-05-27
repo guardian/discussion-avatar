@@ -52,11 +52,13 @@ object Filters {
   }
 
   def queryString(f: Filters): String = {
-    val params = Set(
-      Some(f.status.asString),
-      f.since.map(_.toString),
-      f.until.map(_.toString)
-    ).flatten
+    val params = List(
+      "status" -> Some(f.status.asString),
+      "since" -> f.since.map(_.toString),
+      "until" -> f.until.map(_.toString)
+    ) collect {
+        case (key, Some(value)) => s"$key=$value"
+      }
 
     params.mkString("?", "&", "")
   }
