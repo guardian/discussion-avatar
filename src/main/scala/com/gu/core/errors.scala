@@ -19,7 +19,6 @@ case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[Strin
 case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarAlreadyExists(message: String, errors: NonEmptyList[String]) extends Error
 
-
 object Errors {
 
   def avatarAlreadyExists(errors: NonEmptyList[String]): AvatarAlreadyExists =
