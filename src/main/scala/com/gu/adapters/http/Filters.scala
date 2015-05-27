@@ -1,17 +1,17 @@
 package com.gu.adapters.http
 
-import java.util.UUID
-
+import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors.invalidFilters
 import com.gu.core._
+import org.joda.time.DateTime
 import org.scalatra.Params
 
 import scalaz._
 
 case class Filters(
   status: Status,
-  since: Option[UUID],
-  until: Option[UUID]
+  since: Option[DateTime],
+  until: Option[DateTime]
 )
 
 object Filters {
@@ -26,16 +26,16 @@ object Filters {
       case None => Success(Approved)
     }
 
-    val UuidRegex = """(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)""".r
+    val Iso8601Regex = """(^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$)""".r
 
-    val since: Validation[NonEmptyList[String], Option[UUID]] = params.get("since") match {
-      case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
+    val since: Validation[NonEmptyList[String], Option[DateTime]] = params.get("since") match {
+      case Some(Iso8601Regex(s)) => Success(Some(ISODateFormatter.parse(s)))
       case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for since."))
       case None => Success(None)
     }
 
-    val until: Validation[NonEmptyList[String], Option[UUID]] = params.get("until") match {
-      case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
+    val until: Validation[NonEmptyList[String], Option[DateTime]] = params.get("until") match {
+      case Some(Iso8601Regex(s)) => Success(Some(ISODateFormatter.parse(s)))
       case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for until."))
       case None => Success(None)
     }
@@ -54,8 +54,8 @@ object Filters {
   def queryString(f: Filters): String = {
     val params = List(
       "status" -> Some(f.status.asString),
-      "since" -> f.since.map(_.toString),
-      "until" -> f.until.map(_.toString)
+      "since" -> f.since.map(t => ISODateFormatter.print(t)),
+      "until" -> f.until.map(t => ISODateFormatter.print(t))
     ) collect {
         case (key, Some(value)) => s"$key=$value"
       }

@@ -3,7 +3,7 @@ package com.gu.adapters.utils
 import java.io.InputStream
 
 import com.gu.adapters.utils.Attempt._
-import org.joda.time.DateTime
+import org.joda.time.{ DateTimeZone, DateTime }
 import org.joda.time.format.ISODateTimeFormat
 import com.gu.adapters.utils.ToTryOps.toTryOps
 import com.gu.core.Errors._
@@ -25,7 +25,7 @@ case class TryOps[A](t: Try[A]) {
 }
 
 object ISODateFormatter {
-  val dateFormat = ISODateTimeFormat.dateTimeNoMillis
+  val dateFormat = ISODateTimeFormat.dateTimeNoMillis.withZone(DateTimeZone.UTC)
   def parse(s: String): DateTime = dateFormat.parseDateTime(s)
   def print(dt: DateTime): String = dateFormat.print(dt)
 }
