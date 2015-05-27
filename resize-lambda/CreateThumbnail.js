@@ -1,5 +1,3 @@
-//BUMP FILE SIZE
-
 // dependencies
 var async = require('async');
 var AWS = require('aws-sdk');
