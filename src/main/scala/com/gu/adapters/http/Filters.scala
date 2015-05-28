@@ -1,17 +1,18 @@
 package com.gu.adapters.http
 
-import java.util.UUID
-
+import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Errors.invalidFilters
 import com.gu.core._
+import org.joda.time.DateTime
 import org.scalatra.Params
+import com.gu.adapters.utils.Attempt.attempt
 
 import scalaz._
 
 case class Filters(
   status: Status,
-  since: Option[UUID],
-  until: Option[UUID]
+  since: Option[DateTime],
+  until: Option[DateTime]
 )
 
 object Filters {
@@ -26,17 +27,15 @@ object Filters {
       case None => Success(Approved)
     }
 
-    val UuidRegex = """(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$)""".r
-
-    val since: Validation[NonEmptyList[String], Option[UUID]] = params.get("since") match {
-      case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
-      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for since."))
+    val since: Validation[NonEmptyList[String], Option[DateTime]] = params.get("since") match {
+      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
+        .leftMap(_ => NonEmptyList(s"'$s' is not a valid ISO8601 datetime for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
-    val until: Validation[NonEmptyList[String], Option[UUID]] = params.get("until") match {
-      case Some(UuidRegex(s)) => Success(Some(UUID.fromString(s)))
-      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for until."))
+    val until: Validation[NonEmptyList[String], Option[DateTime]] = params.get("until") match {
+      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
+        .leftMap(_ => NonEmptyList(s"'$s' is not a valid ISO8601 datetime for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
@@ -54,8 +53,8 @@ object Filters {
   def queryString(f: Filters): String = {
     val params = List(
       "status" -> Some(f.status.asString),
-      "since" -> f.since.map(_.toString),
-      "until" -> f.until.map(_.toString)
+      "since" -> f.since.map(t => ISODateFormatter.print(t)),
+      "until" -> f.until.map(t => ISODateFormatter.print(t))
     ) collect {
         case (key, Some(value)) => s"$key=$value"
       }
