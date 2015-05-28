@@ -5,6 +5,7 @@ import com.gu.core.Errors.invalidFilters
 import com.gu.core._
 import org.joda.time.DateTime
 import org.scalatra.Params
+import com.gu.adapters.utils.Attempt.attempt
 
 import scalaz._
 
@@ -26,17 +27,15 @@ object Filters {
       case None => Success(Approved)
     }
 
-    val Iso8601Regex = """(^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$)""".r
-
     val since: Validation[NonEmptyList[String], Option[DateTime]] = params.get("since") match {
-      case Some(Iso8601Regex(s)) => Success(Some(ISODateFormatter.parse(s)))
-      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for since."))
+      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
+        .leftMap(_ => NonEmptyList(s"'$s' is not a valid ISO8601 datetime for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
     val until: Validation[NonEmptyList[String], Option[DateTime]] = params.get("until") match {
-      case Some(Iso8601Regex(s)) => Success(Some(ISODateFormatter.parse(s)))
-      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid UUID for until."))
+      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
+        .leftMap(_ => NonEmptyList(s"'$s' is not a valid ISO8601 datetime for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
