@@ -56,7 +56,7 @@ object StreamFromUrl {
 object StreamFromBody {
   def apply(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
     for {
-      file <- attempt(fileParams("image"))
+      file <- attempt(fileParams("file"))
         .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
     } yield (file.getName, file.getInputStream)
   }
