@@ -78,8 +78,8 @@ case class Dynamo(db: DynamoDB) extends KVStore {
       .withMaxResultSize(pageSize)
 
     if (!until.isDefined) spec.withScanIndexForward(false)
-    since.map(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-    until.map(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
+    since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+    until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
 
     val result = io(db.getTable(table).getIndex(index).query(spec))
 
