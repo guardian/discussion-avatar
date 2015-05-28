@@ -83,7 +83,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     p: AvatarResponse => Boolean
   ): Unit = {
 
-    post("/avatars", Nil, List("image" -> file), Map("Authorization" -> ("Bearer " + guuCookie))) {
+    post("/avatars", Nil, List("file" -> file), Map("Authorization" -> ("Bearer " + guuCookie))) {
       status should equal(201)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
