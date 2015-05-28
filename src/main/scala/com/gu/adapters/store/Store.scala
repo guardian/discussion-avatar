@@ -117,9 +117,13 @@ case class Dynamo(db: DynamoDB) extends KVStore {
   }
 
   def update(table: String, id: String, status: Status): Error \/ Avatar = {
+    val now = DateTime.now(DateTimeZone.UTC)
     val spec = new UpdateItemSpec()
       .withPrimaryKey("AvatarId", id)
-      .withAttributeUpdate(new AttributeUpdate("Status").put(status.asString))
+      .withAttributeUpdate(
+        new AttributeUpdate("Status").put(status.asString),
+        new AttributeUpdate("LastModified").put(ISODateFormatter.print(now))
+      )
       .withReturnValues(ReturnValue.ALL_NEW)
     val item = io(db.getTable(table).updateItem(spec)).map(_.getItem)
     item.map(i => asAvatar(i, avatarBaseUrl))
