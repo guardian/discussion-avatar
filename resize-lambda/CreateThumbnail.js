@@ -47,7 +47,7 @@ exports.handler = function(event, context) {
                             if (err) {
                                 next(err);
                             } else {
-                                next(null, response.ContentType, buffer);
+                                next(null, "image/png", buffer);
                             }
                         });
                 });
