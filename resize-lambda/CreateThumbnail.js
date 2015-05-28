@@ -6,8 +6,8 @@ var gm = require('gm')
 var util = require('util');
 
 // constants
-var MAX_WIDTH  = 100;
-var MAX_HEIGHT = 100;
+var MAX_WIDTH  = 60;
+var MAX_HEIGHT = 60;
 
 // get reference to S3 client 
 var s3 = new AWS.S3();
@@ -28,18 +28,6 @@ exports.handler = function(event, context) {
         return;
     }
 
-    // Infer the image type.
-    var typeMatch = srcKey.match(/\.([^.]*)$/);
-    if (!typeMatch) {
-        console.error('unable to infer image type for key ' + srcKey);
-        return;
-    }
-    var imageType = typeMatch[1];
-    if (imageType != "jpg" && imageType != "png") {
-        console.log('skipping non-image ' + srcKey);
-        return;
-    }
-
     // Download the image from S3, transform, and upload to a different S3 bucket.
     async.waterfall([
             function download(next) {
@@ -52,17 +40,10 @@ exports.handler = function(event, context) {
             },
             function tranform(response, next) {
                 gm(response.Body).size(function(err, size) {
-                    // Infer the scaling factor to avoid stretching the image unnaturally.
-                    var scalingFactor = Math.min(
-                            MAX_WIDTH / size.width,
-                            MAX_HEIGHT / size.height
-                    );
-                    var width  = scalingFactor * size.width;
-                    var height = scalingFactor * size.height;
-
                     // Transform the image buffer in memory.
-                    this.resize(width, height)
-                        .toBuffer(imageType, function(err, buffer) {
+                    this.gravity('Center')
+                        .extent(MAX_WIDTH, MAX_HEIGHT)
+                        .toBuffer('PNG', function(err, buffer) {
                             if (err) {
                                 next(err);
                             } else {
