@@ -105,11 +105,11 @@ class TestKVStore extends KVStore {
     docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
   }
 
-  def query(table: String, index: String, userId: Int, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse = {
+  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
   }
 
-  def query(table: String, index: String, status: Status, since: Option[UUID], until: Option[UUID]): Error \/ QueryResponse = {
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.status == status).toList, hasMore = false).right
   }
 
