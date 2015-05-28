@@ -2,7 +2,7 @@ package com.gu.adapters.http
 
 import java.io.{ BufferedInputStream }
 
-import com.gu.adapters.http.CookieDecoder.userFromCookie
+import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.{ InputStreamToByteArray, StreamFromBody, StreamFromUrl }
@@ -130,7 +130,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   get("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     withErrorHandling {
       for {
-        user <- userFromCookie(decoder, request.cookies.get("GU_U"))
+        user <- userFromHeader(decoder, request.header("Authorization"))
         avatar <- store.getPersonal(user)
         req = Req(apiUrl, request.getPathInfo)
       } yield (avatar, req)
@@ -140,7 +140,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   post("/avatars", operation(postAvatar)) {
     withErrorHandling {
       for {
-        user <- userFromCookie(decoder, request.cookies.get("GU_U"))
+        user <- userFromHeader(decoder, request.header("Authorization"))
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
       } yield (created, req)
@@ -186,7 +186,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors))
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
-      case UnableToReadUserCookie(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case UserAuthorizationFailed(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))

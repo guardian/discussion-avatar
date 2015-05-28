@@ -10,13 +10,15 @@ import scalaz.{ NonEmptyList, \/ }
 
 object CookieDecoder {
 
-  def userFromCookie(decoder: IdentityCookieDecoder, cookie: Option[String]): Error \/ User = {
+  def userFromHeader(decoder: IdentityCookieDecoder, authHeader: Option[String]): Error \/ User = {
+    val guu = authHeader.map(_.stripPrefix("Bearer "))
+
     val user = for {
-      cook <- cookie.toRightDisjunction("No GU_U cookie in request")
+      cook <- guu.toRightDisjunction("No GU_U cookie in request")
       user <- attempt(decoder.getUserDataForGuU(cook)).toOption.flatten.map(_.user)
-        .toRightDisjunction("Unable to extract user data from cookie")
+        .toRightDisjunction("Unable to extract user data from Authorization header")
     } yield User(user.id.toInt)
 
-    user.leftMap(error => unableToReadUserCookie(NonEmptyList(error)))
+    user.leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
   }
 }

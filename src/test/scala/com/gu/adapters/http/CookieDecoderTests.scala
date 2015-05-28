@@ -10,15 +10,17 @@ class CookieDecoderTests extends FunSuite with Matchers {
 
   val decoder = new IdentityCookieDecoder(new PreProductionKeys)
 
-  test("Decode GU_U cookie") {
+  test("Decode GU_U cookie from Authorization header") {
     val (userId, cookie) = Config.preProdCookie
-    val user = CookieDecoder.userFromCookie(decoder, Some(cookie))
+    val authHeader = "Bearer " + cookie
+    val user = CookieDecoder.userFromHeader(decoder, Some(authHeader))
     user should be(\/-(User(userId)))
   }
 
   test("Reject invalid GU_U cookie") {
     val (userId, cookie) = 12356 -> "20394sdkfjs23slkdjfslkjdf234slkdjfsd-23"
-    val user = CookieDecoder.userFromCookie(decoder, Some(cookie))
+    val authHeader = "Bearer " + cookie
+    val user = CookieDecoder.userFromHeader(decoder, Some(authHeader))
     user.isLeft should be(true)
   }
 }

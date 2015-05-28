@@ -9,7 +9,6 @@ sealed trait RequestParam
 case class StatusRequest(status: Status)
 case class AvatarRequest(url: String)
 
-
 case class MigratedAvatarRequest(
   userId: Int,
   image: String,
@@ -18,5 +17,4 @@ case class MigratedAvatarRequest(
   isSocial: Boolean,
   originalFilename: String
 )
-
 
