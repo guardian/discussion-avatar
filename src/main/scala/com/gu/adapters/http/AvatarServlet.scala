@@ -186,7 +186,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors))
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
-      case UserAuthorizationFailed(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case UserAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
