@@ -14,7 +14,7 @@ object Links {
     val first = avatars.headOption.map(_.lastModified)
     val query = url.filters
 
-    val next = for (c <- cursor if hasMore) yield {
+    val next = for (c <- cursor if hasMore || query.until.isDefined) yield {
       val fs = query.copy(since = Some(c), until = None)
       Link("next", s"${url.base}${url.path}${Filters.queryString(fs)}")
     }
