@@ -10,7 +10,7 @@ case class InvalidContentType(message: String, errors: NonEmptyList[String]) ext
 case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
 case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
-case class UnableToReadUserCookie(message: String, errors: NonEmptyList[String]) extends Error
+case class UserAuthorizationFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadMigratedAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
@@ -18,7 +18,6 @@ case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends 
 case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarAlreadyExists(message: String, errors: NonEmptyList[String]) extends Error
-
 
 object Errors {
 
@@ -43,8 +42,8 @@ object Errors {
   def dynamoRequestFailed(errors: NonEmptyList[String]): DynamoRequestFailed =
     DynamoRequestFailed("DynamoDB request failed", errors)
 
-  def unableToReadUserCookie(errors: NonEmptyList[String]): UnableToReadUserCookie =
-    UnableToReadUserCookie("Unable to read user cookie", errors)
+  def userAuthorizationFailed(errors: NonEmptyList[String]): UserAuthorizationFailed =
+    UserAuthorizationFailed("Unable to read user cookie. Must be provided in Authorization header as: 'Bearer [cookie]'", errors)
 
   def unableToReadStatusRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
     UnableToReadStatusRequest("Unable to read status request", errors)

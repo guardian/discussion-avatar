@@ -61,9 +61,9 @@ class AvatarServletTests extends TestHelpers {
   test("Post migrated avatar") {
     val image = new File("src/test/resources/avatar.gif").toURI.toString
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId=991
+    val userId = 991
 
-    postMigratedAvatar(201) (
+    postMigratedAvatar(201)(
       "/migrateAvatar",
       image,
       userId,
@@ -71,15 +71,16 @@ class AvatarServletTests extends TestHelpers {
       true,
       "original.gif",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved)
+      a => a.data.userId == userId && a.data.status == Approved
+    )
   }
 
   test("Reject invalid migrated avatar mime-type") {
     val image = new File("src/test/resources/avatar.svg").toURI.toString
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId=992
+    val userId = 992
 
-    postMigratedAvatar(400) (
+    postMigratedAvatar(400)(
       "/migrateAvatar",
       image,
       userId,
@@ -87,16 +88,17 @@ class AvatarServletTests extends TestHelpers {
       true,
       "avatar.svg",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved)
+      a => a.data.userId == userId && a.data.status == Approved
+    )
   }
 
   test("Reject migration of already existing user") {
 
     val image = new File("src/test/resources/avatar.gif").toURI.toString
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId=999
+    val userId = 999
 
-    postMigratedAvatar(201) (
+    postMigratedAvatar(201)(
       "/migrateAvatar",
       image,
       userId,
@@ -104,9 +106,10 @@ class AvatarServletTests extends TestHelpers {
       true,
       "original.gif",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved)
+      a => a.data.userId == userId && a.data.status == Approved
+    )
 
-    postMigratedAvatar(409) (
+    postMigratedAvatar(409)(
       "/migrateAvatar",
       image,
       userId,
@@ -114,7 +117,8 @@ class AvatarServletTests extends TestHelpers {
       true,
       "original.gif",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved)
+      a => a.data.userId == userId && a.data.status == Approved
+    )
   }
 
   test("Post avatar") {
