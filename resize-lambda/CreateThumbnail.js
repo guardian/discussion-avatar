@@ -39,10 +39,22 @@ exports.handler = function(event, context) {
                     next);
             },
             function tranform(response, next) {
+
+                // obtain the size of an image
+                gm(response.body)
+                    .size(function (err, size) {
+                        if (!err)
+                            console.log(size.width > size.height ? 'wider' : 'taller than you');
+                    });
+
                 gm(response.Body).size(function(err, size) {
                     // Transform the image buffer in memory.
+                    // Center, crop square, resize, strip metadata, convert to PNG
+                    var smallestDimension = Math.min(size.width, size.height);
                     this.gravity('Center')
-                        .extent(MAX_WIDTH, MAX_HEIGHT)
+                        .extent(smallestDimension, smallestDimension)
+                        .resize(MAX_WIDTH, MAX_HEIGHT)
+                        .noProfile()
                         .toBuffer('PNG', function(err, buffer) {
                             if (err) {
                                 next(err);
