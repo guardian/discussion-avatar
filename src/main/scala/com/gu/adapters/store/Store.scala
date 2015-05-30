@@ -1,6 +1,7 @@
 package com.gu.adapters.store
 
 import java.io.{ ByteArrayInputStream }
+import java.net.URL
 import java.util.UUID
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
@@ -35,33 +36,36 @@ trait KVStore {
   def update(table: String, id: String, status: Status): Error \/ Avatar
 }
 
-case class Dynamo(db: DynamoDB) extends KVStore {
+case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
   val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
   val privateBucket = Config.s3PrivateBucket
-  val avatarBaseUrl = Config.avatarBaseUrl
 
-  def asAvatar(item: Item, avatarUrl: String): Avatar = {
+  def asAvatar(item: Item): Error \/ Avatar = {
     val id = item.getString("AvatarId")
 
-    Avatar(
-      id = id,
-      avatarUrl = s"$avatarUrl/avatars/$id",
-      userId = item.getString("UserId").toInt,
-      originalFilename = item.getString("OriginalFilename"),
-      status = Status(item.getString("Status")),
-      createdAt = ISODateFormatter.parse(item.getString("CreatedAt")),
-      lastModified = ISODateFormatter.parse(item.getString("LastModified")),
-      isSocial = item.getString("IsSocial").toBoolean,
-      isActive = item.getString("IsActive").toBoolean
-    )
+    for {
+      secureUrl <- fs.presignedUrl(privateBucket, s"avatars/$id")
+    } yield {
+      Avatar(
+        id = id,
+        avatarUrl = secureUrl.toString,
+        userId = item.getString("UserId").toInt,
+        originalFilename = item.getString("OriginalFilename"),
+        status = Status(item.getString("Status")),
+        createdAt = ISODateFormatter.parse(item.getString("CreatedAt")),
+        lastModified = ISODateFormatter.parse(item.getString("LastModified")),
+        isSocial = item.getString("IsSocial").toBoolean,
+        isActive = item.getString("IsActive").toBoolean
+      )
+    }
   }
 
   def get(table: String, id: String): Error \/ Avatar = {
     io(db.getTable(table).getItem("AvatarId", id))
       .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
-      .map(item => asAvatar(item, avatarBaseUrl))
+      .map(item => asAvatar(item).toOption.get)
   }
 
   def query[A](
@@ -86,11 +90,11 @@ case class Dynamo(db: DynamoDB) extends KVStore {
     for {
       pages <- result.map(_.pages.asScala.toList)
       qr <- result.map(_.getLastLowLevelResult.getQueryResult)
+      items = pages.map(_.asScala).flatten
+      avatars = items.map(item => asAvatar(item)).map(_.toOption).flatten
     } yield {
-      val items = pages.map(_.asScala).flatten
-        .map(item => asAvatar(item, avatarBaseUrl))
-      val orderedItems = until.map(_ => items.reverse).getOrElse(items)
-      QueryResponse(orderedItems, qr.getLastEvaluatedKey != null)
+      val orderedAvatars = until.map(_ => avatars.reverse).getOrElse(avatars)
+      QueryResponse(orderedAvatars, qr.getLastEvaluatedKey != null)
     }
   }
 
@@ -125,8 +129,10 @@ case class Dynamo(db: DynamoDB) extends KVStore {
         new AttributeUpdate("LastModified").put(ISODateFormatter.print(now))
       )
       .withReturnValues(ReturnValue.ALL_NEW)
-    val item = io(db.getTable(table).updateItem(spec)).map(_.getItem)
-    item.map(i => asAvatar(i, avatarBaseUrl))
+    for {
+      item <- io(db.getTable(table).updateItem(spec)).map(_.getItem)
+      avatar <- asAvatar(item)
+    } yield avatar
   }
 }
 
@@ -134,7 +140,7 @@ object Dynamo {
   def apply(): Dynamo = {
     val client = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
     client.setRegion(Region.getRegion(Regions.EU_WEST_1))
-    Dynamo(new DynamoDB(client))
+    Dynamo(new DynamoDB(client), S3())
   }
 }
 
@@ -154,6 +160,12 @@ trait FileStore {
   ): Error \/ Unit
 
   def delete(bucket: String, key: String): Error \/ Unit
+
+  def presignedUrl(
+    bucket: String,
+    key: String,
+    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
+  ): Error \/ URL
 }
 
 case class S3(client: AmazonS3Client) extends FileStore {
@@ -191,6 +203,16 @@ case class S3(client: AmazonS3Client) extends FileStore {
     val request = new DeleteObjectRequest(bucket, key)
     io(client.deleteObject(request))
   }
+
+  def presignedUrl(
+    bucket: String,
+    key: String,
+    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20) // expires in 15 minutes
+  ): Error \/ URL = {
+    val request = new GeneratePresignedUrlRequest(bucket, key)
+    request.setExpiration(expiration.toDate)
+    io(client.generatePresignedUrl(request))
+  }
 }
 
 object S3 {
@@ -206,7 +228,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   val apiBaseUrl = Config.apiUrl
   val publicBucket = Config.s3PublicBucket
   val privateBucket = Config.s3PrivateBucket
-  val avatarBaseUrl = Config.avatarBaseUrl
   val dynamoTable = Config.dynamoTable
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
@@ -271,20 +292,22 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
 
-    val avatar = Avatar(
-      id = avatarId.toString,
-      avatarUrl = s"$avatarBaseUrl/avatars/$id",
-      userId = user.id,
-      originalFilename = originalFilename,
-      status = Pending,
-      createdAt = now,
-      lastModified = now,
-      isSocial = true,
-      isActive = false
-    )
-
     for {
-      avatar <- kvs.put(dynamoTable, avatar)
+      secureUrl <- fs.presignedUrl(privateBucket, s"avatars/$avatarId")
+      avatar <- kvs.put(
+        dynamoTable,
+        Avatar(
+          id = avatarId.toString,
+          avatarUrl = secureUrl.toString,
+          userId = user.id,
+          originalFilename = originalFilename,
+          status = Pending,
+          createdAt = now,
+          lastModified = now,
+          isSocial = true,
+          isActive = false
+        )
+      )
       _ <- fs.put(privateBucket, s"avatars/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
   }
@@ -305,20 +328,22 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       val avatarId = UUID.randomUUID
       val now = DateTime.now(DateTimeZone.UTC)
 
-      val avatar = Avatar(
-        id = avatarId.toString,
-        avatarUrl = s"http://$privateBucket/avatars/$id",
-        userId = user.id,
-        originalFilename = originalFilename,
-        status = Approved,
-        createdAt = createdAt,
-        lastModified = now,
-        isSocial = isSocial,
-        isActive = true
-      )
-
       for {
-        avatar <- kvs.put(dynamoTable, avatar)
+        secureUrl <- fs.presignedUrl(privateBucket, s"avatars/$avatarId")
+        avatar <- kvs.put(
+          dynamoTable,
+          Avatar(
+            id = avatarId.toString,
+            avatarUrl = secureUrl.toString,
+            userId = user.id,
+            originalFilename = originalFilename,
+            status = Approved,
+            createdAt = createdAt,
+            lastModified = now,
+            isSocial = isSocial,
+            isActive = true
+          )
+        )
         _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
         _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
         _ <- copyToPublic(avatar)
