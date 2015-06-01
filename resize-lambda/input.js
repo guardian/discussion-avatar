@@ -1,5 +1,5 @@
 {  
-   "Records":[  
+    "Records":[
       {  
          "eventVersion":"2.0",
          "eventSource":"aws:s3",
@@ -20,14 +20,14 @@
             "s3SchemaVersion":"1.0",
             "configurationId":"testConfigRule",
             "bucket":{  
-               "name":"com-gu-avatars-lambda-test",
-               "ownerIdentity":{  
+               "name":"com-gu-avatar-incoming-code",
+               "ownerIdentity":{
                   "principalId":"A3NL1KOZZKExample"
                },
-               "arn":"arn:aws:s3:::discussion-avatars-test"
+               "arn":"arn:aws:s3:::com-gu-avatar-incoming-code"
             },
             "object":{  
-               "key":"100x400_avatar.jpg",
+               "key":"100x400_avatar.png",
                "size":1024,
                "eTag":"d41d8cd98f00b204e9800998ecf8427e",
                "versionId":"096fKKXTRTtl3on89fVO.nfljtsv6qko"
