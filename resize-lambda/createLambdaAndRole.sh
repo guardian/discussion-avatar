@@ -50,6 +50,6 @@ aws lambda create-function \
 --function-name CreateThumbnail-${ENV} \
 --zip-file fileb://${PWD}/CreateThumbnail.zip \
 --role arn:aws:iam::082944406014:role/Lambda-Execution-Role \
---handler ${FUNCTION_NAME}.handler \
+--handler CreateThumbnail.handler \
 --description "Resizes image and copies resulting file to an S3 Bucket" \
 --runtime nodejs
