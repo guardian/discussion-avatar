@@ -21,6 +21,8 @@ object Config {
   val statusIndex = "Status-index"
   val userIndex = "UserId-index"
 
-  val s3PrivateBucket = conf.getString("aws.s3.private")
+  val s3IncomingBucket = conf.getString("aws.s3.incoming")
+  val s3RawBucket = conf.getString("aws.s3.raw")
+  val s3ProcessedBucket = conf.getString("aws.s3.processed")
   val s3PublicBucket = conf.getString("aws.s3.public")
 }

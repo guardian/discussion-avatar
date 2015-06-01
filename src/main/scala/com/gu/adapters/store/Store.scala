@@ -14,7 +14,7 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
-import com.gu.adapters.utils.ISODateFormatter
+import com.gu.adapters.utils.{ MakeS3Folder, ISODateFormatter }
 import com.gu.core.Errors._
 import com.gu.core.{ Config, _ }
 import org.joda.time.{ DateTime, DateTimeZone }
@@ -38,18 +38,18 @@ trait KVStore {
 
 case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
-  val apiUrl = Config.apiUrl
   val pageSize = Config.pageSize
-  val privateBucket = Config.s3PrivateBucket
+  val processedBucket = Config.s3ProcessedBucket
 
   def asAvatar(item: Item): Error \/ Avatar = {
-    val id = item.getString("AvatarId")
+    val avatarId = item.getString("AvatarId")
+    val folder = MakeS3Folder(avatarId)
 
     for {
-      secureUrl <- fs.presignedUrl(privateBucket, s"avatars/$id")
+      secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
     } yield {
       Avatar(
-        id = id,
+        id = avatarId,
         avatarUrl = secureUrl.toString,
         userId = item.getString("UserId").toInt,
         originalFilename = item.getString("OriginalFilename"),
@@ -225,9 +225,10 @@ object S3 {
 
 case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
-  val apiBaseUrl = Config.apiUrl
+  val incomingBucket = Config.s3IncomingBucket
+  val rawBucket = Config.s3RawBucket
+  val processedBucket = Config.s3ProcessedBucket
   val publicBucket = Config.s3PublicBucket
-  val privateBucket = Config.s3PrivateBucket
   val dynamoTable = Config.dynamoTable
   val statusIndex = Config.statusIndex
   val userIndex = Config.userIndex
@@ -291,9 +292,10 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
+    val folder = MakeS3Folder(avatarId.toString)
 
     for {
-      secureUrl <- fs.presignedUrl(privateBucket, s"avatars/$avatarId")
+      secureUrl <- fs.presignedUrl(incomingBucket, s"$folder/$avatarId")
       avatar <- kvs.put(
         dynamoTable,
         Avatar(
@@ -308,7 +310,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
           isActive = false
         )
       )
-      _ <- fs.put(privateBucket, s"avatars/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
+      _ <- fs.put(incomingBucket, s"$folder/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
   }
 
@@ -327,9 +329,10 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       val avatarId = UUID.randomUUID
       val now = DateTime.now(DateTimeZone.UTC)
+      val folder = MakeS3Folder(avatarId.toString)
 
       for {
-        secureUrl <- fs.presignedUrl(privateBucket, s"avatars/$avatarId")
+        secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
         avatar <- kvs.put(
           dynamoTable,
           Avatar(
@@ -344,8 +347,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
             isActive = true
           )
         )
-        _ <- fs.put(privateBucket, s"avatars/original/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
-        _ <- fs.put(privateBucket, s"avatars/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
+        _ <- fs.put(rawBucket, s"$folder/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
+        _ <- fs.put(processedBucket, s"$folder/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
         _ <- copyToPublic(avatar)
       } yield avatar
     }
@@ -358,9 +361,10 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
+    val folder = MakeS3Folder(avatar.id)
     fs.copy(
-      privateBucket,
-      s"avatars/${avatar.id}",
+      processedBucket,
+      s"$folder/${avatar.id}",
       publicBucket,
       s"user/${avatar.userId.toString}"
     ) map (_ => avatar)

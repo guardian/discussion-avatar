@@ -61,3 +61,9 @@ object StreamFromBody {
     } yield (file.getName, file.getInputStream)
   }
 }
+
+object MakeS3Folder {
+  def apply(id: String): String = {
+    id.substring(0, 6).split("").mkString("/")
+  }
+}
