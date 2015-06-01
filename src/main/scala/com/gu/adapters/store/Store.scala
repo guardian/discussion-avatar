@@ -14,7 +14,7 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
-import com.gu.adapters.utils.ISODateFormatter
+import com.gu.adapters.utils.{ MakeS3Folder, ISODateFormatter }
 import com.gu.core.Errors._
 import com.gu.core.{ Config, _ }
 import org.joda.time.{ DateTime, DateTimeZone }
@@ -43,7 +43,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
   def asAvatar(item: Item): Error \/ Avatar = {
     val avatarId = item.getString("AvatarId")
-    val folder = avatarId.substring(0, 6).split("").mkString("/")
+    val folder = MakeS3Folder(avatarId)
 
     for {
       secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
@@ -292,7 +292,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
-    val folder = avatarId.toString.substring(0, 6).split("").mkString("/")
+    val folder = MakeS3Folder(avatarId.toString)
 
     for {
       secureUrl <- fs.presignedUrl(incomingBucket, s"$folder/$avatarId")
@@ -329,7 +329,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       val avatarId = UUID.randomUUID
       val now = DateTime.now(DateTimeZone.UTC)
-      val folder = avatarId.toString.substring(0, 6).split("").mkString("/")
+      val folder = MakeS3Folder(avatarId.toString)
 
       for {
         secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
@@ -361,7 +361,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
-    val folder = avatar.id.substring(0, 6).split("").mkString("/")
+    val folder = MakeS3Folder(avatar.id)
     fs.copy(
       processedBucket,
       s"$folder/${avatar.id}",
