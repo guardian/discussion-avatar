@@ -44,7 +44,8 @@ aws iam put-role-policy \
 --policy-name Lambda-S3-Policy \
 --policy-document file://${S3_POLICY_PATH}
 
-zip -r CreateThumbnail.zip .
+zip CreateThumbnail.zip CreateThumbnail.js
+zip -r CreateThumbnail.zip ./node_modules/
 
 aws lambda create-function \
 --region eu-west-1 \

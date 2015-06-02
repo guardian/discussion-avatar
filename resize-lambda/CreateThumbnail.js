@@ -69,9 +69,6 @@ exports.handler = function(event, context) {
             },
             function copyToRaw(next) {
                 // Copy the incoming file to the raw bucket
-                console.log("Starting copy to RAW")
-                console.log("Raw bucket is " + rawBucket)
-
                 var params = {
                 Bucket: rawBucket,
                 Key: incomingKey,
@@ -80,7 +77,6 @@ exports.handler = function(event, context) {
                 };
 
                 s3.copyObject(params, function(err, data){
-                        console.log("In here!")
                 if(err) console.log(err, err.stack);
                 else console.log("Success logging "+data)
                     },
