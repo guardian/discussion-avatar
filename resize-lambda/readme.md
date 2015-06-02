@@ -4,21 +4,20 @@ Installation
 
 Deployment
 ==========
-Push the updated code:
-`./packageAndUpdate.sh` 
 
-Manually Invoke
-======
+## Creation of Lambda function and associated Role in AWS
 
-## Configuaration
+`./createLambdaAndRole.sh`
 
-Edit `input.js` and set the object key and S3 bucket name 
+(This should only need to be run once when setting up a new stage in AWS)
 
-## Invocation
-For testing you can manually invoke the function:
-`aws lambda invoke --invocation-type Event --function-name CreateThumbnail-code --region eu-west-1 --payload file:///path/to/input.js outputfile.txt`
+## Update and test code
 
-Review the event log within [CloudWatch Logs](https://eu-west-1.console.aws.amazon.com/cloudwatch/home?region=eu-west-1#logs:) 
+`./packageAndUpdate.sh`
+
+This script updates the function code and puts a file in the S3 Incoming bucket which will trigger the Lambda to run.
+
+Review the event log within [CloudWatch Logs](https://eu-west-1.console.aws.amazon.com/cloudwatch/home?region=eu-west-1#logs:) after executing the script. 
 
 Configure a Notification on the Bucket
 ==========
