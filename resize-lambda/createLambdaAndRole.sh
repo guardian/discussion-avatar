@@ -15,14 +15,14 @@ cat >${S3_POLICY_PATH} << EOF
         {
             "Effect": "Allow",
             "Action": ["s3:GetObject", "s3:DeleteObject" ],
-            "Resource": "arn:aws:s3:::com-gu-avatar-incoming-code/*"
+            "Resource": "arn:aws:s3:::com-gu-avatar-incoming-${ENV}/*"
         },
         {
             "Effect": "Allow",
             "Action": "s3:PutObject",
             "Resource":[
-             "arn:aws:s3:::com-gu-avatar-raw-code/*",
-             "arn:aws:s3:::com-gu-avatar-processed-code/*"
+             "arn:aws:s3:::com-gu-avatar-raw-${ENV}/*",
+             "arn:aws:s3:::com-gu-avatar-processed-code-${ENV}/*"
             ]
         }
     ]

@@ -15,15 +15,16 @@ var s3 = new AWS.S3();
 exports.handler = function(event, context) {
     // Read options from the event.
     console.log("Reading options from event:\n", util.inspect(event, {depth: 5}));
-    var srcBucket = event.Records[0].s3.bucket.name;
+    var incomingBucket = event.Records[0].s3.bucket.name;
     // Object key may have spaces or unicode non-ASCII characters.
-    var srcKey    =
+    var incomingKey    =
         decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
-    var dstBucket = srcBucket.replace("incoming","processed");
-    var dstKey    = srcKey;
+    var processedBucket = incomingBucket.replace("incoming","processed");
+    var rawBucket = incomingBucket.replace("incoming","raw");
+
 
     // Sanity check: validate that source and destination are different buckets.
-    if (srcBucket == dstBucket) {
+    if (incomingBucket == processedBucket) {
         console.error("Destination bucket must not match source bucket.");
         return;
     }
@@ -33,20 +34,12 @@ exports.handler = function(event, context) {
             function download(next) {
                 // Download the image from S3 into a buffer.
                 s3.getObject({
-                        Bucket: srcBucket,
-                        Key: srcKey
+                        Bucket: incomingBucket,
+                        Key: incomingKey
                     },
                     next);
             },
             function tranform(response, next) {
-
-                // obtain the size of an image
-                gm(response.body)
-                    .size(function (err, size) {
-                        if (!err)
-                            console.log(size.width > size.height ? 'wider' : 'taller than you');
-                    });
-
                 gm(response.Body).size(function(err, size) {
                     // Transform the image buffer in memory.
                     // Center, crop square, resize, strip metadata, convert to PNG
@@ -64,27 +57,54 @@ exports.handler = function(event, context) {
                         });
                 });
             },
-            function upload(contentType, data, next) {
-                // Stream the transformed image to a different S3 bucket.
+            function uploadProcessed(contentType, data, next) {
+                // Stream the transformed image to the processed bucket.
                 s3.putObject({
-                        Bucket: dstBucket,
-                        Key: dstKey,
+                        Bucket: processedBucket,
+                        Key: incomingKey,
                         Body: data,
                         ContentType: contentType
+                    },
+                    next(null));
+            },
+            function copyToRaw(next) {
+                // Copy the incoming file to the raw bucket
+                console.log("Starting copy to RAW")
+                console.log("Raw bucket is " + rawBucket)
+
+                var params = {
+                Bucket: rawBucket,
+                Key: incomingKey,
+                CopySource: incomingBucket + "/"  + incomingKey,
+                MetadataDirective: "COPY"
+                };
+
+                s3.copyObject(params, function(err, data){
+                        console.log("In here!")
+                if(err) console.log(err, err.stack);
+                else console.log("Success logging "+data)
+                    },
+                    next(null));
+            },
+            function cleanup(next) {
+                // Delete the file from the incoming bucket.
+                s3.deleteObject({
+                        Bucket: incomingBucket,
+                        Key: incomingKey
                     },
                     next);
             }
         ], function (err) {
             if (err) {
                 console.error(
-                        'Unable to resize ' + srcBucket + '/' + srcKey +
-                        ' and upload to ' + dstBucket + '/' + dstKey +
+                        'Unable to resize ' + incomingBucket + '/' + incomingKey +
+                        ' and upload to ' + processedBucket + '/' + incomingKey +
                         ' due to an error: ' + err
                 );
             } else {
                 console.log(
-                        'Successfully resized ' + srcBucket + '/' + srcKey +
-                        ' and uploaded to ' + dstBucket + '/' + dstKey
+                        'Successfully resized ' + incomingBucket + '/' + incomingKey +
+                        ' and uploaded to ' + processedBucket + '/' + incomingKey
                 );
             }
 
