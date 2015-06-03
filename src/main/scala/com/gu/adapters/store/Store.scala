@@ -298,7 +298,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     val folder = MakeS3Folder(avatarId.toString)
 
     for {
-      secureUrl <- fs.presignedUrl(incomingBucket, s"$folder/$avatarId")
+      secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
       secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
       avatar <- kvs.put(
         dynamoTable,
