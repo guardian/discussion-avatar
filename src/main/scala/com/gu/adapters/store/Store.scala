@@ -39,6 +39,7 @@ trait KVStore {
 case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
   val pageSize = Config.pageSize
+  val rawBucket = Config.s3RawBucket
   val processedBucket = Config.s3ProcessedBucket
 
   def asAvatar(item: Item): Error \/ Avatar = {
@@ -47,12 +48,14 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
     for {
       secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
+      secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
     } yield {
       Avatar(
         id = avatarId,
         avatarUrl = secureUrl.toString,
         userId = item.getString("UserId").toInt,
         originalFilename = item.getString("OriginalFilename"),
+        rawUrl = secureRawUrl.toString,
         status = Status(item.getString("Status")),
         createdAt = ISODateFormatter.parse(item.getString("CreatedAt")),
         lastModified = ISODateFormatter.parse(item.getString("LastModified")),
@@ -296,6 +299,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     for {
       secureUrl <- fs.presignedUrl(incomingBucket, s"$folder/$avatarId")
+      secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
       avatar <- kvs.put(
         dynamoTable,
         Avatar(
@@ -303,6 +307,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
           avatarUrl = secureUrl.toString,
           userId = user.id,
           originalFilename = originalFilename,
+          rawUrl = secureRawUrl.toString,
           status = Pending,
           createdAt = now,
           lastModified = now,
@@ -333,6 +338,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
       for {
         secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
+        secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
         avatar <- kvs.put(
           dynamoTable,
           Avatar(
@@ -340,6 +346,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
             avatarUrl = secureUrl.toString,
             userId = user.id,
             originalFilename = originalFilename,
+            rawUrl = secureRawUrl.toString,
             status = Approved,
             createdAt = createdAt,
             lastModified = now,
