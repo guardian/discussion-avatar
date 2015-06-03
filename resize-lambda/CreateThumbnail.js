@@ -59,11 +59,16 @@ exports.handler = function(event, context) {
             },
             function uploadProcessed(contentType, data, next) {
                 // Stream the transformed image to the processed bucket.
-                s3.putObject({
-                        Bucket: processedBucket,
-                        Key: incomingKey,
-                        Body: data,
-                        ContentType: contentType
+                var params = {
+                Bucket: processedBucket,
+                Key: incomingKey,
+                Body: data,
+                ContentType: contentType
+                };
+
+                s3.putObject(params, function(err, data){
+                if(err) console.log(err, err.stack);
+                else console.log("Processed success logging"+data)
                     },
                     next(null));
             },
@@ -78,18 +83,23 @@ exports.handler = function(event, context) {
 
                 s3.copyObject(params, function(err, data){
                 if(err) console.log(err, err.stack);
-                else console.log("Success logging "+data)
-                    },
-                    next(null));
-            },
-            function cleanup(next) {
-                // Delete the file from the incoming bucket.
-                s3.deleteObject({
-                        Bucket: incomingBucket,
-                        Key: incomingKey
+                else console.log("Raw success logging "+data)
                     },
                     next);
             }
+//            function cleanup(next) {
+//                // Delete the file from the incoming bucket.
+//               var params = {
+//                   Bucket: incomingBucket,
+//                   Key: incomingKey
+//               };
+//
+//                s3.deleteObject(params, function(err,data){
+//                if(err) console.log(err, err.stack);
+//                else console.log("Delete incoming success logging "+data)
+//                    },
+//                    next);
+//            }
         ], function (err) {
             if (err) {
                 console.error(
