@@ -7,6 +7,7 @@ case class Avatar(
   avatarUrl: String,
   userId: Int,
   originalFilename: String,
+  rawUrl: String,
   status: Status,
   createdAt: DateTime,
   lastModified: DateTime,
