@@ -9,7 +9,7 @@ var util = require('util');
 var MAX_WIDTH  = 60;
 var MAX_HEIGHT = 60;
 
-// get reference to S3 client 
+// get reference to S3 client
 var s3 = new AWS.S3();
 
 exports.handler = function(event, context) {
@@ -33,6 +33,7 @@ exports.handler = function(event, context) {
     async.waterfall([
             function download(next) {
                 // Download the image from S3 into a buffer.
+                console.log('s3.getObject : s3://' + incomingBucket + '/' + incomingKey);
                 s3.getObject({
                         Bucket: incomingBucket,
                         Key: incomingKey
@@ -40,6 +41,8 @@ exports.handler = function(event, context) {
                     next);
             },
             function tranform(response, next) {
+                console.log('gm.transform : response ->');
+                console.log(response);
                 gm(response.Body).size(function(err, size) {
                     // Transform the image buffer in memory.
                     // Center, crop square, resize, strip metadata, convert to PNG
@@ -59,47 +62,43 @@ exports.handler = function(event, context) {
             },
             function uploadProcessed(contentType, data, next) {
                 // Stream the transformed image to the processed bucket.
-                var params = {
-                Bucket: processedBucket,
-                Key: incomingKey,
-                Body: data,
-                ContentType: contentType
-                };
-
-                s3.putObject(params, function(err, data){
-                if(err) console.log(err, err.stack);
-                else console.log("Processed success logging"+data)
-                    },
-                    next(null));
+                console.log('s3.putObject : s3://' + processedBucket + '/' + incomingKey);
+                s3.putObject({
+                        Bucket: processedBucket,
+                        Key: incomingKey,
+                        Body: data,
+                        ContentType: contentType
+                    }, function(err, data) {
+                          if (err) next(err);
+                          else     next(null);
+                    });
             },
             function copyToRaw(next) {
                 // Copy the incoming file to the raw bucket
-                var params = {
-                Bucket: rawBucket,
-                Key: incomingKey,
-                CopySource: incomingBucket + "/"  + incomingKey,
-                MetadataDirective: "COPY"
-                };
-
-                s3.copyObject(params, function(err, data){
-                if(err) console.log(err, err.stack);
-                else console.log("Raw success logging "+data)
+                console.log('s3.copyObject : s3://' + incomingBucket + '/' + incomingKey + '-> s3://' + rawBucket + '/' + incomingKey);
+                s3.copyObject({
+                        Bucket: rawBucket,
+                        Key: incomingKey,
+                        CopySource: incomingBucket + "/"  + incomingKey,
+                        MetadataDirective: "COPY"
                     },
-                    next);
-            }
-//            function cleanup(next) {
-//                // Delete the file from the incoming bucket.
-//               var params = {
-//                   Bucket: incomingBucket,
-//                   Key: incomingKey
-//               };
-//
-//                s3.deleteObject(params, function(err,data){
-//                if(err) console.log(err, err.stack);
-//                else console.log("Delete incoming success logging "+data)
-//                    },
-//                    next);
-//            }
+                    function(err, data) {
+                          if (err) next(err);
+                          else     next(null);
+                    });
+            },
+           function cleanup(next) {
+                // Delete the file from the incoming bucket.
+                console.log('s3.deleteObject : s3://' + incomingBucket + '/' + incomingKey);
+                s3.deleteObject({
+                        Bucket: incomingBucket,
+                        Key: incomingKey
+                    },
+                    function(err, data) {
+                          if (err) next(err);
+                          else     next(null);
+                    });
+            },
         ], function (err) {
             if (err) {
                 console.error(
@@ -113,7 +112,7 @@ exports.handler = function(event, context) {
                         ' and uploaded to ' + processedBucket + '/' + incomingKey
                 );
             }
-
+            console.log('context.done');
             context.done();
         }
     );
