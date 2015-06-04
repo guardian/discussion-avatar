@@ -22,7 +22,7 @@ cat >${S3_POLICY_PATH} << EOF
             "Action": "s3:PutObject",
             "Resource":[
              "arn:aws:s3:::com-gu-avatar-raw-${ENV}/*",
-             "arn:aws:s3:::com-gu-avatar-processed-code-${ENV}/*"
+             "arn:aws:s3:::com-gu-avatar-processed-${ENV}/*"
             ]
         }
     ]
