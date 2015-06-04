@@ -9,5 +9,3 @@ zip CreateThumbnail.zip CreateThumbnail.js
 zip -r CreateThumbnail.zip ./node_modules/
 
 aws lambda update-function-code --function-name CreateThumbnail-${ENV} --zip-file fileb://${PWD}/CreateThumbnail.zip
-# Put file through as test
-aws s3 cp 100x400_avatar.png s3://com-gu-avatar-incoming-${ENV}/100x400_avatar.png
