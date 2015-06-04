@@ -1,24 +1,26 @@
 package com.gu.adapters.http.store
 
-import java.util.UUID
+import java.net.URL
 
-import com.amazonaws.services.s3.model.ObjectMetadata
+import com.amazonaws.services.s3.model.{ ObjectMetadata }
 import com.gu.adapters.http.store.TestStoreHelpers.path
 import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
+import com.gu.adapters.utils.MakeS3Folder
 import com.gu.core.Errors.avatarNotFound
 import com.gu.core._
-import org.joda.time.DateTime
+import org.joda.time.{ DateTimeZone, DateTime }
 
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
 
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
+  def processedId = "f1d07680-fd11-492c-9bbf-fc996b435590"
 }
 
 class TestFileStore extends FileStore {
   private[this] var files: Map[String, String] = Map(
-    (Config.s3PrivateBucket + "/avatars/345") -> "some-file"
+    (s"${Config.s3ProcessedBucket}/${MakeS3Folder(TestStoreHelpers.processedId)}/${TestStoreHelpers.processedId}" -> "some-file")
   )
 
   def copy(
@@ -47,6 +49,14 @@ class TestFileStore extends FileStore {
     ().right
   }
 
+  def presignedUrl(
+    bucket: String,
+    key: String,
+    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
+  ): Error \/ URL = {
+    new URL("http://some-url/").right
+  }
+
   def delete(bucket: String, key: String): Error \/ Unit = {
     files -= path(bucket, key)
     ().right
@@ -55,44 +65,48 @@ class TestFileStore extends FileStore {
 
 class TestKVStore extends KVStore {
   private[this] var docs: Map[String, Avatar] = Map(
-    Config.dynamoTable + "/123" -> Avatar(
-      "123",
+    Config.dynamoTable + "/9f51970f-fc24-400a-9ceb-9b347d9b5e5e" -> Avatar(
+      "9f51970f-fc24-400a-9ceb-9b347d9b5e5e",
       "http://avatar-url-1",
-      123,
+      123456,
       "foo.gif",
+      "http://avatar-raw-url1",
       Approved,
       new DateTime(),
       new DateTime(),
       isSocial = true,
       isActive = true
     ),
-    Config.dynamoTable + "/234" -> Avatar(
-      "234",
+    Config.dynamoTable + "/5aa5aa52-ee78-4319-8fa0-93bfd1dc204b" -> Avatar(
+      "5aa5aa52-ee78-4319-8fa0-93bfd1dc204b",
       "http://avatar-url-2",
-      234,
+      234567,
       "bar.gif",
+      "http://avatar-raw-url2",
       Approved,
       new DateTime(),
       new DateTime(),
       isSocial = false,
       isActive = false
     ),
-    Config.dynamoTable + "/345" -> Avatar(
-      "345",
-      "http://avatar-url-2",
-      345,
+    Config.dynamoTable + "/f1d07680-fd11-492c-9bbf-fc996b435590" -> Avatar(
+      "f1d07680-fd11-492c-9bbf-fc996b435590",
+      "http://avatar-url-3",
+      345678,
       "gra.gif",
+      "http://avatar-raw-url3",
       Pending,
       new DateTime(),
       new DateTime(),
       isSocial = false,
       isActive = false
     ),
-    Config.dynamoTable + "/456" -> Avatar(
-      "456",
-      "http://avatar-url-2",
+    Config.dynamoTable + "/6cdab5ef-e93c-4cc3-b761-dc97f66ae257" -> Avatar(
+      "6cdab5ef-e93c-4cc3-b761-dc97f66ae257",
+      "http://avatar-url-4",
       21801602,
       "gra.gif",
+      "http://avatar-raw-url-4",
       Inactive,
       new DateTime(),
       new DateTime(),

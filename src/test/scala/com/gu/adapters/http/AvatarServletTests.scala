@@ -38,15 +38,15 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Get avatar by ID") {
-    getAvatar("/avatars/123", _.data.id == "123")
+    getAvatar("/avatars/9f51970f-fc24-400a-9ceb-9b347d9b5e5e", _.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e")
   }
 
   test("Get avatars by user ID") {
-    getAvatars(s"/avatars/user/123", _.data.id == "123")
+    getAvatars(s"/avatars/user/123456", _.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e")
   }
 
   test("Get active avatar by user ID") {
-    getAvatar(s"/avatars/user/123/active", a => a.data.id == "123" && a.data.isActive)
+    getAvatar(s"/avatars/user/123456/active", a => a.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e" && a.data.isActive)
   }
 
   test("Get personal avatar by user ID") {
@@ -135,7 +135,7 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Put avatar status") {
-    put("/avatars/345/status", Approved, _.data.status == Approved)
+    put("/avatars/f1d07680-fd11-492c-9bbf-fc996b435590/status", Approved, _.data.status == Approved)
   }
 
   test("Error on Avatar not found") {
