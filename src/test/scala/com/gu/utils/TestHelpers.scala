@@ -114,7 +114,6 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
         ("originalFilename" -> originalFilename)
 
     post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
-      //  body should equal("foo")
       status should equal(expectedStatus)
 
       if (status == 201) {
