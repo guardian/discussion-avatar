@@ -71,7 +71,7 @@ class AvatarServletTests extends TestHelpers {
       true,
       "original.gif",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved
+      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive
     )
   }
 
@@ -130,12 +130,16 @@ class AvatarServletTests extends TestHelpers {
       file,
       userId,
       cookie,
-      a => a.data.userId == userId && a.data.status == Pending
+      a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive
     )
   }
 
   test("Put avatar status") {
-    put("/avatars/f1d07680-fd11-492c-9bbf-fc996b435590/status", Approved, _.data.status == Approved)
+    put(
+      "/avatars/f1d07680-fd11-492c-9bbf-fc996b435590/status",
+      Approved,
+      a => a.data.status == Approved && a.data.isActive
+    )
   }
 
   test("Error on Avatar not found") {
