@@ -394,20 +394,25 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
     val oldAvatar = kvs.get(dynamoTable, id)
 
-    if (oldAvatar.exists(_.status == status)) {
-      oldAvatar map UpdatedAvatar
-    } else if (status == Approved) {
-      for {
-        old <- oldAvatar
-        active = getActive(User(old.userId)).map(a => kvs.update(dynamoTable, a.body.id, a.body.status, isActive = false))
-        updated <- kvs.update(dynamoTable, id, status, isActive = true)
-        _ <- updateS3(old, updated)
-      } yield UpdatedAvatar(updated)
-    } else for {
-      old <- oldAvatar
-      updated <- kvs.update(dynamoTable, id, status, isActive = false)
-      _ <- updateS3(old, updated)
-    } yield UpdatedAvatar(updated)
+    status match {
+      case noChange if oldAvatar.exists(_.status == status) => oldAvatar map UpdatedAvatar
+      case Approved => {
+        for {
+          old <- oldAvatar
+          active = getActive(User(old.userId))
+            .map(a => kvs.update(dynamoTable, a.body.id, a.body.status, isActive = false))
+          updated <- kvs.update(dynamoTable, id, status, isActive = true)
+          _ <- updateS3(old, updated)
+        } yield UpdatedAvatar(updated)
+      }
+      case _ => {
+        for {
+          old <- oldAvatar
+          updated <- kvs.update(dynamoTable, id, status, isActive = false)
+          _ <- updateS3(old, updated)
+        } yield UpdatedAvatar(updated)
+      }
+    }
   }
 }
 
