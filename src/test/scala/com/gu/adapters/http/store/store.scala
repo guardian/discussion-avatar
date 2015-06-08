@@ -136,7 +136,7 @@ class TestKVStore extends KVStore {
     val p = path(table, id)
     val old = docs.get(p).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
     old map { a =>
-      val updated = a.copy(status = status)
+      val updated = a.copy(status = status, isActive = isActive)
       docs += p -> updated
       updated
     }
