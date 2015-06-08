@@ -64,6 +64,6 @@ object StreamFromBody {
 
 object MakeS3Folder {
   def apply(id: String): String = {
-    id.substring(0, 6).toList.mkString("/")
+    id.take(6).toList.mkString("/")
   }
 }
