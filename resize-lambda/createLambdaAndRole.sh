@@ -31,17 +31,17 @@ EOF
 
 
 aws iam create-role \
---role-name Lambda-Execution-Role \
+--role-name Lambda-Execution-Role-${ENV} \
 --assume-role-policy-document file://${PWD}/Lambda-Execution-Role.json
 
 aws iam put-role-policy \
---role-name Lambda-Execution-Role \
+--role-name Lambda-Execution-Role-${ENV} \
 --policy-name Lambda-Basic-Execution-Policy \
 --policy-document file://${PWD}/Lambda-Basic-Execution-Policy.json
 
 aws iam put-role-policy \
---role-name Lambda-Execution-Role \
---policy-name Lambda-S3-Policy \
+--role-name Lambda-Execution-Role-${ENV} \
+--policy-name Lambda-S3-Policy-${ENV} \
 --policy-document file://${S3_POLICY_PATH}
 
 zip CreateThumbnail.zip CreateThumbnail.js
@@ -53,7 +53,7 @@ aws lambda create-function \
 --timeout 30 \
 --memory-size 256 \
 --zip-file fileb://${PWD}/CreateThumbnail.zip \
---role arn:aws:iam::082944406014:role/Lambda-Execution-Role \
+--role arn:aws:iam::082944406014:role/Lambda-Execution-Role-${ENV} \
 --handler CreateThumbnail.handler \
 --description "Resizes image and copies resulting file to an S3 Bucket" \
 --runtime nodejs
