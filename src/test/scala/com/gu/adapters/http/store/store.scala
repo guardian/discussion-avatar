@@ -132,7 +132,7 @@ class TestKVStore extends KVStore {
     avatar.right
   }
 
-  def update(table: String, id: String, status: Status): Error \/ Avatar = {
+  def update(table: String, id: String, status: Status, isActive: Boolean): Error \/ Avatar = {
     val p = path(table, id)
     val old = docs.get(p).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
     old map { a =>

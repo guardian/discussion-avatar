@@ -33,7 +33,7 @@ trait KVStore {
   def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
   def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
   def put(table: String, avatar: Avatar): Error \/ Avatar
-  def update(table: String, id: String, status: Status): Error \/ Avatar
+  def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
 }
 
 case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
@@ -123,12 +123,13 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
     io(db.getTable(table).putItem(item)) map (_ => avatar)
   }
 
-  def update(table: String, id: String, status: Status): Error \/ Avatar = {
+  def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar = {
     val now = DateTime.now(DateTimeZone.UTC)
     val spec = new UpdateItemSpec()
       .withPrimaryKey("AvatarId", id)
       .withAttributeUpdate(
         new AttributeUpdate("Status").put(status.asString),
+        new AttributeUpdate("IsActive").put(isActive),
         new AttributeUpdate("LastModified").put(ISODateFormatter.print(now))
       )
       .withReturnValues(ReturnValue.ALL_NEW)
@@ -395,9 +396,16 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
 
     if (oldAvatar.exists(_.status == status)) {
       oldAvatar map UpdatedAvatar
+    } else if (status == Approved) {
+      for {
+        old <- oldAvatar
+        active = getActive(User(old.userId)).map(a => kvs.update(dynamoTable, a.body.id, a.body.status, isActive = false))
+        updated <- kvs.update(dynamoTable, id, status, isActive = true)
+        _ <- updateS3(old, updated)
+      } yield UpdatedAvatar(updated)
     } else for {
       old <- oldAvatar
-      updated <- kvs.update(dynamoTable, id, status)
+      updated <- kvs.update(dynamoTable, id, status, isActive = false)
       _ <- updateS3(old, updated)
     } yield UpdatedAvatar(updated)
   }
