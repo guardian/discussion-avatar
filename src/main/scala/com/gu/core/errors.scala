@@ -10,6 +10,7 @@ case class InvalidContentType(message: String, errors: NonEmptyList[String]) ext
 case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error
 case class DynamoRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
+case class TokenAuthorizationFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UserAuthorizationFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
@@ -42,8 +43,11 @@ object Errors {
   def dynamoRequestFailed(errors: NonEmptyList[String]): DynamoRequestFailed =
     DynamoRequestFailed("DynamoDB request failed", errors)
 
+  def tokenAuthorizationFailed(errors: NonEmptyList[String]): TokenAuthorizationFailed =
+    TokenAuthorizationFailed("Unable to get API access token. Must be provided in Authorization header as: 'Bearer token=[key]'", errors)
+
   def userAuthorizationFailed(errors: NonEmptyList[String]): UserAuthorizationFailed =
-    UserAuthorizationFailed("Unable to read user cookie. Must be provided in Authorization header as: 'Bearer [cookie]'", errors)
+    UserAuthorizationFailed("Unable to read user cookie. Must be provided in Authorization header as: 'Bearer cookie=[cookie]'", errors)
 
   def unableToReadStatusRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
     UnableToReadStatusRequest("Unable to read status request", errors)

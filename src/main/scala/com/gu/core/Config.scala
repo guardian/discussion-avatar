@@ -2,12 +2,14 @@ package com.gu.core
 
 import com.gu.identity.cookie.{ PreProductionKeys, ProductionKeys, IdentityCookieDecoder }
 import com.typesafe.config.ConfigFactory
+import collection.JavaConversions._
 
 object Config {
 
   private[this] val conf = ConfigFactory.load()
 
   val apiUrl = conf.getString("api.baseUrl")
+  val apiKeys = conf.getStringList("api.keys").toList
   val pageSize = 10
   val stage = conf.getString("stage")
 
