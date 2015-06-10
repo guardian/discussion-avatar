@@ -1,16 +1,11 @@
 package com.gu.adapters.http
 
-import java.util.UUID
-
 import com.gu.core.Status
 import org.joda.time.DateTime
 
 sealed trait RequestParam
 case class StatusRequest(status: Status)
-case class AvatarRequest(
-  url: String,
-  isSocial: Boolean
-)
+case class AvatarRequest(url: String, isSocial: Boolean)
 
 case class MigratedAvatarRequest(
   userId: Int,
