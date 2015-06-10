@@ -6,13 +6,13 @@ import org.scalatest.{ FunSuite, Matchers }
 
 import scalaz.\/-
 
-class CookieDecoderTests extends FunSuite with Matchers {
+class AuthenticationTests extends FunSuite with Matchers {
 
   val decoder = new IdentityCookieDecoder(new PreProductionKeys)
 
   test("Decode GU_U cookie from Authorization header") {
     val (userId, cookie) = Config.preProdCookie
-    val authHeader = "Bearer " + cookie
+    val authHeader = "Bearer cookie=" + cookie
     val user = CookieDecoder.userFromHeader(decoder, Some(authHeader))
     user should be(\/-(User(userId)))
   }

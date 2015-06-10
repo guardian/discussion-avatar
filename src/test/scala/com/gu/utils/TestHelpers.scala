@@ -15,6 +15,9 @@ import org.json4s.jackson.JsonMethods._
 
 class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
+  val apiKey = Config.apiKeys.head
+  val authHeader = Map("Authorization" -> ("Bearer token=" + apiKey))
+
   protected implicit val jsonFormats = JsonFormats.all
 
   def getOk(
@@ -24,7 +27,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     headers: Map[String, String] = Map()
   ): Unit = {
 
-    get(uri, params, headers) {
+    get(uri, params, authHeader ++ headers) {
       status should equal(200)
       p(response)
     }
@@ -37,7 +40,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     headers: Map[String, String] = Map()
   ) = {
 
-    get(uri, params, headers) {
+    get(uri, params, authHeader ++ headers) {
       status should equal(200)
       val avatars = read[AvatarsResponse](body).data
       avatars.forall(p) should be(true)
@@ -53,7 +56,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     headers: Map[String, String] = Map()
   ): Unit = {
 
-    get(uri, params, headers) {
+    get(uri, params, authHeader ++ headers) {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
       avatar.uri should be(Some(Config.apiUrl + "/avatars/" + avatar.data.id))
@@ -64,11 +67,16 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
   def getAvatar(uri: String): Unit = getAvatar(uri, _ => true)
 
   def getAvatar(uri: String, guuCookie: String, p: AvatarResponse => Boolean): Unit = {
-    getAvatar(uri, p, Nil, Map("Authorization" -> ("Bearer " + guuCookie)))
+    getAvatar(uri, p, Nil, Map("Authorization" -> ("Bearer cookie=" + guuCookie)))
   }
 
-  def getError(uri: String, code: Int, p: ErrorResponse => Boolean): Unit = {
-    get(uri) {
+  def getError(
+    uri: String,
+    code: Int,
+    p: ErrorResponse => Boolean,
+    headers: Map[String, String] = Map()
+  ): Unit = {
+    get(uri, Nil, authHeader ++ headers) {
       status should equal(code)
       val error = read[ErrorResponse](body)
       p(error) should be(true)
@@ -83,7 +91,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     p: AvatarResponse => Boolean
   ): Unit = {
 
-    post("/avatars", Nil, List("file" -> file), Map("Authorization" -> ("Bearer " + guuCookie))) {
+    post("/avatars", Nil, List("file" -> file), Map("Authorization" -> ("Bearer cookie=" + guuCookie))) {
       status should equal(201)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
@@ -104,7 +112,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
     // TODO: Non UTC dates with offset are rejected, fix parser to be more lenient
     val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
-
+    val headers = Map("Content-type" -> "application/json")
     val json =
       ("userId" -> userId) ~
         ("image" -> image) ~
@@ -113,7 +121,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
         ("isSocial" -> isSocial) ~
         ("originalFilename" -> originalFilename)
 
-    post(endpointUri, (compact(render(json))).getBytes, Map("Content-type" -> ("application/json"))) {
+    post(endpointUri, (compact(render(json))).getBytes, authHeader ++ headers) {
       status should equal(expectedStatus)
 
       if (status == 201) {
@@ -127,7 +135,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
   def put(uri: String, toStatus: Status, p: AvatarResponse => Boolean): Unit = {
     val sr = StatusRequest(toStatus)
 
-    put(uri, write(sr)) {
+    put(uri, write(sr), authHeader) {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
