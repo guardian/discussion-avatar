@@ -199,6 +199,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
       case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
@@ -233,6 +234,10 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
     }
   }
 
+  def getIsSocial(param: Option[String]): Error \/ Boolean = {
+    attempt(param.map(_.toBoolean).getOrElse(false)).leftMap(_ => invalidIsSocialFlag(NonEmptyList(s"'${param.get}' is not a valid isSocial flag")))
+  }
+
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
@@ -240,13 +245,14 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
           req <- avatarRequestFromBody(request.body)
           bytesAndMimeType <- getUrl(req.url)
           (bytes, mimeType) = bytesAndMimeType
-          upload <- store.userUpload(user, bytes, mimeType, req.url, true)
+          upload <- store.userUpload(user, bytes, mimeType, req.url, req.isSocial)
         } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
           bytesAndMimeTypeAndFname <- getFile(fileParams)
           (bytes, mimeType, fname) = bytesAndMimeTypeAndFname
-          upload <- store.userUpload(user, bytes, mimeType, fname, true)
+          isSocial <- getIsSocial(request.parameters.get("isSocial"))
+          upload <- store.userUpload(user, bytes, mimeType, fname, isSocial)
         } yield upload
       case Some(invalid) =>
         -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))

@@ -312,7 +312,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
           status = Pending,
           createdAt = now,
           lastModified = now,
-          isSocial = true,
+          isSocial = isSocial,
           isActive = false
         )
       )

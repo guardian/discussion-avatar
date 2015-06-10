@@ -76,10 +76,10 @@ class AvatarServletTests extends TestHelpers {
       image,
       userId,
       processedImage,
-      true,
+      isSocial = true,
       "original.gif",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive
+      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && a.data.isSocial
     )
   }
 
@@ -111,10 +111,10 @@ class AvatarServletTests extends TestHelpers {
       image,
       userId,
       processedImage,
-      true,
+      isSocial = false,
       "original.gif",
       new DateTime(),
-      a => a.data.userId == userId && a.data.status == Approved
+      a => a.data.userId == userId && a.data.status == Approved && !a.data.isSocial
     )
 
     postMigratedAvatar(409)(
@@ -122,7 +122,7 @@ class AvatarServletTests extends TestHelpers {
       image,
       userId,
       processedImage,
-      true,
+      isSocial = true,
       "original.gif",
       new DateTime(),
       a => a.data.userId == userId && a.data.status == Approved
@@ -136,9 +136,25 @@ class AvatarServletTests extends TestHelpers {
     postAvatar(
       "/avatars",
       file,
+      "true",
       userId,
       cookie,
-      a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive
+      a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive && a.data.isSocial
+    )
+  }
+
+  test("Error response if bad isSocial parameter") {
+    val file = new File("src/test/resources/avatar.gif")
+    val (userId, cookie) = Config.preProdCookie
+
+    postError(
+      "/avatars",
+      file,
+      "facebook",
+      userId,
+      cookie,
+      400,
+      _.message == "Invalid isSocial boolean flag"
     )
   }
 

@@ -86,12 +86,13 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
   def postAvatar(
     uri: String,
     file: File,
+    isSocial: String,
     userId: Int,
     guuCookie: String,
     p: AvatarResponse => Boolean
   ): Unit = {
 
-    post("/avatars", Nil, List("file" -> file), Map("Authorization" -> ("Bearer cookie=" + guuCookie))) {
+    post("/avatars", Map("isSocial" -> isSocial), List("file" -> file), Map("Authorization" -> ("Bearer cookie=" + guuCookie))) {
       status should equal(201)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
@@ -129,6 +130,22 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
         p(avatar) should be(true)
         getAvatar(s"/avatars/${avatar.data.id}", p)
       }
+    }
+  }
+
+  def postError(
+    uri: String,
+    file: File,
+    isSocial: String,
+    userId: Int,
+    guuCookie: String,
+    code: Int,
+    p: ErrorResponse => Boolean
+  ): Unit = {
+    post(uri, Map("isSocial" -> isSocial), List("file" -> file), Map("Authorization" -> ("Bearer cookie=" + guuCookie))) {
+      status should equal(code)
+      val error = read[ErrorResponse](body)
+      p(error) should be(true)
     }
   }
 

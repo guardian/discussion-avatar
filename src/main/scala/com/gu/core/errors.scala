@@ -18,6 +18,7 @@ case class UnableToReadMigratedAvatarRequest(message: String, errors: NonEmptyLi
 case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
+case class InvalidIsSocialFlag(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarAlreadyExists(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
@@ -63,6 +64,10 @@ object Errors {
 
   def invalidUserId(errors: NonEmptyList[String]): InvalidUserId = {
     InvalidUserId("Invalid user ID", errors)
+  }
+
+  def invalidIsSocialFlag(errors: NonEmptyList[String]): InvalidIsSocialFlag = {
+    InvalidIsSocialFlag("Invalid isSocial boolean flag", errors)
   }
 
   def invalidMimeType(errors: NonEmptyList[String]): InvalidMimeType = {
