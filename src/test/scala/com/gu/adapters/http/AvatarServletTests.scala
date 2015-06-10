@@ -21,7 +21,15 @@ class AvatarServletTests extends TestHelpers {
   )
 
   test("Healthcheck should return OK") {
-    getOk("/service/healthcheck", _.body == "OK")
+    getOk("/service/healthcheck", _.body == "OK", Nil, Map("Authorization" -> ""))
+  }
+
+  test("Error if no Authorization header") {
+    getError("/avatars", 401, _.message.startsWith("Unable to get API access token."), Map("Authorization" -> ""))
+  }
+
+  test("Error if Authorization token invalid") {
+    getError("/avatars", 401, _.message.startsWith("Unable to get API access token."), Map("Authorization" -> "Bearer token=bad"))
   }
 
   test("Get avatars") {

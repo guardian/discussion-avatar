@@ -1,9 +1,11 @@
 package com.gu.adapters.http
 
-import java.io.{ BufferedInputStream }
+import java.io.BufferedInputStream
 
 import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.ImageValidator.validate
+import com.gu.adapters.http.TokenAuth.isValidKey
+import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.{ InputStreamToByteArray, StreamFromBody, StreamFromUrl }
 import com.gu.core.Errors._
@@ -14,7 +16,6 @@ import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{ Swagger, SwaggerSupport }
-import com.gu.adapters.store.AvatarStore
 
 import scalaz._
 
@@ -91,6 +92,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   get("/avatars", operation(getAvatars)) {
     withErrorHandling {
       for {
+        auth <- isValidKey(request.header("Authorization"))
         filters <- Filters.fromParams(params)
         avatar <- store.get(filters)
         url = Req(apiUrl, request.getPathInfo, filters)
@@ -101,6 +103,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   get("/avatars/:id", operation(getAvatar)) {
     withErrorHandling {
       for {
+        auth <- isValidKey(request.header("Authorization"))
         avatar <- store.get(params("id"))
         req = Req(apiUrl, request.getPathInfo)
       } yield (avatar, req)
@@ -110,6 +113,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   get("/avatars/user/:userId", operation(getAvatarsForUser)) {
     withErrorHandling {
       for {
+        auth <- isValidKey(request.header("Authorization"))
         user <- userFromRequest(params("userId"))
         avatar <- store.get(user)
         req = Req(apiUrl, request.getPathInfo)
@@ -120,6 +124,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
     withErrorHandling {
       for {
+        auth <- isValidKey(request.header("Authorization"))
         user <- userFromRequest(params("userId"))
         active <- store.getActive(user)
         req = Req(apiUrl, request.getPathInfo)
@@ -150,6 +155,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   post("/migrateAvatar", operation(postMigratedAvatar)) {
     withErrorHandling {
       for {
+        auth <- isValidKey(request.header("Authorization"))
         created <- fetchMigratedAvatar(request)
         req = Req(apiUrl, request.getPathInfo)
       } yield (created, req)
@@ -159,6 +165,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
       for {
+        auth <- isValidKey(request.header("Authorization"))
         sr <- statusRequestFromBody(parsedBody)
         updated <- store.updateStatus(params("id"), sr.status)
         req = Req(apiUrl, request.getPathInfo)
@@ -186,6 +193,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors))
       case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors))
       case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
+      case TokenAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
       case UserAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
       case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
       case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
