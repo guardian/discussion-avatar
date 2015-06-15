@@ -211,7 +211,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
   def presignedUrl(
     bucket: String,
     key: String,
-    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20) // expires in 15 minutes
+    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
   ): Error \/ URL = {
     val request = new GeneratePresignedUrlRequest(bucket, key)
     request.setExpiration(expiration.toDate)
