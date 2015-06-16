@@ -20,8 +20,8 @@ object Config {
   }
 
   val dynamoTable = conf.getString("aws.dynamodb.table")
-  val statusIndex = "Status-index"
-  val userIndex = "UserId-index"
+  val statusIndex = "status-index"
+  val userIndex = "user-id-index"
 
   val s3IncomingBucket = conf.getString("aws.s3.incoming")
   val s3RawBucket = conf.getString("aws.s3.raw")
