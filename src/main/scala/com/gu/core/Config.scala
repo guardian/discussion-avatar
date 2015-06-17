@@ -9,7 +9,7 @@ object Config {
   private[this] val conf = ConfigFactory.load()
 
   val apiUrl = conf.getString("api.baseUrl") + "/v1"
-  val apiKeys = conf.getStringList("api.keys").toList
+  val apiKeys = conf.getString("api.keys").split(',').toList
   val pageSize = 10
   val stage = conf.getString("stage")
 
