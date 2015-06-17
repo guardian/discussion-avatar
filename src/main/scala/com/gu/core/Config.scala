@@ -8,8 +8,8 @@ object Config {
 
   private[this] val conf = ConfigFactory.load()
 
-  val apiUrl = conf.getString("api.baseUrl")
-  val apiKeys = conf.getStringList("api.keys").toList
+  val apiUrl = conf.getString("api.baseUrl") + "/v1"
+  val apiKeys = conf.getString("api.keys").split(',').toList
   val pageSize = 10
   val stage = conf.getString("stage")
 
@@ -20,8 +20,8 @@ object Config {
   }
 
   val dynamoTable = conf.getString("aws.dynamodb.table")
-  val statusIndex = "Status-index"
-  val userIndex = "UserId-index"
+  val statusIndex = "status-index"
+  val userIndex = "user-id-index"
 
   val s3IncomingBucket = conf.getString("aws.s3.incoming")
   val s3RawBucket = conf.getString("aws.s3.raw")
