@@ -5,7 +5,7 @@ import java.net.URL
 import com.amazonaws.services.s3.model.{ ObjectMetadata }
 import com.gu.adapters.http.store.TestStoreHelpers.path
 import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
-import com.gu.adapters.utils.MakeS3Folder
+import com.gu.adapters.utils.S3FoldersFromId
 import com.gu.core.Errors.avatarNotFound
 import com.gu.core._
 import org.joda.time.{ DateTimeZone, DateTime }
@@ -20,7 +20,7 @@ object TestStoreHelpers {
 
 class TestFileStore extends FileStore {
   private[this] var files: Map[String, String] = Map(
-    (s"${Config.s3ProcessedBucket}/${MakeS3Folder(TestStoreHelpers.processedId)}/${TestStoreHelpers.processedId}" -> "some-file")
+    (s"${Config.s3ProcessedBucket}/${S3FoldersFromId(TestStoreHelpers.processedId)}/${TestStoreHelpers.processedId}" -> "some-file")
   )
 
   def copy(
