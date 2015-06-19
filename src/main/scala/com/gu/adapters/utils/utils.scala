@@ -62,8 +62,8 @@ object StreamFromBody {
   }
 }
 
-object MakeS3Folder {
+object S3FoldersFromId {
   def apply(id: String): String = {
-    id.take(6).toList.mkString("/")
+    id.take(4).toList.mkString("/")
   }
 }
