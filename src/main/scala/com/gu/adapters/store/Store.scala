@@ -1,6 +1,6 @@
 package com.gu.adapters.store
 
-import java.io.{ ByteArrayInputStream }
+import java.io.ByteArrayInputStream
 import java.net.URL
 import java.util.UUID
 
@@ -14,9 +14,11 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
-import com.gu.adapters.utils.{ S3FoldersFromId, ISODateFormatter }
+import com.gu.adapters.utils.ErrorLogger.logIfError
+import com.gu.adapters.utils.{ ISODateFormatter, S3FoldersFromId }
 import com.gu.core.Errors._
 import com.gu.core.{ Config, _ }
+import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{ DateTime, DateTimeZone }
 
 import scala.collection.JavaConverters._
@@ -227,7 +229,7 @@ object S3 {
   }
 }
 
-case class AvatarStore(fs: FileStore, kvs: KVStore) {
+case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
 
   val incomingBucket = Config.s3IncomingBucket
   val rawBucket = Config.s3RawBucket
@@ -331,8 +333,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
     isSocial: Boolean
   ): Error \/ CreatedAvatar = {
 
-    def migrate: Error \/ Avatar = {
-
+    def migrate(): Error \/ Avatar = {
       val avatarId = UUID.randomUUID
       val now = DateTime.now(DateTimeZone.UTC)
       val folder = S3FoldersFromId(avatarId.toString)
@@ -361,11 +362,11 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
       } yield avatar
     }
 
-    for {
-      _ <- getActive(user).swap
-        .leftMap(_ => avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")))
-      avatar <- migrate
-    } yield CreatedAvatar(avatar)
+    if (getActive(user).nonEmpty) {
+      avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")).left
+    } else {
+      migrate() map CreatedAvatar
+    }
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
@@ -394,7 +395,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
   def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
     val oldAvatar = kvs.get(dynamoTable, id)
 
-    status match {
+    val result = status match {
       case noChange if oldAvatar.exists(_.status == status) => oldAvatar map UpdatedAvatar
       case Approved => {
         for {
@@ -413,6 +414,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) {
         } yield UpdatedAvatar(updated)
       }
     }
+
+    logIfError(s"Unable to update status for Avatar ID: $id. Avatar may be left in an inconsistent state.", result)
   }
 }
 
