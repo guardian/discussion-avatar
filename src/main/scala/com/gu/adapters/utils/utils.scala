@@ -2,16 +2,18 @@ package com.gu.adapters.utils
 
 import java.io.InputStream
 
-import com.gu.adapters.utils.Attempt._
-import org.joda.time.{ DateTimeZone, DateTime }
-import org.joda.time.format.ISODateTimeFormat
+import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.ToTryOps.toTryOps
-import com.gu.core.Errors._
 import com.gu.core.Error
+import com.gu.core.Errors._
+import com.typesafe.scalalogging.LazyLogging
+import org.joda.time.format.ISODateTimeFormat
+import org.joda.time.{ DateTime, DateTimeZone }
 import org.scalatra.servlet.FileItem
 
-import scala.util.{ Success, Failure, Try }
-import scalaz.{ \/, NonEmptyList }
+import scala.util.{ Failure, Success, Try }
+import scalaz.Scalaz._
+import scalaz.{ NonEmptyList, \/ }
 
 object ToTryOps {
   implicit def toTryOps[A](t: Try[A]) = TryOps(t)
@@ -30,9 +32,13 @@ object ISODateFormatter {
   def print(dt: DateTime): String = dateFormat.print(dt)
 }
 
-object Attempt {
+object Attempt extends LazyLogging {
   def attempt[A](action: => A): Throwable \/ A = {
-    Try(action).toDisjunction
+    val result = Try(action).toDisjunction
+    result leftMap { e =>
+      logger.error("Attempt failed", e)
+    }
+    result
   }
 
   def io[A](action: => A): Error \/ A = {
@@ -65,5 +71,17 @@ object StreamFromBody {
 object S3FoldersFromId {
   def apply(id: String): String = {
     id.take(4).toList.mkString("/")
+  }
+}
+
+object ErrorLogger extends LazyLogging {
+  def logError(msg: String, e: Error): Error = {
+    val errors = e.message + " " + e.errors.toList.mkString("(", ", ", ")")
+    logger.error(msg + " - cause is: " + errors)
+    e
+  }
+
+  def logIfError[A](msg: String, result: Error \/ A): Error \/ A = {
+    result.bimap(e => logError(msg, e), identity)
   }
 }

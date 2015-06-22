@@ -8,6 +8,7 @@ import com.gu.adapters.http.TokenAuth.isValidKey
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.{ InputStreamToByteArray, StreamFromBody, StreamFromUrl }
+import com.gu.adapters.utils.ErrorLogger.logError
 import com.gu.core.Errors._
 import com.gu.core.{ Success, _ }
 import com.gu.identity.cookie.IdentityCookieDecoder
@@ -188,22 +189,24 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
-    case -\/(error) => error match {
-      case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors))
-      case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-      case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors))
-      case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
-      case TokenAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
-      case UserAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
-      case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
-      case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-      case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-      case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-      case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-      case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-      case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
-      case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-    }
+    case -\/(error) =>
+      logError("Returning HTTP error", error)
+      error match {
+        case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors))
+        case InvalidFilters(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case AvatarNotFound(msg, errors) => NotFound(ErrorResponse(msg, errors))
+        case DynamoRequestFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
+        case TokenAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
+        case UserAuthorizationFailed(msg, errors) => Unauthorized(ErrorResponse(msg, errors))
+        case IOFailed(msg, errors) => ServiceUnavailable(ErrorResponse(msg, errors))
+        case InvalidUserId(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case UnableToReadStatusRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
+        case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+      }
   }
 
   def getUrl(url: String): Error \/ (Array[Byte], String) = {

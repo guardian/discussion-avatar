@@ -116,7 +116,7 @@ class TestKVStore extends KVStore {
   )
 
   def get(table: String, id: String): Error \/ Avatar = {
-    docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
+    docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"avatar with ID '$id' does not exist")))
   }
 
   def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {

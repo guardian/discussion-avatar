@@ -16,12 +16,13 @@ object AvatarBuild extends Build {
   
   val jettyVersion = "9.1.5.v20140505"
   val json4sVersion = "3.2.10"
-  val logbackVersion = "1.1.2"
+  val logbackVersion = "1.1.3"
   val servletApiVersion = "3.1.0"
   val scalazVersion = "7.1.1"
   val identityCookieVersion = "3.44"
   val typesafeConfigVersion = "1.2.1"
   val amazonawsVersion = "1.9.6"
+  val scalaLoggingVersion = "3.1.0"
 
   val guardianReleases = "Guardian releases" at "http://guardian.github.io/maven/repo-releases"
 
@@ -50,7 +51,9 @@ object AvatarBuild extends Build {
         "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion,
         "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
         "com.typesafe" % "config" % typesafeConfigVersion,
-        "com.amazonaws" % "aws-java-sdk" % amazonawsVersion
+        "com.amazonaws" % "aws-java-sdk" % amazonawsVersion,
+        "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
+
       ),
       assemblyMergeStrategy in assembly := {
         case "version.txt" => MergeStrategy.discard
