@@ -272,7 +272,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
       (imageBytes, imageMimeType) = imageBytesAndMimeType
       processedImageBytesAndMimeType <- getUrl(req.processedImage)
       (processedImageBytes, processedImageMimeType) = processedImageBytesAndMimeType
-      upload <- store.migratedUserUpload(user, imageBytes, imageMimeType, processedImageBytes, processedImageMimeType, req.originalFilename, req.createdAt, req.isSocial)
+      upload <- store.migratedUserUpload(user, imageBytes, imageMimeType, processedImageBytes, processedImageMimeType, req.originalFilename, Status(req.status), req.createdAt, req.isSocial)
     } yield upload
   }
 

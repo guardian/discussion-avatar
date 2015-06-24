@@ -11,6 +11,7 @@ case class MigratedAvatarRequest(
   userId: Int,
   image: String,
   processedImage: String,
+  status: String,
   createdAt: DateTime,
   isSocial: Boolean,
   originalFilename: String

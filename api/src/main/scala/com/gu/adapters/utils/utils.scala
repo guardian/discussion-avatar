@@ -55,7 +55,7 @@ object InputStreamToByteArray {
 object StreamFromUrl {
   def apply(url: String): Error \/ InputStream = {
     attempt(new java.net.URL(url).openStream())
-      .leftMap(_ => ioFailed(NonEmptyList("Unable to load image from url: " + url)))
+      .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Unable to load image from url: " + url)))
   }
 }
 
