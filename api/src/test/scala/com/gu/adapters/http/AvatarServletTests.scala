@@ -6,7 +6,6 @@ import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
 import com.gu.adapters.store.AvatarStore
 import com.gu.core._
 import com.gu.utils.TestHelpers
-import org.joda.time.DateTime
 
 class AvatarServletTests extends TestHelpers {
 
@@ -78,8 +77,25 @@ class AvatarServletTests extends TestHelpers {
       processedImage,
       isSocial = true,
       "original.gif",
-      new DateTime(),
+      "2015-12-09T17:54:06Z",
       a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && a.data.isSocial
+    )
+  }
+
+  test("Reject invalid migrated avatar createdAt date format") {
+    val image = new File("src/test/resources/avatar.gif").toURI.toString
+    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
+    val userId = 991
+
+    postMigratedAvatar(400)(
+      "/migrateAvatar",
+      image,
+      userId,
+      processedImage,
+      isSocial = true,
+      "original.gif",
+      "2015-12-09T17:54:06.001Z",
+      a => true
     )
   }
 
@@ -95,7 +111,7 @@ class AvatarServletTests extends TestHelpers {
       processedImage,
       true,
       "avatar.svg",
-      new DateTime(),
+      "2015-12-09T17:54:06Z",
       a => a.data.userId == userId && a.data.status == Approved
     )
   }
@@ -113,7 +129,7 @@ class AvatarServletTests extends TestHelpers {
       processedImage,
       isSocial = false,
       "original.gif",
-      new DateTime(),
+      "2015-12-09T17:54:06Z",
       a => a.data.userId == userId && a.data.status == Approved && !a.data.isSocial
     )
 
@@ -124,7 +140,7 @@ class AvatarServletTests extends TestHelpers {
       processedImage,
       isSocial = true,
       "original.gif",
-      new DateTime(),
+      "2015-12-09T17:54:06Z",
       a => a.data.userId == userId && a.data.status == Approved
     )
   }
