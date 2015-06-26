@@ -107,20 +107,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     processedImage: String,
     originalFilename: String,
     avatarStatus: String,
-    createdAt: DateTime,
+    createdAt: String,
     isSocial: Boolean,
     p: AvatarResponse => Boolean
   ): Unit = {
 
-    // TODO: Non UTC dates with offset are rejected, fix parser to be more lenient
-    val utcDate = createdAt.toDateTime(DateTimeZone.UTC)
     val headers = Map("Content-type" -> "application/json")
     val json =
       ("userId" -> userId) ~
         ("image" -> image) ~
         ("processedImage" -> processedImage) ~
         ("status" -> avatarStatus) ~
-        ("createdAt" -> ISODateFormatter.print(utcDate)) ~
+        ("createdAt" -> createdAt) ~
         ("isSocial" -> isSocial) ~
         ("originalFilename" -> originalFilename)
 
