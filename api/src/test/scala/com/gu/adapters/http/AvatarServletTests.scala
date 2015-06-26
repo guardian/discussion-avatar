@@ -65,53 +65,56 @@ class AvatarServletTests extends TestHelpers {
     )
   }
 
-  test("Post migrated avatar") {
+  test("Post migrated avatar for non-social user") {
     val image = new File("src/test/resources/avatar.gif").toURI.toString
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
     val userId = 991
 
     postMigratedAvatar(201)(
       "/migrateAvatar",
-      image,
       userId,
+      image,
       processedImage,
-      isSocial = true,
       "original.gif",
+      "approved",
       "2015-12-09T17:54:06Z",
-      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && a.data.isSocial
+      isSocial = false,
+      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && !a.data.isSocial
     )
   }
 
-  test("Reject invalid migrated avatar createdAt date format") {
+  test("Post migrated avatar for social user") {
     val image = new File("src/test/resources/avatar.gif").toURI.toString
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId = 991
+    val userId = 992
 
-    postMigratedAvatar(400)(
+    postMigratedAvatar(201)(
       "/migrateAvatar",
-      image,
       userId,
+      image,
       processedImage,
-      isSocial = true,
       "original.gif",
-      "2015-12-09T17:54:06.001Z",
-      a => true
+      "inactive",
+      "2015-12-09T17:54:06Z",
+      isSocial = true,
+      a => a.data.userId == userId && a.data.status == Inactive && !a.data.isActive && a.data.isSocial
     )
   }
 
   test("Reject invalid migrated avatar mime-type") {
     val image = new File("src/test/resources/avatar.svg").toURI.toString
     val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId = 992
+    val userId = 993
 
     postMigratedAvatar(400)(
       "/migrateAvatar",
-      image,
       userId,
+      image,
       processedImage,
-      true,
       "avatar.svg",
+      "approved",
       "2015-12-09T17:54:06Z",
+      isSocial = true,
       a => a.data.userId == userId && a.data.status == Approved
     )
   }
@@ -124,23 +127,25 @@ class AvatarServletTests extends TestHelpers {
 
     postMigratedAvatar(201)(
       "/migrateAvatar",
-      image,
       userId,
+      image,
       processedImage,
-      isSocial = false,
       "original.gif",
+      "approved",
       "2015-12-09T17:54:06Z",
+      isSocial = false,
       a => a.data.userId == userId && a.data.status == Approved && !a.data.isSocial
     )
 
     postMigratedAvatar(409)(
       "/migrateAvatar",
-      image,
       userId,
+      image,
       processedImage,
-      isSocial = true,
       "original.gif",
+      "approved",
       "2015-12-09T17:54:06Z",
+      isSocial = true,
       a => a.data.userId == userId && a.data.status == Approved
     )
   }

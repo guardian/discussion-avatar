@@ -102,12 +102,13 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
 
   def postMigratedAvatar(expectedStatus: Int)(
     endpointUri: String,
-    image: String,
     userId: Int,
+    image: String,
     processedImage: String,
-    isSocial: Boolean,
     originalFilename: String,
+    avatarStatus: String,
     createdAt: String,
+    isSocial: Boolean,
     p: AvatarResponse => Boolean
   ): Unit = {
 
@@ -116,6 +117,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
       ("userId" -> userId) ~
         ("image" -> image) ~
         ("processedImage" -> processedImage) ~
+        ("status" -> avatarStatus) ~
         ("createdAt" -> createdAt) ~
         ("isSocial" -> isSocial) ~
         ("originalFilename" -> originalFilename)

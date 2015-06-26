@@ -329,6 +329,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
     processedFile: Array[Byte],
     processedFileMimeType: String,
     originalFilename: String,
+    status: Status,
     createdAt: DateTime,
     isSocial: Boolean
   ): Error \/ CreatedAvatar = {
@@ -349,23 +350,24 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
             userId = user.id,
             originalFilename = originalFilename,
             rawUrl = secureRawUrl.toString,
-            status = Approved,
+            status = status,
             createdAt = createdAt,
             lastModified = now,
             isSocial = isSocial,
-            isActive = true
+            isActive = status == Approved
           )
         )
         _ <- fs.put(rawBucket, s"$folder/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
         _ <- fs.put(processedBucket, s"$folder/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
-        _ <- copyToPublic(avatar)
       } yield avatar
     }
 
     if (getActive(user).nonEmpty) {
       avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")).left
     } else {
-      migrate() map CreatedAvatar
+      val avatar = migrate()
+      if (status == Approved) avatar.map(copyToPublic)
+      avatar.map(CreatedAvatar)
     }
   }
 
