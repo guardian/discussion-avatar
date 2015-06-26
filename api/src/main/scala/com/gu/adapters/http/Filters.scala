@@ -29,13 +29,13 @@ object Filters {
 
     val since: Validation[NonEmptyList[String], Option[DateTime]] = params.get("since") match {
       case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
-        .leftMap(_ => NonEmptyList(s"'$s' is not a valid ISO8601 datetime for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
+        .leftMap(_ => NonEmptyList(s"'$s' is not a valid datetime for format 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
     val until: Validation[NonEmptyList[String], Option[DateTime]] = params.get("until") match {
       case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
-        .leftMap(_ => NonEmptyList(s"'$s' is not a valid ISO8601 datetime for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
+        .leftMap(_ => NonEmptyList(s"'$s' is not a valid datetime format for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
