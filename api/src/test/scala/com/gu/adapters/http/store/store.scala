@@ -2,26 +2,26 @@ package com.gu.adapters.http.store
 
 import java.net.URL
 
-import com.amazonaws.services.s3.model.{ ObjectMetadata }
+import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.store.TestStoreHelpers.path
-import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
+import com.gu.adapters.store.{FileStore, KVStore, QueryResponse}
 import com.gu.adapters.utils.S3FoldersFromId
 import com.gu.core.Errors.avatarNotFound
 import com.gu.core._
-import org.joda.time.{ DateTimeZone, DateTime }
+import org.joda.time.{DateTime, DateTimeZone}
 
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
-  def processedId = "f1d07680-fd11-492c-9bbf-fc996b435590"
 }
 
 class TestFileStore extends FileStore {
-  private[this] var files: Map[String, String] = Map(
-    (s"${Config.s3ProcessedBucket}/${S3FoldersFromId(TestStoreHelpers.processedId)}/${TestStoreHelpers.processedId}" -> "some-file")
-  )
+  private[this] var files: Map[String, String] = {
+    val id = "f1d07680-fd11-492c-9bbf-fc996b435590"
+    Map(s"${Config.s3ProcessedBucket}/${S3FoldersFromId(id)}/$id" -> "some-file")
+  }
 
   def copy(
     fromBucket: String,
@@ -45,7 +45,7 @@ class TestFileStore extends FileStore {
     metadata: ObjectMetadata
   ): Error \/ Unit = {
 
-    files += path(bucket, key) -> file.toString // TODO FIX
+    files += path(bucket, key) -> file.toString
     ().right
   }
 
