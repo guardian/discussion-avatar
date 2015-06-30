@@ -17,7 +17,7 @@ case class Filters(
 
 object Filters {
 
-  def fromParams[A](params: Params): \/[InvalidFilters, Filters] = {
+  def fromParams[A](params: Params): InvalidFilters \/ Filters = {
     val status: Validation[NonEmptyList[String], Status] = params.get("status") match {
       case Some(Inactive.asString) => Success(Inactive)
       case Some(Approved.asString) => Success(Approved)
@@ -39,15 +39,15 @@ object Filters {
       case None => Success(None)
     }
 
-    // FIXME: can't specify both 'since' and 'until'
-
     val filters = for {
       s <- status
       f <- since
       b <- until
     } yield Filters(s, f, b)
 
-    filters.leftMap(invalidFilters).disjunction
+    filters
+      .ensure(NonEmptyList("Cannot specify both 'since' and 'until' parameters"))(f => f.since.isEmpty || f.until.isEmpty)
+      .leftMap(invalidFilters).disjunction
   }
 
   def queryString(f: Filters): String = {

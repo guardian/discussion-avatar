@@ -4,14 +4,14 @@ import java.net.URL
 
 import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.store.TestStoreHelpers.path
-import com.gu.adapters.store.{FileStore, KVStore, QueryResponse}
+import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
 import com.gu.adapters.utils.S3FoldersFromId
 import com.gu.core.Errors.avatarNotFound
 import com.gu.core._
-import org.joda.time.{DateTime, DateTimeZone}
+import org.joda.time.{ DateTime, DateTimeZone }
 
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{ NonEmptyList, \/ }
 
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
