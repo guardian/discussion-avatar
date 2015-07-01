@@ -283,7 +283,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
     metadata.addUserMetadata("avatar-id", avatarId.toString)
     metadata.addUserMetadata("user-id", user.toString)
     metadata.addUserMetadata("original-filename", originalFilename)
-    metadata.setCacheControl("3600")
+    metadata.setCacheControl("max-age=3600")
     metadata.setContentType(mimeType)
     metadata
   }
