@@ -362,8 +362,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
       } yield avatar
     }
 
-    if (getActive(user).nonEmpty) {
-      avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has active avatar")).left
+    if (getPersonal(user).nonEmpty) {
+      avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has a migrated avatar")).left
     } else {
       val avatar = migrate()
       if (status == Approved) avatar.map(copyToPublic)
