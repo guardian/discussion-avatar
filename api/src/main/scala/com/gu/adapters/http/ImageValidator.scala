@@ -14,9 +14,8 @@ import scalaz.{ NonEmptyList, \/, \/- }
 object ImageValidator {
 
   def notAnimated(image: InputStream): Boolean = {
-    val buffered = new BufferedInputStream(image)
     val reader = ImageIO.getImageReadersBySuffix("GIF").next
-    val iis = ImageIO.createImageInputStream(buffered)
+    val iis = ImageIO.createImageInputStream(image)
     reader.setInput(iis)
     reader.getNumImages(true) == 1
   }
@@ -28,7 +27,7 @@ object ImageValidator {
 
     mimeType flatMap {
       case i @ ("image/png" | "image/jpeg") => i.right
-      case "image/gif" if notAnimated(buffered) => "image/gif".right
+      case "image/gif" => "image/gif".right //if notAnimated(buffered) => "image/gif".right
       case _ => invalidMimeType(NonEmptyList("Uploaded images must be of type png, jpeg, or gif (non-animated)")).left
     }
   }

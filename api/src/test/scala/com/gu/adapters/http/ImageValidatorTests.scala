@@ -25,7 +25,7 @@ class ImageValidatorTests extends FunSuite with Matchers {
     files foreach { case (path, isValid) => test(path, isValid) }
   }
 
-  test("Reject animated gifs") {
-    test("src/test/resources/animated.gif", false)
-  }
+//  test("Reject animated gifs") {
+//    test("src/test/resources/animated.gif", false)
+//  }
 }
