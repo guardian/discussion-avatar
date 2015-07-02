@@ -7,3 +7,4 @@ project/plugins/project/
 .idea_modules/
 dynamo-local/
 node_modules/
+*.log
