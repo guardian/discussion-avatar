@@ -2,14 +2,14 @@ package com.gu.adapters.http
 
 import java.io.{ BufferedInputStream, File, FileInputStream }
 
+import com.gu.adapters.utils.InputStreamToByteArray
 import org.scalatest.{ FunSuite, Matchers }
 
 class ImageValidatorTests extends FunSuite with Matchers {
 
   def test(path: String, isValid: Boolean): Unit = {
     val file = new File(path)
-    val stream = new FileInputStream(file)
-    val image = new BufferedInputStream(stream)
+    val image = InputStreamToByteArray(new FileInputStream(file))
     ImageValidator.validate(image).isRight should be(isValid)
   }
 
@@ -25,7 +25,7 @@ class ImageValidatorTests extends FunSuite with Matchers {
     files foreach { case (path, isValid) => test(path, isValid) }
   }
 
-//  test("Reject animated gifs") {
-//    test("src/test/resources/animated.gif", false)
-//  }
+  test("Reject animated gifs") {
+    test("src/test/resources/animated.gif", false)
+  }
 }
