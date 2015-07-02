@@ -7,7 +7,7 @@ import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.http.TokenAuth.isValidKey
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
-import com.gu.adapters.utils.{ InputStreamToByteArray, StreamFromBody, StreamFromUrl }
+import com.gu.adapters.utils.{ InputStreamToByteArray, ImageFromBody, ImageFromUrl }
 import com.gu.adapters.utils.ErrorLogger.logError
 import com.gu.core.Errors._
 import com.gu.core.{ Success, _ }
@@ -210,30 +210,14 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   }
 
   def getUrl(url: String): Error \/ (Array[Byte], String) = {
-    StreamFromUrl(url) flatMap {
-      case (stream) =>
-        try {
-          val buffered = new BufferedInputStream(stream)
-          for {
-            mimeType <- validate(buffered)
-          } yield (InputStreamToByteArray(buffered), mimeType)
-        } finally {
-          stream.close()
-        }
+    ImageFromUrl(url) flatMap {
+      case bytes => validate(bytes).map(mt => (bytes, mt))
     }
   }
 
   def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
-    StreamFromBody(fileParams) flatMap {
-      case ((fname, stream)) =>
-        try {
-          val buffered = new BufferedInputStream(stream)
-          for {
-            mimeType <- validate(buffered)
-          } yield (InputStreamToByteArray(buffered), mimeType, fname)
-        } finally {
-          stream.close()
-        }
+    ImageFromBody(fileParams) flatMap {
+      case (fname, bytes) => validate(bytes).map(mt => (bytes, mt, fname))
     }
   }
 

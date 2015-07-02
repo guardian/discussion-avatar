@@ -48,23 +48,26 @@ object Attempt extends LazyLogging {
 
 object InputStreamToByteArray {
   def apply(is: InputStream): Array[Byte] = {
-    Stream.continually(is.read).takeWhile(-1 != _).map(_.toByte).toArray
+    val bytes = Stream.continually(is.read).takeWhile(-1 != _).map(_.toByte).toArray
+    is.close()
+    bytes
   }
 }
 
-object StreamFromUrl {
-  def apply(url: String): Error \/ InputStream = {
+object ImageFromUrl {
+  def apply(url: String): Error \/ Array[Byte] = {
     attempt(new java.net.URL(url).openStream())
+      .map(InputStreamToByteArray.apply)
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Unable to load image from url: " + url)))
   }
 }
 
-object StreamFromBody {
-  def apply(fileParams: Map[String, FileItem]): Error \/ (String, InputStream) = {
+object ImageFromBody {
+  def apply(fileParams: Map[String, FileItem]): Error \/ (String, Array[Byte]) = {
     for {
       file <- attempt(fileParams("file"))
         .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
-    } yield (file.getName, file.getInputStream)
+    } yield (file.getName, file.get)
   }
 }
 
