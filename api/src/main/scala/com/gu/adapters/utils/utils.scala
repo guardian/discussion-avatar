@@ -14,6 +14,7 @@ import org.scalatra.servlet.FileItem
 import scala.util.{ Failure, Success, Try }
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
+import sun.nio.cs.US_ASCII
 
 object ToTryOps {
   implicit def toTryOps[A](t: Try[A]) = TryOps(t)
@@ -71,10 +72,12 @@ object ImageFromBody {
   }
 }
 
+object ASCII {
+  def apply(s: String) = new String(s.getBytes, new US_ASCII)
+}
+
 object S3FoldersFromId {
-  def apply(id: String): String = {
-    id.take(4).toList.mkString("/")
-  }
+  def apply(id: String): String = id.take(4).toList.mkString("/")
 }
 
 object ErrorLogger extends LazyLogging {
