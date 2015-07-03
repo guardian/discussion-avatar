@@ -15,7 +15,7 @@ import com.amazonaws.services.s3.model._
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.Attempt._
 import com.gu.adapters.utils.ErrorLogger.logIfError
-import com.gu.adapters.utils.{ ISODateFormatter, S3FoldersFromId }
+import com.gu.adapters.utils.{ ASCII, ISODateFormatter, S3FoldersFromId }
 import com.gu.core.Errors._
 import com.gu.core.{ Config, _ }
 import com.typesafe.scalalogging.LazyLogging
@@ -282,7 +282,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId.toString)
     metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", originalFilename)
+    metadata.addUserMetadata("original-filename", ASCII(originalFilename))
     metadata.setCacheControl("max-age=3600")
     metadata.setContentType(mimeType)
     metadata
