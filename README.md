@@ -10,7 +10,8 @@ The API can be accessed at:
 ## Running locally
 ```
 cd api/
-sbt container:start
+sbt
+container:start
 ```
 
 
