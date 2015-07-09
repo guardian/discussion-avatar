@@ -1,22 +1,21 @@
 package com.gu.adapters.http
 
-import java.io.BufferedInputStream
-
 import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.http.TokenAuth.isValidKey
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
-import com.gu.adapters.utils.{ InputStreamToByteArray, ImageFromBody, ImageFromUrl }
 import com.gu.adapters.utils.ErrorLogger.logError
+import com.gu.adapters.utils.{ImageFromBody, ImageFromUrl}
 import com.gu.core.Errors._
-import com.gu.core.{ Success, _ }
+import com.gu.core.{Success, _}
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
+import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
-import org.scalatra.swagger.{ Swagger, SwaggerSupport }
+import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
 import scalaz._
 
@@ -49,7 +48,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
   error {
     case e: SizeConstraintExceededException =>
       RequestEntityTooLarge(
-        ErrorResponse("File exceeds size limit: images must be no more than 1mb in size")
+        body = write(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size")),
+        headers = Map("Content-Type" -> "application/json; charset=UTF-8")
       )
   }
 
