@@ -6,17 +6,18 @@ import com.gu.adapters.http.TokenAuth.isValidKey
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.ErrorLogger.logError
-import com.gu.adapters.utils.{ImageFromBody, ImageFromUrl}
+import com.gu.adapters.utils.{ ImageFromBody, ImageFromUrl }
 import com.gu.core.Errors._
-import com.gu.core.{Success, _}
+import com.gu.core.{ Success, _ }
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
-import org.scalatra.swagger.{Swagger, SwaggerSupport}
+import org.scalatra.swagger.{ Swagger, SwaggerSupport }
 
+import com.gu.adapters.notifications.Notifications
 import scalaz._
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
@@ -149,7 +150,10 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
         user <- userFromHeader(decoder, request.header("Authorization"))
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
-      } yield (created, req)
+      } yield {
+        (Notifications.avatarPublisher("Avatar Upload", created))
+        (created, req)
+      }
     }
   }
 
