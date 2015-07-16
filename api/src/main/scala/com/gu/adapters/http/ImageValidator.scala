@@ -1,15 +1,15 @@
 package com.gu.adapters.http
 
-import java.io.{ ByteArrayInputStream, BufferedInputStream, InputStream }
+import java.io.{ ByteArrayInputStream, InputStream }
 import java.net.URLConnection
 import javax.imageio.ImageIO
 
-import com.gu.adapters.utils.Attempt.attempt
+import com.gu.adapters.utils.ErrorHandling.attempt
 import com.gu.core.Error
 import com.gu.core.Errors.invalidMimeType
 
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/, \/- }
+import scalaz.{ NonEmptyList, \/ }
 
 object ImageValidator {
 

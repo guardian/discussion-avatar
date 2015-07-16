@@ -5,7 +5,7 @@ import com.gu.core.Errors.invalidFilters
 import com.gu.core._
 import org.joda.time.DateTime
 import org.scalatra.Params
-import com.gu.adapters.utils.Attempt.attempt
+import com.gu.adapters.utils.ErrorHandling.attempt
 
 import scalaz._
 
