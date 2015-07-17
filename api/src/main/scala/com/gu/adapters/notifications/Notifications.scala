@@ -18,7 +18,6 @@ object Notifications {
   snsClient.setEndpoint(location)
 
   def createAvatarMessage(avatar: Avatar): String = {
-    println(compactJson(renderJValue(Extraction.decompose(avatar))))
     compactJson(renderJValue(Extraction.decompose(avatar)))
   }
 
