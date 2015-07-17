@@ -6,6 +6,7 @@ sealed trait Error {
   val message: String
   val errors: NonEmptyList[String]
 }
+case class SNSRequestFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidContentType(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidFilters(message: String, errors: NonEmptyList[String]) extends Error
 case class AvatarNotFound(message: String, errors: NonEmptyList[String]) extends Error

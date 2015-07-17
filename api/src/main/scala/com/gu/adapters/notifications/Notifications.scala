@@ -1,14 +1,18 @@
 package com.gu.adapters.notifications
 
-import java.util.concurrent.Executors
+import java.util.concurrent.{ Future, Executors }
 
+import com.amazonaws.handlers.AsyncHandler
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.services.sns.AmazonSNSAsyncClient
-import com.amazonaws.services.sns.model.PublishRequest
+import com.amazonaws.services.sns.model.{ PublishResult, PublishRequest }
 import com.gu.adapters.store.AWSCredentials
-import com.gu.core.{ Avatar, CreatedAvatar, Config }
+import com.gu.adapters.utils.ErrorLogger._
+import com.gu.core.{ SNSRequestFailed, Avatar, CreatedAvatar, Config }
 import org.json4s.{ Extraction, DefaultFormats }
 import org.json4s.native.{ compactJson, renderJValue }
+
+import scalaz.NonEmptyList
 
 object Notifications {
   implicit val formats = DefaultFormats
@@ -21,24 +25,21 @@ object Notifications {
     compactJson(renderJValue(Extraction.decompose(avatar)))
   }
 
-  def avatarPublisher(eventType: String, avatar: CreatedAvatar) = {
-    new AvatarPublisher(eventType, avatar, snsClient)
-  }
-
-  case class avatarMessage(avatarId: String)
-
-  class AvatarPublisher(eventType: String, avatar: CreatedAvatar, snsClient: AmazonSNSAsyncClient) {
+  def avatarPublisher(eventType: String, avatar: CreatedAvatar): Future[PublishResult] = {
     val subject = eventType
     val msg: String = createAvatarMessage(avatar.body)
-    try {
-      val request = new PublishRequest(Config.snsTopicArn, msg, subject)
-      snsClient.publishAsync(request)
-    } catch {
-      case e: Exception => {
-        e.printStackTrace()
-      }
-    }
-  }
 
+    val request = new PublishRequest(Config.snsTopicArn, msg, subject)
+    snsClient.publishAsync(request, new AsyncHandler[PublishRequest, PublishResult]() {
+
+      override def onError(e: Exception) = {
+        val exception = NonEmptyList(e.toString)
+        val error = (SNSRequestFailed(s"message to ${Config.snsTopicArn} has not been sent: $msg", exception))
+        logError(s"message to ${Config.snsTopicArn} has not been sent: $msg", error)
+
+      }
+      override def onSuccess(request: PublishRequest, result: PublishResult) {}
+    })
+  }
 }
 

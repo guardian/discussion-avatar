@@ -210,6 +210,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
         case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
         case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
         case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+        case SNSRequestFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
       }
   }
 
