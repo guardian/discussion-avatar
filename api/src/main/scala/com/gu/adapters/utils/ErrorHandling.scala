@@ -30,7 +30,7 @@ object ErrorHandling extends LazyLogging {
     result
   }
 
-  def io[A](action: => A): Error \/ A = {
+  def handleIoErrors[A](action: => A): Error \/ A = {
     attempt(action) leftMap ioError
   }
 

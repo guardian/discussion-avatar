@@ -1,5 +1,6 @@
 package com.gu.adapters.http
 
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.http.TokenAuth.isValidKey

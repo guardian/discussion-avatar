@@ -1,6 +1,7 @@
 package com.gu.adapters.http
 
-import com.gu.core.{ Config, User }
+import com.gu.adapters.config.Config
+import com.gu.core.User
 import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys }
 import org.scalatest.{ FunSuite, Matchers }
 
