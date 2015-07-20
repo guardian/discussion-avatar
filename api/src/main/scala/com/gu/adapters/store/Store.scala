@@ -4,7 +4,8 @@ import java.io.ByteArrayInputStream
 import java.net.URL
 import java.util.UUID
 
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
 import com.amazonaws.regions.{ Region, Regions }
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
@@ -29,6 +30,13 @@ case class QueryResponse(
   avatars: List[Avatar],
   hasMore: Boolean
 )
+
+object AWSCredentials {
+  val awsCredentials = new AWSCredentialsProviderChain(
+    new ProfileCredentialsProvider("gu-aws-discussion"),
+    new DefaultAWSCredentialsProviderChain()
+  )
+}
 
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
@@ -144,7 +152,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
 object Dynamo {
   def apply(): Dynamo = {
-    val client = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain())
+    val client = new AmazonDynamoDBClient(AWSCredentials.awsCredentials)
     client.setRegion(Region.getRegion(Regions.EU_WEST_1))
     Dynamo(new DynamoDB(client), S3())
   }
@@ -223,7 +231,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
 
 object S3 {
   def apply(): S3 = {
-    val client = new AmazonS3Client(new DefaultAWSCredentialsProviderChain())
+    val client = new AmazonS3Client(AWSCredentials.awsCredentials)
     client.setRegion(Region.getRegion(Regions.EU_WEST_1))
     S3(client)
   }
