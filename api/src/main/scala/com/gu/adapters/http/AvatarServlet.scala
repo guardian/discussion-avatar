@@ -20,8 +20,7 @@ import org.scalatra.swagger.{ Swagger, SwaggerSupport }
 
 import com.gu.adapters.notifications.Notifications
 
-import scalaz.{Success => _,_}
-
+import scalaz.{ Success => _, _ }
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, snsClient: AmazonSNSAsyncClient)(implicit val swagger: Swagger)
     extends ScalatraServlet
@@ -154,7 +153,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, snsClien
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
       } yield {
-        (Notifications.avatarPublisher(snsClient,"Avatar Upload", created))
+        (Notifications.avatarPublisher(snsClient, "Avatar Upload", created))
         (created, req)
       }
     }
