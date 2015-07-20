@@ -7,8 +7,8 @@ import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.Attempt.attempt
 import com.gu.adapters.utils.ErrorLogger.logError
 import com.gu.adapters.utils.{ ImageFromBody, ImageFromUrl }
+import com.gu.core._
 import com.gu.core.Errors._
-import com.gu.core.{ Success, _ }
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
@@ -18,7 +18,9 @@ import org.scalatra.servlet._
 import org.scalatra.swagger.{ Swagger, SwaggerSupport }
 
 import com.gu.adapters.notifications.Notifications
-import scalaz._
+
+import scalaz.{Success => _,_}
+
 
 class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
     extends ScalatraServlet
