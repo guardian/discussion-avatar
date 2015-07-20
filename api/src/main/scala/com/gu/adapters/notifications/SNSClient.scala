@@ -8,6 +8,6 @@ import com.gu.adapters.store.AWSCredentials
 
 object SNSClient {
   lazy val location = "sns.eu-west-1.amazonaws.com"
-  val snsClient = new AmazonSNSAsyncClient(AWSCredentials.awsCredentials, new ClientConfiguration(), Executors.newCachedThreadPool())
+  val snsClient = new AmazonSNSAsyncClient(AWSCredentials.awsCredentials, new ClientConfiguration(), Executors.newFixedThreadPool(10))
   snsClient.setEndpoint(location)
 }
