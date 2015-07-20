@@ -2,6 +2,7 @@ import java.util.TimeZone
 import javax.servlet.ServletContext
 
 import com.gu.adapters.http.{ AvatarServlet, AvatarSwagger, ResourcesApp }
+import com.gu.adapters.notifications.SNSClient
 import com.gu.adapters.store.AvatarStore
 import com.gu.core.Config.cookieDecoder
 import org.scalatra._
@@ -12,7 +13,7 @@ class ScalatraBootstrap extends LifeCycle {
 
   override def init(context: ServletContext) {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-    context.mount(new AvatarServlet(AvatarStore(), cookieDecoder), "/v1", "v1")
+    context.mount(new AvatarServlet(AvatarStore(), cookieDecoder, SNSClient.snsClient), "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")
   }
 }

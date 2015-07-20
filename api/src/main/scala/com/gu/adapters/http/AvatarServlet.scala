@@ -1,5 +1,6 @@
 package com.gu.adapters.http
 
+import com.amazonaws.services.sns.AmazonSNSAsyncClient
 import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.http.TokenAuth.isValidKey
@@ -22,7 +23,7 @@ import com.gu.adapters.notifications.Notifications
 import scalaz.{Success => _,_}
 
 
-class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, snsClient: AmazonSNSAsyncClient)(implicit val swagger: Swagger)
     extends ScalatraServlet
     with JacksonJsonSupport
     with SwaggerSupport
@@ -153,7 +154,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
       } yield {
-        (Notifications.avatarPublisher("Avatar Upload", created))
+        (Notifications.avatarPublisher(snsClient,"Avatar Upload", created))
         (created, req)
       }
     }
