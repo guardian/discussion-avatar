@@ -1,8 +1,9 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.utils.Attempt.attempt
+import com.gu.adapters.config.Config
+import com.gu.adapters.utils.ErrorHandling.attempt
 import com.gu.core.Errors._
-import com.gu.core.{ Config, Error, User }
+import com.gu.core.{ Error, User }
 import com.gu.identity.cookie.IdentityCookieDecoder
 
 import scalaz.Scalaz._

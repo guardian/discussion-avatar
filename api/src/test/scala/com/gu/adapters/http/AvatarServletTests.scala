@@ -2,6 +2,7 @@ package com.gu.adapters.http
 
 import java.io.File
 
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
 import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.AvatarStore

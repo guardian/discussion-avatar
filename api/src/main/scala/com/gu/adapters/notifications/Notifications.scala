@@ -7,8 +7,9 @@ import com.amazonaws.handlers.AsyncHandler
 import com.amazonaws.regions.{ Region, Regions }
 import com.amazonaws.services.sns.AmazonSNSAsyncClient
 import com.amazonaws.services.sns.model.{ PublishResult, PublishRequest }
+import com.gu.adapters.config.Config
 import com.gu.adapters.store.AWSCredentials
-import com.gu.core.{ Avatar, CreatedAvatar, Config }
+import com.gu.core.{ Avatar, CreatedAvatar }
 import com.typesafe.scalalogging.LazyLogging
 import org.json4s.{ Extraction, DefaultFormats }
 import org.json4s.native.{ compactJson, renderJValue }

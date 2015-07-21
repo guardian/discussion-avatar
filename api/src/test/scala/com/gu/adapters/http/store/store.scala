@@ -3,6 +3,7 @@ package com.gu.adapters.http.store
 import java.net.URL
 
 import com.amazonaws.services.s3.model.ObjectMetadata
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.store.TestStoreHelpers.path
 import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
 import com.gu.adapters.utils.S3FoldersFromId

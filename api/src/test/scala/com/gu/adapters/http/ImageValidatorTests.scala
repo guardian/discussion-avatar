@@ -2,14 +2,14 @@ package com.gu.adapters.http
 
 import java.io.{ BufferedInputStream, File, FileInputStream }
 
-import com.gu.adapters.utils.InputStreamToByteArray
+import com.gu.adapters.utils.IO.readBytesAndCloseInputStream
 import org.scalatest.{ FunSuite, Matchers }
 
 class ImageValidatorTests extends FunSuite with Matchers {
 
   def test(path: String, isValid: Boolean): Unit = {
     val file = new File(path)
-    val image = InputStreamToByteArray(new FileInputStream(file))
+    val image = readBytesAndCloseInputStream(new FileInputStream(file)) getOrElse fail("Could not load image!")
     ImageValidator.validate(image).isRight should be(isValid)
   }
 

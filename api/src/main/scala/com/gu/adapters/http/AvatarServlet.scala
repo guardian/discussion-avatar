@@ -1,15 +1,15 @@
 package com.gu.adapters.http
 
-import com.amazonaws.services.sns.AmazonSNSAsyncClient
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.ImageValidator.validate
 import com.gu.adapters.http.TokenAuth.isValidKey
 import com.gu.adapters.store.AvatarStore
-import com.gu.adapters.utils.Attempt.attempt
-import com.gu.adapters.utils.ErrorLogger.logError
-import com.gu.adapters.utils.{ ImageFromBody, ImageFromUrl }
-import com.gu.core._
+import com.gu.adapters.utils.ErrorHandling.attempt
+import com.gu.adapters.utils.ErrorHandling.logError
+import com.gu.adapters.utils.IO.{ readBytesFromFile, readBytesFromUrl }
 import com.gu.core.Errors._
+import com.gu.core._
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
@@ -216,19 +216,19 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   }
 
   def getUrl(url: String): Error \/ (Array[Byte], String) = {
-    ImageFromUrl(url) flatMap {
+    readBytesFromUrl(url) flatMap {
       case bytes => validate(bytes).map(mt => (bytes, mt))
     }
   }
 
   def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
-    ImageFromBody(fileParams) flatMap {
+    readBytesFromFile(fileParams) flatMap {
       case (fname, bytes) => validate(bytes).map(mt => (bytes, mt, fname))
     }
   }
 
   def getIsSocial(param: Option[String]): Error \/ Boolean = {
-    attempt(param.map(_.toBoolean).getOrElse(false)).leftMap(_ => invalidIsSocialFlag(NonEmptyList(s"'${param.get}' is not a valid isSocial flag")))
+    attempt(param.exists(_.toBoolean)).leftMap(_ => invalidIsSocialFlag(NonEmptyList(s"'${param.get}' is not a valid isSocial flag")))
   }
 
   def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {

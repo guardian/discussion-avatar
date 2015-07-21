@@ -13,15 +13,14 @@ import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSp
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.Attempt._
-import com.gu.adapters.utils.ErrorLogger.logIfError
 import com.gu.adapters.utils.{ ASCII, ISODateFormatter, S3FoldersFromId }
 import com.gu.core.Errors._
-import com.gu.core.{ Config, _ }
+import com.gu.core.{ _ }
 import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{ DateTime, DateTimeZone }
-
+import com.gu.adapters.utils.ErrorHandling._
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
@@ -76,7 +75,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
   }
 
   def get(table: String, id: String): Error \/ Avatar = {
-    io(db.getTable(table).getItem("AvatarId", id))
+    handleIoErrors(db.getTable(table).getItem("AvatarId", id))
       .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
       .map(item => asAvatar(item).toOption.get)
   }
@@ -94,17 +93,17 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
       .withHashKey(key, value)
       .withMaxResultSize(pageSize)
 
-    if (!until.isDefined) spec.withScanIndexForward(false)
+    if (until.isEmpty) spec.withScanIndexForward(false)
     since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
     until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
 
-    val result = io(db.getTable(table).getIndex(index).query(spec))
+    val result = handleIoErrors(db.getTable(table).getIndex(index).query(spec))
 
     for {
       pages <- result.map(_.pages.asScala.toList)
       qr <- result.map(_.getLastLowLevelResult.getQueryResult)
-      items = pages.map(_.asScala).flatten
-      avatars = items.map(item => asAvatar(item)).map(_.toOption).flatten
+      items = pages.flatMap(_.asScala)
+      avatars = items.map(item => asAvatar(item)).flatMap(_.toOption)
     } yield {
       val orderedAvatars = until.map(_ => avatars.reverse).getOrElse(avatars)
       QueryResponse(orderedAvatars, qr.getLastEvaluatedKey != null)
@@ -130,7 +129,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
       .withBoolean("IsSocial", avatar.isSocial)
       .withBoolean("IsActive", avatar.isActive)
 
-    io(db.getTable(table).putItem(item)) map (_ => avatar)
+    handleIoErrors(db.getTable(table).putItem(item)) map (_ => avatar)
   }
 
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar = {
@@ -144,7 +143,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
       )
       .withReturnValues(ReturnValue.ALL_NEW)
     for {
-      item <- io(db.getTable(table).updateItem(spec)).map(_.getItem)
+      item <- handleIoErrors(db.getTable(table).updateItem(spec)).map(_.getItem)
       avatar <- asAvatar(item)
     } yield avatar
   }
@@ -197,7 +196,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
   ): Error \/ Unit = {
 
     val request = new CopyObjectRequest(fromBucket, fromKey, toBucket, toKey)
-    io(client.copyObject(request))
+    handleIoErrors(client.copyObject(request))
   }
 
   def put(
@@ -210,12 +209,12 @@ case class S3(client: AmazonS3Client) extends FileStore {
     val inputStream = new ByteArrayInputStream(file)
     metadata.setContentLength(file.length)
     val request = new PutObjectRequest(bucket, key, inputStream, metadata)
-    io(client.putObject(request))
+    handleIoErrors(client.putObject(request))
   }
 
   def delete(bucket: String, key: String): Error \/ Unit = {
     val request = new DeleteObjectRequest(bucket, key)
-    io(client.deleteObject(request))
+    handleIoErrors(client.deleteObject(request))
   }
 
   def presignedUrl(
@@ -225,7 +224,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
   ): Error \/ URL = {
     val request = new GeneratePresignedUrlRequest(bucket, key)
     request.setExpiration(expiration.toDate)
-    io(client.generatePresignedUrl(request))
+    handleIoErrors(client.generatePresignedUrl(request))
   }
 }
 

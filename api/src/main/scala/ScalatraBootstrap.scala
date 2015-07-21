@@ -1,10 +1,11 @@
 import java.util.TimeZone
 import javax.servlet.ServletContext
 
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.{ AvatarServlet, AvatarSwagger, ResourcesApp }
 import com.gu.adapters.notifications.SNS
 import com.gu.adapters.store.AvatarStore
-import com.gu.core.Config.cookieDecoder
+import Config.cookieDecoder
 import org.scalatra._
 
 class ScalatraBootstrap extends LifeCycle {

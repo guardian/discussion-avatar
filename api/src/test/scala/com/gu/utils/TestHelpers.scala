@@ -2,10 +2,11 @@ package com.gu.utils
 
 import java.io.File
 
+import com.gu.adapters.config.Config
 import com.gu.adapters.http._
 import com.gu.adapters.utils.ISODateFormatter
 import org.joda.time.{ DateTimeZone, DateTime }
-import com.gu.core.{ Config, Status }
+import com.gu.core.Status
 import org.json4s.native.Serialization._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.ClientResponse
