@@ -9,7 +9,7 @@ import com.gu.adapters.utils.ErrorHandling.attempt
 import com.gu.adapters.utils.ErrorHandling.logError
 import com.gu.adapters.utils.IO.{ readBytesFromFile, readBytesFromUrl }
 import com.gu.core.Errors._
-import com.gu.core.{ Success, _ }
+import com.gu.core._
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
@@ -18,9 +18,11 @@ import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{ Swagger, SwaggerSupport }
 
-import scalaz._
+import com.gu.adapters.notifications.{ Publisher, Notifications }
 
-class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit val swagger: Swagger)
+import scalaz.{ Success => _, _ }
+
+class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publisher: Publisher)(implicit val swagger: Swagger)
     extends ScalatraServlet
     with JacksonJsonSupport
     with SwaggerSupport
@@ -150,7 +152,10 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder)(implicit
         user <- userFromHeader(decoder, request.header("Authorization"))
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
-      } yield (created, req)
+      } yield {
+        (Notifications.publishAvatar(publisher, "Avatar Upload", created))
+        (created, req)
+      }
     }
   }
 

@@ -26,4 +26,5 @@ object Config {
   val s3RawBucket = conf.getString("aws.s3.raw")
   val s3ProcessedBucket = conf.getString("aws.s3.processed")
   val s3PublicBucket = conf.getString("aws.s3.public")
+  val snsTopicArn = conf.getString("aws.sns.topic.arn")
 }
