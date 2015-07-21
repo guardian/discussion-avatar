@@ -28,5 +28,5 @@ object Config {
   val s3ProcessedBucket = conf.getString("aws.s3.processed")
   val s3PublicBucket = conf.getString("aws.s3.public")
   val snsTopicArn = conf.getString("aws.sns.topic.arn")
-  val awsRegion = (Region.getRegion(Regions.fromName(conf.getString("aws.region"))))
+  val awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region")))
 }
