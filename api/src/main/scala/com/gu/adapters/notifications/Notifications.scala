@@ -22,7 +22,7 @@ trait Publisher {
 
 class SNS extends Publisher with LazyLogging {
   val snsClient = new AmazonSNSAsyncClient(AWSCredentials.awsCredentials, new ClientConfiguration(), Executors.newCachedThreadPool())
-  snsClient.setRegion(Region.getRegion(Regions.EU_WEST_1))
+  snsClient.setRegion(Config.awsRegion)
 
   def publish(arn: String, msg: String, subject: String): Future[String] = {
     val request = new PublishRequest(Config.snsTopicArn, msg, subject)

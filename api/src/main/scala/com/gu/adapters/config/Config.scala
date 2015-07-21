@@ -1,5 +1,6 @@
 package com.gu.adapters.config
 
+import com.amazonaws.regions.{ Regions, Region }
 import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
 import com.typesafe.config.ConfigFactory
 
@@ -27,4 +28,5 @@ object Config {
   val s3ProcessedBucket = conf.getString("aws.s3.processed")
   val s3PublicBucket = conf.getString("aws.s3.public")
   val snsTopicArn = conf.getString("aws.sns.topic.arn")
+  val awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region")))
 }

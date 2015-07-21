@@ -152,7 +152,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 object Dynamo {
   def apply(): Dynamo = {
     val client = new AmazonDynamoDBClient(AWSCredentials.awsCredentials)
-    client.setRegion(Region.getRegion(Regions.EU_WEST_1))
+    client.setRegion(Config.awsRegion)
     Dynamo(new DynamoDB(client), S3())
   }
 }
@@ -231,7 +231,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
 object S3 {
   def apply(): S3 = {
     val client = new AmazonS3Client(AWSCredentials.awsCredentials)
-    client.setRegion(Region.getRegion(Regions.EU_WEST_1))
+    client.setRegion(Config.awsRegion)
     S3(client)
   }
 }
