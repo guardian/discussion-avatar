@@ -20,12 +20,6 @@ trait Publisher {
   def publish(arn: String, msg: String, subject: String): Future[String]
 }
 
-class TestPublisher extends Publisher {
-  def publish(arn: String, msg: String, subject: String): Future[String] = {
-    Future.successful("123")
-  }
-}
-
 class SNS extends Publisher with LazyLogging {
   lazy val location = "sns.eu-west-1.amazonaws.com"
   val snsClient = new AmazonSNSAsyncClient(AWSCredentials.awsCredentials, new ClientConfiguration(), Executors.newFixedThreadPool(10))
