@@ -153,7 +153,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, snsClien
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
       } yield {
-        (Notifications.avatarPublisher(snsClient, "Avatar Upload", created))
+        (Notifications.publishAvatar(snsClient, "Avatar Upload", created))
         (created, req)
       }
     }
