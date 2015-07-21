@@ -2,8 +2,9 @@ package com.gu.adapters.http
 
 import java.util.UUID
 
+import com.gu.adapters.config.Config
 import com.gu.adapters.utils.ISODateFormatter
-import com.gu.core.{ Avatar, Config }
+import com.gu.core.Avatar
 
 object Links {
 

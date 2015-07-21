@@ -1,8 +1,7 @@
-package com.gu.core
+package com.gu.adapters.config
 
-import com.gu.identity.cookie.{ PreProductionKeys, ProductionKeys, IdentityCookieDecoder }
+import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
 import com.typesafe.config.ConfigFactory
-import collection.JavaConversions._
 
 object Config {
 
