@@ -3,7 +3,7 @@ package com.gu.adapters.http
 import java.io.File
 
 import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
-import com.gu.adapters.notifications.SNSClient
+import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.AvatarStore
 import com.gu.core._
 import com.gu.utils.TestHelpers
@@ -16,7 +16,7 @@ class AvatarServletTests extends TestHelpers {
     new AvatarServlet(
       AvatarStore(new TestFileStore, new TestKVStore),
       Config.cookieDecoder,
-      SNSClient.snsClient
+      new TestPublisher
     ),
     "/*"
   )

@@ -18,11 +18,11 @@ import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{ Swagger, SwaggerSupport }
 
-import com.gu.adapters.notifications.Notifications
+import com.gu.adapters.notifications.{ Publisher, Notifications }
 
 import scalaz.{ Success => _, _ }
 
-class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, snsClient: AmazonSNSAsyncClient)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publisher: Publisher)(implicit val swagger: Swagger)
     extends ScalatraServlet
     with JacksonJsonSupport
     with SwaggerSupport
@@ -153,7 +153,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, snsClien
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
       } yield {
-        (Notifications.publishAvatar(snsClient, "Avatar Upload", created))
+        (Notifications.publishAvatar(publisher, "Avatar Upload", created))
         (created, req)
       }
     }
