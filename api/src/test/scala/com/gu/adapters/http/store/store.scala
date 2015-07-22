@@ -3,7 +3,6 @@ package com.gu.adapters.http.store
 import java.net.URL
 
 import com.amazonaws.services.s3.model.ObjectMetadata
-import com.gu.adapters.config.Config
 import com.gu.adapters.http.store.TestStoreHelpers.path
 import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
 import com.gu.adapters.utils.S3FoldersFromId
@@ -18,10 +17,11 @@ object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
 }
 
-class TestFileStore extends FileStore {
+class TestFileStore(s3ProcessedBucket: String) extends FileStore {
+
   private[this] var files: Map[String, String] = {
     val id = "f1d07680-fd11-492c-9bbf-fc996b435590"
-    Map(s"${Config.s3ProcessedBucket}/${S3FoldersFromId(id)}/$id" -> "some-file")
+    Map(s"$s3ProcessedBucket/${S3FoldersFromId(id)}/$id" -> "some-file")
   }
 
   def copy(
@@ -64,9 +64,10 @@ class TestFileStore extends FileStore {
   }
 }
 
-class TestKVStore extends KVStore {
+class TestKVStore(dynamoTable: String) extends KVStore {
+
   private[this] var docs: Map[String, Avatar] = Map(
-    Config.dynamoTable + "/9f51970f-fc24-400a-9ceb-9b347d9b5e5e" -> Avatar(
+    dynamoTable + "/9f51970f-fc24-400a-9ceb-9b347d9b5e5e" -> Avatar(
       "9f51970f-fc24-400a-9ceb-9b347d9b5e5e",
       "http://avatar-url-1",
       123456,
@@ -78,7 +79,7 @@ class TestKVStore extends KVStore {
       isSocial = true,
       isActive = true
     ),
-    Config.dynamoTable + "/5aa5aa52-ee78-4319-8fa0-93bfd1dc204b" -> Avatar(
+    dynamoTable + "/5aa5aa52-ee78-4319-8fa0-93bfd1dc204b" -> Avatar(
       "5aa5aa52-ee78-4319-8fa0-93bfd1dc204b",
       "http://avatar-url-2",
       234567,
@@ -90,7 +91,7 @@ class TestKVStore extends KVStore {
       isSocial = false,
       isActive = false
     ),
-    Config.dynamoTable + "/f1d07680-fd11-492c-9bbf-fc996b435590" -> Avatar(
+    dynamoTable + "/f1d07680-fd11-492c-9bbf-fc996b435590" -> Avatar(
       "f1d07680-fd11-492c-9bbf-fc996b435590",
       "http://avatar-url-3",
       345678,
@@ -102,7 +103,7 @@ class TestKVStore extends KVStore {
       isSocial = false,
       isActive = false
     ),
-    Config.dynamoTable + "/6cdab5ef-e93c-4cc3-b761-dc97f66ae257" -> Avatar(
+    dynamoTable + "/6cdab5ef-e93c-4cc3-b761-dc97f66ae257" -> Avatar(
       "6cdab5ef-e93c-4cc3-b761-dc97f66ae257",
       "http://avatar-url-4",
       21801602,

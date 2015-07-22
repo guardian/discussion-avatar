@@ -17,7 +17,7 @@ import com.gu.adapters.config.Config
 import com.gu.adapters.http.Filters
 import com.gu.adapters.utils.{ ASCII, ISODateFormatter, S3FoldersFromId }
 import com.gu.core.Errors._
-import com.gu.core.{ _ }
+import com.gu.core._
 import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{ DateTime, DateTimeZone }
 import com.gu.adapters.utils.ErrorHandling._
@@ -45,11 +45,11 @@ trait KVStore {
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
 }
 
-case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
+case class Dynamo(db: DynamoDB, fs: FileStore, config: Config) extends KVStore {
 
-  val pageSize = Config.pageSize
-  val rawBucket = Config.s3RawBucket
-  val processedBucket = Config.s3ProcessedBucket
+  val pageSize = config.pageSize
+  val rawBucket = config.s3RawBucket
+  val processedBucket = config.s3ProcessedBucket
 
   def asAvatar(item: Item): Error \/ Avatar = {
     val avatarId = item.getString("AvatarId")
@@ -150,10 +150,10 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 }
 
 object Dynamo {
-  def apply(): Dynamo = {
+  def apply(config: Config): Dynamo = {
     val client = new AmazonDynamoDBClient(AWSCredentials.awsCredentials)
-    client.setRegion(Config.awsRegion)
-    Dynamo(new DynamoDB(client), S3())
+    client.setRegion(config.awsRegion)
+    Dynamo(new DynamoDB(client), S3(config.awsRegion), config)
   }
 }
 
@@ -229,22 +229,22 @@ case class S3(client: AmazonS3Client) extends FileStore {
 }
 
 object S3 {
-  def apply(): S3 = {
+  def apply(awsRegion: Region): S3 = {
     val client = new AmazonS3Client(AWSCredentials.awsCredentials)
-    client.setRegion(Config.awsRegion)
+    client.setRegion(awsRegion)
     S3(client)
   }
 }
 
-case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
+case class AvatarStore(fs: FileStore, kvs: KVStore, config: Config) extends LazyLogging {
 
-  val incomingBucket = Config.s3IncomingBucket
-  val rawBucket = Config.s3RawBucket
-  val processedBucket = Config.s3ProcessedBucket
-  val publicBucket = Config.s3PublicBucket
-  val dynamoTable = Config.dynamoTable
-  val statusIndex = Config.statusIndex
-  val userIndex = Config.userIndex
+  val incomingBucket = config.s3IncomingBucket
+  val rawBucket = config.s3RawBucket
+  val processedBucket = config.s3ProcessedBucket
+  val publicBucket = config.s3PublicBucket
+  val dynamoTable = config.dynamoTable
+  val statusIndex = config.statusIndex
+  val userIndex = config.userIndex
 
   def get(filters: Filters): \/[Error, FoundAvatars] = {
     for {
@@ -406,7 +406,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
 
     val result = status match {
       case noChange if oldAvatar.exists(_.status == status) => oldAvatar map UpdatedAvatar
-      case Approved => {
+
+      case Approved =>
         for {
           old <- oldAvatar
           active = getActive(User(old.userId))
@@ -414,14 +415,13 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
           updated <- kvs.update(dynamoTable, id, status, isActive = true)
           _ <- updateS3(old, updated)
         } yield UpdatedAvatar(updated)
-      }
-      case _ => {
+
+      case _ =>
         for {
           old <- oldAvatar
           updated <- kvs.update(dynamoTable, id, status, isActive = false)
           _ <- updateS3(old, updated)
         } yield UpdatedAvatar(updated)
-      }
     }
 
     logIfError(s"Unable to update status for Avatar ID: $id. Avatar may be left in an inconsistent state.", result)
@@ -429,5 +429,5 @@ case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
 }
 
 object AvatarStore {
-  def apply(): AvatarStore = AvatarStore(S3(), Dynamo())
+  def apply(config: Config): AvatarStore = AvatarStore(S3(config.awsRegion), Dynamo(config), config)
 }

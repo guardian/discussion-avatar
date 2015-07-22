@@ -21,7 +21,7 @@ import com.gu.adapters.utils.ErrorHandling.attempt
 
 import scalaz.{ Success => _, _ }
 
-class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publisher: Publisher)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publisher: Publisher, config: Config)(implicit val swagger: Swagger)
     extends ScalatraServlet
     with JacksonJsonSupport
     with SwaggerSupport
@@ -29,8 +29,8 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
     with FileUploadSupport
     with CorsSupport {
 
-  val apiUrl = Config.apiUrl
-  val pageSize = Config.pageSize
+  val apiUrl = config.apiUrl
+  val pageSize = config.pageSize
 
   protected implicit val jsonFormats = JsonFormats.all
 
@@ -95,7 +95,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   get("/avatars", operation(getAvatars)) {
     withErrorHandling {
       for {
-        auth <- isValidKey(request.header("Authorization"))
+        auth <- isValidKey(request.header("Authorization"), config.apiKeys)
         filters <- Filters.fromParams(params)
         avatar <- store.get(filters)
         url = Req(apiUrl, request.getPathInfo, filters)
@@ -106,7 +106,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   get("/avatars/:id", operation(getAvatar)) {
     withErrorHandling {
       for {
-        auth <- isValidKey(request.header("Authorization"))
+        auth <- isValidKey(request.header("Authorization"), config.apiKeys)
         avatar <- store.get(params("id"))
         req = Req(apiUrl, request.getPathInfo)
       } yield (avatar, req)
@@ -116,7 +116,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   get("/avatars/user/:userId", operation(getAvatarsForUser)) {
     withErrorHandling {
       for {
-        auth <- isValidKey(request.header("Authorization"))
+        auth <- isValidKey(request.header("Authorization"), config.apiKeys)
         user <- userFromRequest(params("userId"))
         avatar <- store.get(user)
         req = Req(apiUrl, request.getPathInfo)
@@ -127,7 +127,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
     withErrorHandling {
       for {
-        auth <- isValidKey(request.header("Authorization"))
+        auth <- isValidKey(request.header("Authorization"), config.apiKeys)
         user <- userFromRequest(params("userId"))
         active <- store.getActive(user)
         req = Req(apiUrl, request.getPathInfo)
@@ -152,7 +152,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
         created <- uploadAvatar(request, user, fileParams)
         req = Req(apiUrl, request.getPathInfo)
       } yield {
-        (Notifications.publishAvatar(publisher, "Avatar Upload", created))
+        (Notifications.publishAvatar(publisher, config.snsTopicArn, "Avatar Upload", created))
         (created, req)
       }
     }
@@ -161,7 +161,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   post("/migrateAvatar", operation(postMigratedAvatar)) {
     withErrorHandling {
       for {
-        auth <- isValidKey(request.header("Authorization"))
+        auth <- isValidKey(request.header("Authorization"), config.apiKeys)
         created <- fetchMigratedAvatar(request)
         req = Req(apiUrl, request.getPathInfo)
       } yield (created, req)
@@ -171,7 +171,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
       for {
-        auth <- isValidKey(request.header("Authorization"))
+        auth <- isValidKey(request.header("Authorization"), config.apiKeys)
         sr <- statusRequestFromBody(parsedBody)
         updated <- store.updateStatus(params("id"), sr.status)
         req = Req(apiUrl, request.getPathInfo)
@@ -187,7 +187,7 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
     case \/-((success, url)) => success match {
       case CreatedAvatar(avatar) => Created(AvatarResponse(avatar, url))
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
-      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore))
+      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, config.pageSize))
       case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case MigratedAvatar(avatar) => Created(AvatarResponse(avatar, url))
     }

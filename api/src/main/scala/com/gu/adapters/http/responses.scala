@@ -29,8 +29,8 @@ object AvatarResponse {
 }
 
 object AvatarsResponse {
-  def apply(avatars: List[Avatar], req: Req, hasMore: Boolean): AvatarsResponse = {
-    val ls = links(avatars, req, hasMore)
+  def apply(avatars: List[Avatar], req: Req, hasMore: Boolean, pageSize: Int): AvatarsResponse = {
+    val ls = links(avatars, req, hasMore, pageSize)
     val data = avatars.map(a => AvatarResponse(a, req))
     AvatarsResponse(Some(req.base + req.path), data, ls)
   }

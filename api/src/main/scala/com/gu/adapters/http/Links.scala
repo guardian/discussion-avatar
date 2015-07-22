@@ -1,16 +1,10 @@
 package com.gu.adapters.http
 
-import java.util.UUID
-
-import com.gu.adapters.config.Config
-import com.gu.adapters.utils.ISODateFormatter
 import com.gu.core.Avatar
 
 object Links {
 
-  val pageSize = Config.pageSize
-
-  def links(avatars: List[Avatar], url: Req, hasMore: Boolean): List[Link] = {
+  def links(avatars: List[Avatar], url: Req, hasMore: Boolean, pageSize: Int): List[Link] = {
     val cursor = avatars.lift(pageSize - 1).map(_.lastModified)
     val first = avatars.headOption.map(_.lastModified)
     val query = url.filters

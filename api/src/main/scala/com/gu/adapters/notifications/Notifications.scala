@@ -20,12 +20,12 @@ trait Publisher {
   def publish(arn: String, msg: String, subject: String): Future[String]
 }
 
-class SNS extends Publisher with LazyLogging {
+class SNS(awsRegion: Region, snsTopicArn: String) extends Publisher with LazyLogging {
   val snsClient = new AmazonSNSAsyncClient(AWSCredentials.awsCredentials, new ClientConfiguration(), Executors.newCachedThreadPool())
-  snsClient.setRegion(Config.awsRegion)
+  snsClient.setRegion(awsRegion)
 
   def publish(arn: String, msg: String, subject: String): Future[String] = {
-    val request = new PublishRequest(Config.snsTopicArn, msg, subject)
+    val request = new PublishRequest(snsTopicArn, msg, subject)
     val p = Promise[String]()
 
     snsClient.publishAsync(request, new AsyncHandler[PublishRequest, PublishResult]() {
@@ -49,10 +49,10 @@ object Notifications {
     compactJson(renderJValue(Extraction.decompose(avatar)))
   }
 
-  def publishAvatar(publisher: Publisher, eventType: String, avatar: CreatedAvatar): Future[String] = {
+  def publishAvatar(publisher: Publisher, snsTopicArn: String, eventType: String, avatar: CreatedAvatar): Future[String] = {
     val subject = eventType
     val msg: String = createAvatarMessage(avatar.body)
-    publisher.publish(Config.snsTopicArn, msg, subject)
+    publisher.publish(snsTopicArn, msg, subject)
   }
 }
 
