@@ -1,35 +1,58 @@
 package com.gu.adapters.config
 
-import com.amazonaws.regions.{ Regions, Region }
+import com.amazonaws.regions.{ Region, Regions }
+import com.gu.adapters.http.AvatarServletProperties
+import com.gu.adapters.notifications.SnsProperties
+import com.gu.adapters.store.StoreProperties
 import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
-import com.typesafe.config.{ ConfigFactory, Config => TypesafeConfig }
+import com.typesafe.config.{ Config => TypesafeConfig, ConfigFactory }
 
-trait Config {
-
-  protected def conf: TypesafeConfig
-
-  lazy val apiUrl = conf.getString("api.baseUrl") + "/v1"
-  lazy val apiKeys = conf.getString("api.keys").split(',').toList
-  lazy val pageSize = 10
-  lazy val stage = conf.getString("stage")
-
-  lazy val cookieDecoder = stage match {
-    case "PROD" => new IdentityCookieDecoder(new ProductionKeys)
-    case _ => new IdentityCookieDecoder(new PreProductionKeys)
-  }
-
-  lazy val dynamoTable = conf.getString("aws.dynamodb.table")
-  lazy val statusIndex = "status-index"
-  lazy val userIndex = "user-id-index"
-
-  lazy val s3IncomingBucket = conf.getString("aws.s3.incoming")
-  lazy val s3RawBucket = conf.getString("aws.s3.raw")
-  lazy val s3ProcessedBucket = conf.getString("aws.s3.processed")
-  lazy val s3PublicBucket = conf.getString("aws.s3.public")
-  lazy val snsTopicArn = conf.getString("aws.sns.topic.arn")
-  lazy val awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region")))
+case class Config(
+    avatarServletProperties: AvatarServletProperties,
+    storeProperties: StoreProperties
+) {
+  val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
 }
 
-object AvatarApiConfig extends Config {
-  protected val conf = ConfigFactory.load()
+object Config {
+
+  private val pageSize = 10
+
+  def apply(): Config = {
+    apply(ConfigFactory.load())
+  }
+
+  def apply(conf: TypesafeConfig): Config =
+    Config(
+      avatarServletProperties(conf),
+      storeProperties(conf)
+    )
+
+  protected def storeProperties(conf: TypesafeConfig): StoreProperties =
+    StoreProperties(
+      awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region"))),
+      dynamoTable = conf.getString("aws.dynamodb.table"),
+      incomingBucket = conf.getString("aws.s3.incoming"),
+      pageSize = pageSize,
+      processedBucket = conf.getString("aws.s3.processed"),
+      publicBucket = conf.getString("aws.s3.public"),
+      rawBucket = conf.getString("aws.s3.raw")
+    )
+
+  private def avatarServletProperties(conf: TypesafeConfig): AvatarServletProperties =
+    AvatarServletProperties(
+      apiKeys = conf.getString("api.keys").split(',').toList,
+      apiUrl = conf.getString("api.baseUrl") + "/v1",
+      cookieDecoder = cookieDecoder(conf),
+      pageSize = pageSize,
+      snsTopicArn = conf.getString("aws.sns.topic.arn")
+    )
+
+  private def cookieDecoder(conf: TypesafeConfig): IdentityCookieDecoder = {
+    val keys = conf.getString("stage") match {
+      case "PROD" => new ProductionKeys
+      case _ => new PreProductionKeys
+    }
+    new IdentityCookieDecoder(keys)
+  }
 }

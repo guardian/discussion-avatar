@@ -2,7 +2,7 @@ package com.gu.adapters.http
 
 import java.io.File
 
-import com.gu.adapters.config.AvatarApiConfig
+import com.gu.adapters.config.Config
 import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
 import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.AvatarStore
@@ -11,17 +11,18 @@ import com.gu.utils.TestHelpers
 
 class AvatarServletTests extends TestHelpers with PreProdCookie {
 
-  val config = AvatarApiConfig
+  val config = Config()
+  val avatarServletProps = config.avatarServletProperties
+  val storeProps = config.storeProperties
   implicit val swagger = new AvatarSwagger
-  val apiKey = config.apiKeys.head
-  val apiUrl = config.apiUrl
+  val apiKey = avatarServletProps.apiKeys.head
+  val apiUrl = avatarServletProps.apiUrl
 
   addServlet(
     new AvatarServlet(
-      AvatarStore(new TestFileStore(config.s3ProcessedBucket), new TestKVStore(config.dynamoTable), config),
-      config.cookieDecoder,
+      AvatarStore(new TestFileStore(storeProps.processedBucket), new TestKVStore(storeProps.dynamoTable), storeProps),
       new TestPublisher,
-      config
+      avatarServletProps
     ),
     "/*"
   )

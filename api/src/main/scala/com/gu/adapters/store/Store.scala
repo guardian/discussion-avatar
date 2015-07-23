@@ -6,21 +6,21 @@ import java.util.UUID
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
-import com.amazonaws.regions.{ Region, Regions }
+import com.amazonaws.regions.Region
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
 import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSpec }
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
-import com.gu.adapters.config.Config
 import com.gu.adapters.http.Filters
+import com.gu.adapters.utils.ErrorHandling._
 import com.gu.adapters.utils.{ ASCII, ISODateFormatter, S3FoldersFromId }
 import com.gu.core.Errors._
 import com.gu.core._
 import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{ DateTime, DateTimeZone }
-import com.gu.adapters.utils.ErrorHandling._
+
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
@@ -45,19 +45,29 @@ trait KVStore {
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
 }
 
-case class Dynamo(db: DynamoDB, fs: FileStore, config: Config) extends KVStore {
+case class DynamoProperties(
+  pageSize: Int,
+  rawBucket: String,
+  processedBucket: String
+)
 
-  val pageSize = config.pageSize
-  val rawBucket = config.s3RawBucket
-  val processedBucket = config.s3ProcessedBucket
+object DynamoProperties {
+  def apply(storeProps: StoreProperties): DynamoProperties = DynamoProperties(
+    pageSize = storeProps.pageSize,
+    rawBucket = storeProps.rawBucket,
+    processedBucket = storeProps.processedBucket
+  )
+}
+
+case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends KVStore {
 
   def asAvatar(item: Item): Error \/ Avatar = {
     val avatarId = item.getString("AvatarId")
     val folder = S3FoldersFromId(avatarId)
 
     for {
-      secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
-      secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
+      secureUrl <- fs.presignedUrl(props.processedBucket, s"$folder/$avatarId")
+      secureRawUrl <- fs.presignedUrl(props.rawBucket, s"$folder/$avatarId")
     } yield {
       Avatar(
         id = avatarId,
@@ -91,7 +101,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, config: Config) extends KVStore {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
-      .withMaxResultSize(pageSize)
+      .withMaxResultSize(props.pageSize)
 
     if (until.isEmpty) spec.withScanIndexForward(false)
     since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
@@ -150,10 +160,10 @@ case class Dynamo(db: DynamoDB, fs: FileStore, config: Config) extends KVStore {
 }
 
 object Dynamo {
-  def apply(config: Config): Dynamo = {
+  def apply(awsRegion: Region, props: DynamoProperties): Dynamo = {
     val client = new AmazonDynamoDBClient(AWSCredentials.awsCredentials)
-    client.setRegion(config.awsRegion)
-    Dynamo(new DynamoDB(client), S3(config.awsRegion), config)
+    client.setRegion(awsRegion)
+    Dynamo(new DynamoDB(client), S3(awsRegion), props)
   }
 }
 
@@ -236,19 +246,17 @@ object S3 {
   }
 }
 
-case class AvatarStore(fs: FileStore, kvs: KVStore, config: Config) extends LazyLogging {
+case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) extends LazyLogging {
 
-  val incomingBucket = config.s3IncomingBucket
-  val rawBucket = config.s3RawBucket
-  val processedBucket = config.s3ProcessedBucket
-  val publicBucket = config.s3PublicBucket
-  val dynamoTable = config.dynamoTable
-  val statusIndex = config.statusIndex
-  val userIndex = config.userIndex
+  val incomingBucket = props.incomingBucket
+  val rawBucket = props.rawBucket
+  val processedBucket = props.processedBucket
+  val publicBucket = props.publicBucket
+  val dynamoTable = props.dynamoTable
 
   def get(filters: Filters): \/[Error, FoundAvatars] = {
     for {
-      qr <- kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until)
+      qr <- kvs.query(dynamoTable, AvatarStore.statusIndex, filters.status, filters.since, filters.until)
     } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
 
@@ -260,7 +268,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, config: Config) extends Lazy
     for {
       qr <- kvs.query(
         dynamoTable,
-        userIndex,
+        AvatarStore.userIndex,
         user.id,
         None,
         None
@@ -429,5 +437,18 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, config: Config) extends Lazy
 }
 
 object AvatarStore {
-  def apply(config: Config): AvatarStore = AvatarStore(S3(config.awsRegion), Dynamo(config), config)
+  val statusIndex = "status-index"
+  val userIndex = "user-id-index"
+
+  def apply(storeProps: StoreProperties): AvatarStore = AvatarStore(S3(storeProps.awsRegion), Dynamo(storeProps.awsRegion, DynamoProperties(storeProps)), storeProps)
 }
+
+case class StoreProperties(
+  awsRegion: Region,
+  incomingBucket: String,
+  rawBucket: String,
+  processedBucket: String,
+  publicBucket: String,
+  dynamoTable: String,
+  pageSize: Int
+)
