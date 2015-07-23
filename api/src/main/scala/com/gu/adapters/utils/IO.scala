@@ -18,9 +18,10 @@ object IO {
   }
 
   def readBytesFromUrl(url: String): Error \/ Array[Byte] = {
-    attempt(new java.net.URL(url).openStream()) flatMap readBytesAndCloseInputStream leftMap { _ =>
-      unableToReadAvatarRequest(NonEmptyList("Unable to load image from url: " + url))
-    }
+    val safeUrl = new java.net.URI(url).toASCIIString
+    attempt(new java.net.URL(safeUrl).openStream())
+      .flatMap(readBytesAndCloseInputStream)
+      .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Unable to load image from url: " + url)))
   }
 
   def readBytesFromFile(fileParams: Map[String, FileItem]): Error \/ (String, Array[Byte]) = {

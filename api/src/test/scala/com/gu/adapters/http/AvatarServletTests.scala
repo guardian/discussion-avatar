@@ -88,14 +88,13 @@ class AvatarServletTests extends TestHelpers {
 
   test("Post migrated avatar for social user") {
     val image = new File("src/test/resources/avatar.gif").toURI.toString
-    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
     val userId = 992
 
     postMigratedAvatar(201)(
       "/migrateAvatar",
       userId,
       image,
-      processedImage,
+      image,
       "original.gif",
       "inactive",
       "2015-12-09T17:54:06Z",
@@ -119,6 +118,23 @@ class AvatarServletTests extends TestHelpers {
       "2015-12-09T17:54:06Z",
       isSocial = true,
       a => a.data.userId == userId && a.data.status == Approved
+    )
+  }
+
+  test("Post migrated avatar checking URL encoding is applied") {
+    val image = new File("src/test/resources/avatar with spaces.gif").toURI.toString
+    val userId = 994
+
+    postMigratedAvatar(201)(
+      "/migrateAvatar",
+      userId,
+      image,
+      image,
+      "original.gif",
+      "approved",
+      "2015-12-09T17:54:06Z",
+      isSocial = false,
+      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && !a.data.isSocial
     )
   }
 
