@@ -38,7 +38,7 @@ object ErrorHandling extends LazyLogging {
 
   def logError(msg: String, statusCode: Option[Int] = None, e: Error): Error = {
     val errors = e.message + " " + e.errors.toList.mkString("(", ", ", ")")
-    logger.error(s"$msg - $statusCode  - cause is: $errors")
+    logger.error(s"$msg - ${statusCode.get} - cause is: $errors")
     e
   }
 
