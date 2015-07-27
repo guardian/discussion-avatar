@@ -36,14 +36,17 @@ object ErrorHandling extends LazyLogging {
 
   def ioError(e: Throwable): Error = ioFailed(NonEmptyList(e.getMessage))
 
-  def logError(msg: String, e: Error): Error = {
+  def logError(msg: String, statusCode: Option[Int] = None, e: Error): Error = {
     val errors = e.message + " " + e.errors.toList.mkString("(", ", ", ")")
-    logger.error(msg + " - cause is: " + errors)
+    statusCode match {
+      case Some(statusCode) => logger.error(s"$msg - status code=${statusCode} - cause is: $errors")
+      case _ => logger.error(s"$msg - cause is: $errors")
+    }
     e
   }
 
   def logIfError[A](msg: String, result: Error \/ A): Error \/ A = {
-    result.bimap(e => logError(msg, e), identity)
+    result.bimap(e => logError(msg = msg, e = e), identity)
   }
 
 }
