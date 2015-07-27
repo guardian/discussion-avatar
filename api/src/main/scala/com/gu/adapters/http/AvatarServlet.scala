@@ -1,12 +1,10 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.http.CookieDecoder.userFromHeader
-import com.gu.adapters.http.ImageValidator.validate
-import com.gu.adapters.http.TokenAuth.isValidKey
+import com.gu.adapters.http.Image.{ getImageFromFile, getImageFromUrl }
 import com.gu.adapters.notifications.{ Notifications, Publisher }
 import com.gu.adapters.store.AvatarStore
 import com.gu.adapters.utils.ErrorHandling.{ attempt, logError }
-import com.gu.adapters.utils.IO.{ readBytesFromFile, readBytesFromUrl }
 import com.gu.core.Errors._
 import com.gu.core.{ Success, _ }
 import com.gu.identity.cookie.IdentityCookieDecoder
@@ -16,12 +14,13 @@ import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{ Swagger, SwaggerSupport }
-import com.gu.adapters.utils.ErrorHandling.attempt
 
 import scalaz.{ Success => _, _ }
 
 class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServletProperties)(implicit val swagger: Swagger)
     extends ScalatraServlet
+    with ServletWithErrorHandling[Error, Success]
+    with AuthorizedApiServlet[Success]
     with JacksonJsonSupport
     with SwaggerSupport
     with SwaggerOps
@@ -94,85 +93,62 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     )
   }
 
-  get("/avatars", operation(getAvatars)) {
-    withErrorHandling {
-      for {
-        auth <- isValidKey(request.header("Authorization"), apiKeys)
-        filters <- Filters.fromParams(params)
-        avatar <- store.get(filters)
-        url = Req(apiUrl, request.getPathInfo, filters)
-      } yield (avatar, url)
+  apiGet("/avatars", operation(getAvatars)) { auth: String =>
+    for {
+      filters <- Filters.fromParams(params)
+      avatar <- store.get(filters)
+      url = Req(apiUrl, request.getPathInfo, filters)
+    } yield (avatar, url)
+  }
+
+  apiGet("/avatars/:id", operation(getAvatar)) { auth =>
+    for {
+      avatar <- store.get(params("id"))
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (avatar, req)
+  }
+
+  apiGet("/avatars/user/:userId", operation(getAvatarsForUser)) { auth =>
+    for {
+      user <- userFromRequest(params("userId"))
+      avatar <- store.get(user)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (avatar, req)
+  }
+
+  apiGet("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) { auth =>
+    for {
+      user <- userFromRequest(params("userId"))
+      active <- store.getActive(user)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (active, req)
+  }
+
+  getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
+    for {
+      user <- userFromHeader(decoder, request.header("Authorization"))
+      avatar <- store.getPersonal(user)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (avatar, req)
+  }
+
+  postWithErrors("/avatars", operation(postAvatar)) {
+    for {
+      user <- userFromHeader(decoder, request.header("Authorization"))
+      created <- uploadAvatar(request, user, fileParams)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield {
+      Notifications.publishAvatar(publisher, snsTopicArn, "Avatar Upload", created)
+      (created, req)
     }
   }
 
-  get("/avatars/:id", operation(getAvatar)) {
-    withErrorHandling {
-      for {
-        auth <- isValidKey(request.header("Authorization"), apiKeys)
-        avatar <- store.get(params("id"))
-        req = Req(apiUrl, request.getPathInfo)
-      } yield (avatar, req)
-    }
-  }
-
-  get("/avatars/user/:userId", operation(getAvatarsForUser)) {
-    withErrorHandling {
-      for {
-        auth <- isValidKey(request.header("Authorization"), apiKeys)
-        user <- userFromRequest(params("userId"))
-        avatar <- store.get(user)
-        req = Req(apiUrl, request.getPathInfo)
-      } yield (avatar, req)
-    }
-  }
-
-  get("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) {
-    withErrorHandling {
-      for {
-        auth <- isValidKey(request.header("Authorization"), apiKeys)
-        user <- userFromRequest(params("userId"))
-        active <- store.getActive(user)
-        req = Req(apiUrl, request.getPathInfo)
-      } yield (active, req)
-    }
-  }
-
-  get("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
-    withErrorHandling {
-      for {
-        user <- userFromHeader(decoder, request.header("Authorization"))
-        avatar <- store.getPersonal(user)
-        req = Req(apiUrl, request.getPathInfo)
-      } yield (avatar, req)
-    }
-  }
-
-  post("/avatars", operation(postAvatar)) {
-    withErrorHandling {
-      for {
-        user <- userFromHeader(decoder, request.header("Authorization"))
-        created <- uploadAvatar(request, user, fileParams)
-        req = Req(apiUrl, request.getPathInfo)
-      } yield {
-        Notifications.publishAvatar(publisher, snsTopicArn, "Avatar Upload", created)
-        (created, req)
-      }
-    }
-  }
-
-  put("/avatars/:id/status", operation(putAvatarStatus)) {
-    withErrorHandling {
-      for {
-        auth <- isValidKey(request.header("Authorization"), apiKeys)
-        sr <- statusRequestFromBody(parsedBody)
-        updated <- store.updateStatus(params("id"), sr.status)
-        req = Req(apiUrl, request.getPathInfo)
-      } yield (updated, req)
-    }
-  }
-
-  def withErrorHandling(response: => \/[Error, (Success, Req)]): ActionResult = {
-    (handleSuccess orElse handleError)(response)
+  apiPut("/avatars/:id/status", operation(putAvatarStatus)) { auth =>
+    for {
+      sr <- statusRequestFromBody(parsedBody)
+      updated <- store.updateStatus(params("id"), sr.status)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (updated, req)
   }
 
   def handleSuccess: PartialFunction[\/[Error, (Success, Req)], ActionResult] = {
@@ -207,18 +183,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
       response
   }
 
-  def getUrl(url: String): Error \/ (Array[Byte], String) = {
-    readBytesFromUrl(url) flatMap {
-      case bytes => validate(bytes).map(mt => (bytes, mt))
-    }
-  }
-
-  def getFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
-    readBytesFromFile(fileParams) flatMap {
-      case (fname, bytes) => validate(bytes).map(mt => (bytes, mt, fname))
-    }
-  }
-
   def getIsSocial(param: Option[String]): Error \/ Boolean = {
     attempt(param.exists(_.toBoolean)).leftMap(_ => invalidIsSocialFlag(NonEmptyList(s"'${param.get}' is not a valid isSocial flag")))
   }
@@ -228,13 +192,13 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
       case Some("application/json") | Some("text/json") =>
         for {
           req <- avatarRequestFromBody(request.body)
-          bytesAndMimeType <- getUrl(req.url)
+          bytesAndMimeType <- getImageFromUrl(req.url)
           (bytes, mimeType) = bytesAndMimeType
           upload <- store.userUpload(user, bytes, mimeType, req.url, req.isSocial)
         } yield upload
       case Some(s) if s startsWith "multipart/form-data" =>
         for {
-          bytesAndMimeTypeAndFname <- getFile(fileParams)
+          bytesAndMimeTypeAndFname <- getImageFromFile(fileParams)
           (bytes, mimeType, fname) = bytesAndMimeTypeAndFname
           isSocial <- getIsSocial(request.parameters.get("isSocial"))
           upload <- store.userUpload(user, bytes, mimeType, fname, isSocial)
