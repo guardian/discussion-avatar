@@ -1,32 +1,58 @@
 package com.gu.adapters.config
 
-import com.amazonaws.regions.{ Regions, Region }
+import com.amazonaws.regions.{ Region, Regions }
+import com.gu.adapters.http.AvatarServletProperties
+import com.gu.adapters.notifications.SnsProperties
+import com.gu.adapters.store.StoreProperties
 import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config => TypesafeConfig, ConfigFactory }
+
+case class Config(
+    avatarServletProperties: AvatarServletProperties,
+    storeProperties: StoreProperties
+) {
+  val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
+}
 
 object Config {
 
-  private[this] val conf = ConfigFactory.load()
+  private val pageSize = 10
 
-  val apiUrl = conf.getString("api.baseUrl") + "/v1"
-  val apiKeys = conf.getString("api.keys").split(',').toList
-  val pageSize = 10
-  val stage = conf.getString("stage")
-
-  val preProdCookie = 21801602 -> "WyIyMTgwMTYwMiIsIiIsIm5pY2xvbmciLCIyIiwxNDM5MjI0NTk4MDcyLDEsMTQwNzUxMzI0NzAwMCx0cnVlXQ.MCwCFCVF9u4tC6_dQJ6AFJArmBsfLp43AhR3YmlIfrlc9ZppczxpHDOVybEJbQ"
-  val cookieDecoder = stage match {
-    case "PROD" => new IdentityCookieDecoder(new ProductionKeys)
-    case _ => new IdentityCookieDecoder(new PreProductionKeys)
+  def apply(): Config = {
+    apply(ConfigFactory.load())
   }
 
-  val dynamoTable = conf.getString("aws.dynamodb.table")
-  val statusIndex = "status-index"
-  val userIndex = "user-id-index"
+  def apply(conf: TypesafeConfig): Config =
+    Config(
+      avatarServletProperties(conf),
+      storeProperties(conf)
+    )
 
-  val s3IncomingBucket = conf.getString("aws.s3.incoming")
-  val s3RawBucket = conf.getString("aws.s3.raw")
-  val s3ProcessedBucket = conf.getString("aws.s3.processed")
-  val s3PublicBucket = conf.getString("aws.s3.public")
-  val snsTopicArn = conf.getString("aws.sns.topic.arn")
-  val awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region")))
+  protected def storeProperties(conf: TypesafeConfig): StoreProperties =
+    StoreProperties(
+      awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region"))),
+      dynamoTable = conf.getString("aws.dynamodb.table"),
+      incomingBucket = conf.getString("aws.s3.incoming"),
+      pageSize = pageSize,
+      processedBucket = conf.getString("aws.s3.processed"),
+      publicBucket = conf.getString("aws.s3.public"),
+      rawBucket = conf.getString("aws.s3.raw")
+    )
+
+  private def avatarServletProperties(conf: TypesafeConfig): AvatarServletProperties =
+    AvatarServletProperties(
+      apiKeys = conf.getString("api.keys").split(',').toList,
+      apiUrl = conf.getString("api.baseUrl") + "/v1",
+      cookieDecoder = cookieDecoder(conf),
+      pageSize = pageSize,
+      snsTopicArn = conf.getString("aws.sns.topic.arn")
+    )
+
+  private def cookieDecoder(conf: TypesafeConfig): IdentityCookieDecoder = {
+    val keys = conf.getString("stage") match {
+      case "PROD" => new ProductionKeys
+      case _ => new PreProductionKeys
+    }
+    new IdentityCookieDecoder(keys)
+  }
 }

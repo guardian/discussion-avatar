@@ -2,26 +2,25 @@ package com.gu.utils
 
 import java.io.File
 
-import com.gu.adapters.config.Config
 import com.gu.adapters.http._
-import com.gu.adapters.utils.ISODateFormatter
-import org.joda.time.{ DateTimeZone, DateTime }
 import com.gu.core.Status
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
 import org.json4s.native.Serialization._
 import org.scalatest.FunSuiteLike
 import org.scalatra.test.ClientResponse
 import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
 
-class TestHelpers extends ScalatraSuite with FunSuiteLike {
+trait TestHelpers extends ScalatraSuite with FunSuiteLike {
 
-  val apiKey = Config.apiKeys.head
-  val authHeader = Map("Authorization" -> ("Bearer token=" + apiKey))
+  protected def apiKey: String
+  protected def apiUrl: String
+
+  lazy val authHeader = Map("Authorization" -> ("Bearer token=" + apiKey))
 
   protected implicit val jsonFormats = JsonFormats.all
 
-  def getOk(
+  def checkGetOk(
     uri: String,
     p: ClientResponse => Boolean,
     params: List[(String, String)] = Nil,
@@ -34,7 +33,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  def getAvatars(
+  def checkGetAvatars(
     uri: String,
     p: AvatarResponse => Boolean,
     params: List[(String, String)] = Nil,
@@ -48,9 +47,9 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  def getAvatars(uri: String): Unit = getAvatars(uri, _ => true)
+  def checkGetAvatars(uri: String): Unit = checkGetAvatars(uri, _ => true)
 
-  def getAvatar(
+  def checkGetAvatar(
     uri: String,
     p: AvatarResponse => Boolean,
     params: List[(String, String)] = Nil,
@@ -60,18 +59,18 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
     get(uri, params, authHeader ++ headers) {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
-      avatar.uri should be(Some(Config.apiUrl + "/avatars/" + avatar.data.id))
+      avatar.uri should be(Some(apiUrl + "/avatars/" + avatar.data.id))
       p(avatar) should be(true)
     }
   }
 
-  def getAvatar(uri: String): Unit = getAvatar(uri, _ => true)
+  def checkGetAvatar(uri: String): Unit = checkGetAvatar(uri, _ => true)
 
-  def getAvatar(uri: String, guuCookie: String, p: AvatarResponse => Boolean): Unit = {
-    getAvatar(uri, p, Nil, Map("Authorization" -> ("Bearer cookie=" + guuCookie)))
+  def checkGetAvatar(uri: String, guuCookie: String, p: AvatarResponse => Boolean): Unit = {
+    checkGetAvatar(uri, p, Nil, Map("Authorization" -> ("Bearer cookie=" + guuCookie)))
   }
 
-  def getError(
+  def checkGetError(
     uri: String,
     code: Int,
     p: ErrorResponse => Boolean,
@@ -97,7 +96,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
       status should equal(201)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
-      getAvatar(s"/avatars/${avatar.data.id}", p)
+      checkGetAvatar(s"/avatars/${avatar.data.id}", p)
     }
   }
 
@@ -123,13 +122,13 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
         ("isSocial" -> isSocial) ~
         ("originalFilename" -> originalFilename)
 
-    post(endpointUri, (compact(render(json))).getBytes, authHeader ++ headers) {
+    post(endpointUri, compact(render(json)).getBytes, authHeader ++ headers) {
       status should equal(expectedStatus)
 
       if (status == 201) {
         val avatar = read[AvatarResponse](body)
         p(avatar) should be(true)
-        getAvatar(s"/avatars/${avatar.data.id}", p)
+        checkGetAvatar(s"/avatars/${avatar.data.id}", p)
       }
     }
   }
@@ -157,7 +156,7 @@ class TestHelpers extends ScalatraSuite with FunSuiteLike {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
-      getAvatar(s"/avatars/${avatar.data.id}", p)
+      checkGetAvatar(s"/avatars/${avatar.data.id}", p)
     }
   }
 }
