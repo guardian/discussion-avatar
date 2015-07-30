@@ -337,55 +337,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     } yield CreatedAvatar(avatar)
   }
 
-  def migratedUserUpload(
-    user: User,
-    originalFile: Array[Byte],
-    originalFileMimeType: String,
-    processedFile: Array[Byte],
-    processedFileMimeType: String,
-    originalFilename: String,
-    status: Status,
-    createdAt: DateTime,
-    isSocial: Boolean
-  ): Error \/ CreatedAvatar = {
-
-    def migrate(): Error \/ Avatar = {
-      val avatarId = UUID.randomUUID
-      val now = DateTime.now(DateTimeZone.UTC)
-      val folder = S3FoldersFromId(avatarId.toString)
-
-      for {
-        secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
-        secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
-        avatar <- kvs.put(
-          dynamoTable,
-          Avatar(
-            id = avatarId.toString,
-            avatarUrl = secureUrl.toString,
-            userId = user.id,
-            originalFilename = originalFilename,
-            rawUrl = secureRawUrl.toString,
-            status = status,
-            createdAt = createdAt,
-            lastModified = now,
-            isSocial = isSocial,
-            isActive = status == Approved
-          )
-        )
-        _ <- fs.put(rawBucket, s"$folder/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
-        _ <- fs.put(processedBucket, s"$folder/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
-      } yield avatar
-    }
-
-    if (getPersonal(user).nonEmpty) {
-      avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has a migrated avatar")).left
-    } else {
-      val avatar = migrate()
-      if (status == Approved) avatar.map(copyToPublic)
-      avatar.map(CreatedAvatar)
-    }
-  }
-
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
     val folder = S3FoldersFromId(avatar.id)
     fs.copy(

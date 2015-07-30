@@ -160,16 +160,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     }
   }
 
-  post("/migrateAvatar", operation(postMigratedAvatar)) {
-    withErrorHandling {
-      for {
-        auth <- isValidKey(request.header("Authorization"), apiKeys)
-        created <- fetchMigratedAvatar(request)
-        req = Req(apiUrl, request.getPathInfo)
-      } yield (created, req)
-    }
-  }
-
   put("/avatars/:id/status", operation(putAvatarStatus)) {
     withErrorHandling {
       for {
@@ -191,7 +181,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, pageSize))
       case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
-      case MigratedAvatar(avatar) => Created(AvatarResponse(avatar, url))
     }
   }
 
@@ -212,8 +201,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
           case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
-          case AvatarAlreadyExists(msg, errors) => Conflict(ErrorResponse(msg, errors))
-          case UnableToReadMigratedAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
         }
       logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status.code))
 
@@ -259,18 +246,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     }
   }
 
-  def fetchMigratedAvatar(request: RichRequest): Error \/ CreatedAvatar = {
-    for {
-      req <- migrateRequestFromBody(request.body)
-      user <- userFromRequest(req.userId.toString)
-      imageBytesAndMimeType <- getUrl(req.image)
-      (imageBytes, imageMimeType) = imageBytesAndMimeType
-      processedImageBytesAndMimeType <- getUrl(req.processedImage)
-      (processedImageBytes, processedImageMimeType) = processedImageBytesAndMimeType
-      upload <- store.migratedUserUpload(user, imageBytes, imageMimeType, processedImageBytes, processedImageMimeType, req.originalFilename, Status(req.status), req.createdAt, req.isSocial)
-    } yield upload
-  }
-
   def avatarRequestFromBody(body: String): Error \/ AvatarRequest = {
     attempt(parse(body).extract[AvatarRequest])
       .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
@@ -279,11 +254,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
   def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
     attempt(parsedBody.extract[StatusRequest])
       .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
-  }
-
-  def migrateRequestFromBody(body: String): Error \/ MigratedAvatarRequest = {
-    attempt(parse(body).extract[MigratedAvatarRequest])
-      .leftMap(_ => unableToReadMigratedAvatarRequest(NonEmptyList("Could not parse request body")))
   }
 
   def userFromRequest(userId: String): Error \/ User = {
