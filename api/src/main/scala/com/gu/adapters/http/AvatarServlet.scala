@@ -2,20 +2,20 @@ package com.gu.adapters.http
 
 import com.gu.adapters.http.CookieDecoder.userFromHeader
 import com.gu.adapters.http.Image._
-import com.gu.adapters.notifications.{ Notifications, Publisher }
+import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
-import com.gu.core.utils.ErrorHandling.{ attempt, logError }
+import com.gu.core.utils.ErrorHandling.{attempt, logError}
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
-import org.scalatra.swagger.{ Swagger, SwaggerSupport }
+import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.{ Success => _, _ }
+import scalaz.{Success => _, _}
 
 class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServletProperties)(implicit val swagger: Swagger)
     extends ScalatraServlet
