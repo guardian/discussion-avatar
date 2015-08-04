@@ -3,7 +3,7 @@ package com.gu.utils
 import java.io.File
 
 import com.gu.adapters.http._
-import com.gu.core.Status
+import com.gu.core.models.Status
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.native.Serialization._

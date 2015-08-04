@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.core.Status
+import com.gu.core.models.Status
 import org.joda.time.DateTime
 
 sealed trait RequestParam

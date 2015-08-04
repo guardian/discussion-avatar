@@ -1,4 +1,4 @@
-package com.gu.core
+package com.gu.core.models
 
 sealed trait Status { def asString: String }
 case object Inactive extends Status { val asString = "inactive" }

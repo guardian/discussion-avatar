@@ -4,7 +4,8 @@ import javax.servlet.ServletContext
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.{ AvatarServlet, AvatarSwagger, ResourcesApp }
 import com.gu.adapters.notifications.SNS
-import com.gu.adapters.store.AvatarStore
+import com.gu.adapters.store.{ Dynamo, DynamoProperties, S3 }
+import com.gu.core.store.AvatarStore
 import org.scalatra._
 
 class ScalatraBootstrap extends LifeCycle {
@@ -15,8 +16,9 @@ class ScalatraBootstrap extends LifeCycle {
 
   override def init(context: ServletContext) {
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    val storeProps = config.storeProperties
     val avatarServlet = new AvatarServlet(
-      AvatarStore(config.storeProperties),
+      AvatarStore(S3(storeProps.awsRegion), Dynamo(storeProps.awsRegion, DynamoProperties(storeProps)), storeProps),
       new SNS(config.snsProperties),
       config.avatarServletProperties
     )

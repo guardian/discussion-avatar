@@ -1,8 +1,8 @@
 package com.gu.adapters.http
 
-import java.io.{ BufferedInputStream, File, FileInputStream }
+import java.io.{ File, FileInputStream }
 
-import com.gu.adapters.utils.IO.readBytesAndCloseInputStream
+import com.gu.adapters.http.IO.readBytesAndCloseInputStream
 import org.scalatest.{ FunSuite, Matchers }
 
 class ImageValidatorTests extends FunSuite with Matchers {

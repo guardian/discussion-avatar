@@ -1,4 +1,4 @@
-package com.gu.adapters.utils
+package com.gu.core.utils
 
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone }
@@ -14,6 +14,6 @@ object ASCII {
   def apply(s: String) = new String(s.getBytes, new US_ASCII)
 }
 
-object S3FoldersFromId {
-  def apply(id: String): String = id.take(4).toList.mkString("/")
+object KVLocationFromID {
+  def apply(id: String): String = id.take(4).toList.mkString("/") + "/" + id
 }

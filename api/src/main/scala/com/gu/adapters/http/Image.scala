@@ -4,10 +4,10 @@ import java.io.{ ByteArrayInputStream, InputStream }
 import java.net.URLConnection
 import javax.imageio.ImageIO
 
-import com.gu.adapters.utils.ErrorHandling.attempt
-import com.gu.adapters.utils.IO._
-import com.gu.core.Error
-import com.gu.core.Errors._
+import com.gu.adapters.http.IO._
+import com.gu.core.models.Error
+import com.gu.core.models.Errors.invalidMimeType
+import com.gu.core.utils.ErrorHandling.attempt
 import org.scalatra.servlet.FileItem
 
 import scalaz.Scalaz._

@@ -3,10 +3,10 @@ package com.gu.adapters.http
 import java.io.File
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
 import com.gu.adapters.notifications.TestPublisher
-import com.gu.adapters.store.AvatarStore
-import com.gu.core._
+import com.gu.adapters.store.{ TestFileStore, TestKVStore }
+import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
+import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
 
 class AvatarServletTests extends TestHelpers with PreProdCookie {
@@ -20,7 +20,7 @@ class AvatarServletTests extends TestHelpers with PreProdCookie {
 
   addServlet(
     new AvatarServlet(
-      AvatarStore(new TestFileStore(storeProps.processedBucket), new TestKVStore(storeProps.dynamoTable), storeProps),
+      AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps),
       new TestPublisher,
       avatarServletProps
     ),

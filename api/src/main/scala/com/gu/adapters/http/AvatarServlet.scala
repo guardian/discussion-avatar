@@ -1,12 +1,12 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.http.CookieDecoder.userFromHeader
-import com.gu.adapters.http.Image.{ getImageFromFile, getImageFromUrl }
+import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{ Notifications, Publisher }
-import com.gu.adapters.store.AvatarStore
-import com.gu.adapters.utils.ErrorHandling.{ attempt, logError }
-import com.gu.core.Errors._
-import com.gu.core.{ Success, _ }
+import com.gu.core.models.Errors._
+import com.gu.core.models._
+import com.gu.core.store.AvatarStore
+import com.gu.core.utils.ErrorHandling.{ attempt, logError }
 import com.gu.identity.cookie.IdentityCookieDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
@@ -95,7 +95,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars", operation(getAvatars)) { auth: String =>
     for {
-      filters <- Filters.fromParams(params)
+      filters <- Filter.fromParams(params)
       avatar <- store.get(filters)
       url = Req(apiUrl, request.getPathInfo, filters)
     } yield (avatar, url)

@@ -1,10 +1,9 @@
 package com.gu.adapters.http
 
-import com.gu.core._
-import net.liftweb.json.JsonAST.JNothing
+import com.gu.core.models._
+import org.json4s.JsonAST.JString
 import org.json4s.ext.JodaTimeSerializers
-import org.json4s.{ DefaultFormats, FieldSerializer, CustomSerializer }
-import org.json4s.JsonAST.{ JField, JString }
+import org.json4s.{ CustomSerializer, DefaultFormats, FieldSerializer }
 
 object JsonFormats {
   val links = FieldSerializer[Argo]({ case ("links", Nil) => None })

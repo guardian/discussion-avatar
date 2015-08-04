@@ -2,7 +2,7 @@ package com.gu.adapters.http
 
 import com.gu.adapters.http.TokenAuth._
 import org.scalatra._
-import com.gu.core.Error
+import com.gu.core.models.Error
 
 import scalaz.\/
 
