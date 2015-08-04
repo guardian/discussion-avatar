@@ -4,25 +4,24 @@ import java.io.ByteArrayInputStream
 import java.net.URL
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
+import com.amazonaws.auth.{AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.regions.Region
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
-import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSpec }
+import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpec}
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
-import com.gu.core._
 import com.gu.core.models.Errors._
-import com.gu.core.models.{ Avatar, Status }
+import com.gu.core.models.{Avatar, Error, Status}
 import com.gu.core.store._
 import com.gu.core.utils.ErrorHandling._
-import com.gu.core.utils.{ ISODateFormatter, KVLocationFromID }
-import org.joda.time.{ DateTime, DateTimeZone }
+import com.gu.core.utils.{ISODateFormatter, KVLocationFromID}
+import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 
 object AWSCredentials {
   val awsCredentials = new AWSCredentialsProviderChain(
@@ -47,7 +46,7 @@ object DynamoProperties {
 
 case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends KVStore {
 
-  def asAvatar(item: Item): models.Error \/ Avatar = {
+  def asAvatar(item: Item): Error \/ Avatar = {
     val avatarId = item.getString("AvatarId")
     val location = KVLocationFromID(avatarId)
 
@@ -70,7 +69,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     }
   }
 
-  def get(table: String, id: String): models.Error \/ Avatar = {
+  def get(table: String, id: String): Error \/ Avatar = {
     handleIoErrors(db.getTable(table).getItem("AvatarId", id))
       .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
       .map(item => asAvatar(item).toOption.get)
@@ -83,7 +82,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     value: A,
     since: Option[DateTime] = None,
     until: Option[DateTime] = None
-  ): models.Error \/ QueryResponse = {
+  ): Error \/ QueryResponse = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
@@ -106,15 +105,15 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     }
   }
 
-  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
+  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
     query(table, index, "UserId", userId, since, until)
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
     query(table, index, "Status", status.asString, since, until)
   }
 
-  def put(table: String, avatar: Avatar): models.Error \/ Avatar = {
+  def put(table: String, avatar: Avatar): Error \/ Avatar = {
     val item = new Item()
       .withPrimaryKey("AvatarId", avatar.id)
       .withNumber("UserId", avatar.userId)
@@ -128,7 +127,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     handleIoErrors(db.getTable(table).putItem(item)) map (_ => avatar)
   }
 
-  def update(table: String, id: String, status: Status, isActive: Boolean = false): models.Error \/ Avatar = {
+  def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar = {
     val now = DateTime.now(DateTimeZone.UTC)
     val spec = new UpdateItemSpec()
       .withPrimaryKey("AvatarId", id)
@@ -155,7 +154,7 @@ object Dynamo {
 
 case class S3(client: AmazonS3Client) extends FileStore {
 
-  def getMetadata(bucket: String, key: String): models.Error \/ ObjectMetadata = {
+  def getMetadata(bucket: String, key: String): Error \/ ObjectMetadata = {
     val request = new GetObjectMetadataRequest(bucket, key)
     client.getObjectMetadata(request).right
   }
@@ -165,7 +164,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     fromKey: String,
     toBucket: String,
     toKey: String
-  ): models.Error \/ Unit = {
+  ): Error \/ Unit = {
 
     val request = new CopyObjectRequest(fromBucket, fromKey, toBucket, toKey)
     handleIoErrors(client.copyObject(request))
@@ -176,7 +175,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     key: String,
     file: Array[Byte],
     metadata: ObjectMetadata
-  ): models.Error \/ Unit = {
+  ): Error \/ Unit = {
 
     val inputStream = new ByteArrayInputStream(file)
     metadata.setContentLength(file.length)
@@ -184,7 +183,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     handleIoErrors(client.putObject(request))
   }
 
-  def delete(bucket: String, key: String): models.Error \/ Unit = {
+  def delete(bucket: String, key: String): Error \/ Unit = {
     val request = new DeleteObjectRequest(bucket, key)
     handleIoErrors(client.deleteObject(request))
   }
@@ -193,7 +192,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     bucket: String,
     key: String,
     expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
-  ): models.Error \/ URL = {
+  ): Error \/ URL = {
     val request = new GeneratePresignedUrlRequest(bucket, key)
     request.setExpiration(expiration.toDate)
     handleIoErrors(client.generatePresignedUrl(request))
