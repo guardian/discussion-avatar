@@ -5,13 +5,30 @@ import java.net.URLConnection
 import javax.imageio.ImageIO
 
 import com.gu.adapters.utils.ErrorHandling.attempt
+import com.gu.adapters.utils.IO._
 import com.gu.core.Error
-import com.gu.core.Errors.invalidMimeType
+import com.gu.core.Errors._
+import org.scalatra.servlet.FileItem
 
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
 
-object ImageValidator {
+object Image {
+
+  def getImageFromUrl(url: String): Error \/ (Array[Byte], String) = {
+    for {
+      bytes <- readBytesFromUrl(url)
+      mimeType <- validate(bytes)
+    } yield (bytes, mimeType)
+  }
+
+  def getImageFromFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
+    for {
+      nameAndBytes <- readBytesFromFile(fileParams)
+      (fname, bytes) = nameAndBytes
+      mimeType <- validate(bytes)
+    } yield (bytes, mimeType, fname)
+  }
 
   def notAnimated(image: InputStream): Boolean = {
     val reader = ImageIO.getImageReadersBySuffix("GIF").next
