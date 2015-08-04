@@ -52,12 +52,4 @@ trait SwaggerOps {
         bodyParam[StatusRequest]("")
           .description("The request includes the Avatar's new status")
       )
-
-  def postMigratedAvatar =
-    apiOperation[Avatar]("postMigratedAvatar")
-      .summary("Post an existing avatar (to perform a migration)")
-      .parameters(
-        bodyParam[MigratedAvatarRequest]("")
-          .description("The request includes all the details required to migrate an existing avatar")
-      )
 }

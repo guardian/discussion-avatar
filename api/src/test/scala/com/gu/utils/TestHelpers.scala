@@ -100,39 +100,6 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
     }
   }
 
-  def postMigratedAvatar(expectedStatus: Int)(
-    endpointUri: String,
-    userId: Int,
-    image: String,
-    processedImage: String,
-    originalFilename: String,
-    avatarStatus: String,
-    createdAt: String,
-    isSocial: Boolean,
-    p: AvatarResponse => Boolean
-  ): Unit = {
-
-    val headers = Map("Content-type" -> "application/json")
-    val json =
-      ("userId" -> userId) ~
-        ("image" -> image) ~
-        ("processedImage" -> processedImage) ~
-        ("status" -> avatarStatus) ~
-        ("createdAt" -> createdAt) ~
-        ("isSocial" -> isSocial) ~
-        ("originalFilename" -> originalFilename)
-
-    post(endpointUri, compact(render(json)).getBytes, authHeader ++ headers) {
-      status should equal(expectedStatus)
-
-      if (status == 201) {
-        val avatar = read[AvatarResponse](body)
-        p(avatar) should be(true)
-        checkGetAvatar(s"/avatars/${avatar.data.id}", p)
-      }
-    }
-  }
-
   def postError(
     uri: String,
     file: File,
