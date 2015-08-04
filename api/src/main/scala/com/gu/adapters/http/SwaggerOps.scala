@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.core.Avatar
+import com.gu.core.models.Avatar
 import org.scalatra.swagger._
 
 trait SwaggerOps {

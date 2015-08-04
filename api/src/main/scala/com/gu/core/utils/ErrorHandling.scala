@@ -1,7 +1,7 @@
-package com.gu.adapters.utils
+package com.gu.core.utils
 
-import com.gu.core.Error
-import com.gu.core.Errors._
+import com.gu.core.models.Error
+import com.gu.core.models.Errors._
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.{ Failure, Success, Try }

@@ -1,4 +1,4 @@
-package com.gu.core
+package com.gu.core.models
 
 sealed trait Success {
   def body: Any

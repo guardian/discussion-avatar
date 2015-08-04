@@ -1,13 +1,14 @@
-package com.gu.adapters.http.store
+package com.gu.adapters.store
 
 import java.net.URL
 
 import com.amazonaws.services.s3.model.ObjectMetadata
-import com.gu.adapters.http.store.TestStoreHelpers.path
-import com.gu.adapters.store.{ FileStore, KVStore, QueryResponse }
-import com.gu.adapters.utils.S3FoldersFromId
-import com.gu.core.Errors.avatarNotFound
+import com.gu.adapters.store.TestStoreHelpers.path
+import com.gu.core.models._
+import com.gu.core.store.{ FileStore, KVStore, QueryResponse }
 import com.gu.core._
+import com.gu.core.utils.KVLocationFromID
+import Errors.avatarNotFound
 import org.joda.time.{ DateTime, DateTimeZone }
 
 import scalaz.Scalaz._
@@ -21,7 +22,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
 
   private[this] var files: Map[String, String] = {
     val id = "f1d07680-fd11-492c-9bbf-fc996b435590"
-    Map(s"$s3ProcessedBucket/${S3FoldersFromId(id)}/$id" -> "some-file")
+    Map(s"$s3ProcessedBucket/${KVLocationFromID(id)}" -> "some-file")
   }
 
   def copy(
@@ -29,7 +30,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     fromKey: String,
     toBucket: String,
     toKey: String
-  ): Error \/ Unit = {
+  ): models.Error \/ Unit = {
 
     val oldPath = path(fromBucket, fromKey)
     val newPath = path(toBucket, toKey)
@@ -44,7 +45,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     key: String,
     file: Array[Byte],
     metadata: ObjectMetadata
-  ): Error \/ Unit = {
+  ): models.Error \/ Unit = {
 
     files += path(bucket, key) -> file.toString
     ().right
@@ -54,11 +55,11 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     bucket: String,
     key: String,
     expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
-  ): Error \/ URL = {
+  ): models.Error \/ URL = {
     new URL("http://some-url/").right
   }
 
-  def delete(bucket: String, key: String): Error \/ Unit = {
+  def delete(bucket: String, key: String): models.Error \/ Unit = {
     files -= path(bucket, key)
     ().right
   }
@@ -117,24 +118,24 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     )
   )
 
-  def get(table: String, id: String): Error \/ Avatar = {
+  def get(table: String, id: String): models.Error \/ Avatar = {
     docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"avatar with ID '$id' does not exist")))
   }
 
-  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
+  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.status == status).toList, hasMore = false).right
   }
 
-  def put(table: String, avatar: Avatar): Error \/ Avatar = {
+  def put(table: String, avatar: Avatar): models.Error \/ Avatar = {
     docs += path(table, avatar.id) -> avatar
     avatar.right
   }
 
-  def update(table: String, id: String, status: Status, isActive: Boolean): Error \/ Avatar = {
+  def update(table: String, id: String, status: Status, isActive: Boolean): models.Error \/ Avatar = {
     val p = path(table, id)
     val old = docs.get(p).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
     old map { a =>

@@ -1,4 +1,4 @@
-package com.gu.core
+package com.gu.core.models
 
 import scalaz.NonEmptyList
 

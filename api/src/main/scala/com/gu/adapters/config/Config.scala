@@ -3,7 +3,7 @@ package com.gu.adapters.config
 import com.amazonaws.regions.{ Region, Regions }
 import com.gu.adapters.http.AvatarServletProperties
 import com.gu.adapters.notifications.SnsProperties
-import com.gu.adapters.store.StoreProperties
+import com.gu.core.store.StoreProperties
 import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
 import com.typesafe.config.{ Config => TypesafeConfig, ConfigFactory }
 
@@ -31,12 +31,14 @@ object Config {
   protected def storeProperties(conf: TypesafeConfig): StoreProperties =
     StoreProperties(
       awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region"))),
-      dynamoTable = conf.getString("aws.dynamodb.table"),
-      incomingBucket = conf.getString("aws.s3.incoming"),
+      kvTable = conf.getString("aws.dynamodb.table"),
+      fsIncomingBucket = conf.getString("aws.s3.incoming"),
       pageSize = pageSize,
-      processedBucket = conf.getString("aws.s3.processed"),
-      publicBucket = conf.getString("aws.s3.public"),
-      rawBucket = conf.getString("aws.s3.raw")
+      fsProcessedBucket = conf.getString("aws.s3.processed"),
+      fsPublicBucket = conf.getString("aws.s3.public"),
+      fsRawBucket = conf.getString("aws.s3.raw"),
+      kvStatusIndex = "status-index",
+      kvUserIndex = "user-id-index"
     )
 
   private def avatarServletProperties(conf: TypesafeConfig): AvatarServletProperties =

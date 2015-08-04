@@ -1,10 +1,10 @@
-package com.gu.adapters.utils
+package com.gu.adapters.http
 
 import java.io.InputStream
 
-import com.gu.adapters.utils.ErrorHandling._
-import com.gu.core.Error
-import com.gu.core.Errors._
+import com.gu.core.models.Error
+import com.gu.core.models.Errors._
+import com.gu.core.utils.ErrorHandling._
 import org.scalatra.servlet.FileItem
 
 import scala.util.Try

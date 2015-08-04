@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.core.Avatar
+import com.gu.core.models.Avatar
 
 object Links {
 
@@ -11,12 +11,12 @@ object Links {
 
     val next = for (c <- cursor if hasMore || query.until.isDefined) yield {
       val fs = query.copy(since = Some(c), until = None)
-      Link("next", s"${url.base}${url.path}${Filters.queryString(fs)}")
+      Link("next", s"${url.base}${url.path}${FilterUtils.queryString(fs)}")
     }
 
     val prev = for (f <- first if query.since.isDefined || query.until.isDefined) yield {
       val fs = query.copy(until = Some(f), since = None)
-      Link("prev", s"${url.base}${url.path}${Filters.queryString(fs)}")
+      Link("prev", s"${url.base}${url.path}${FilterUtils.queryString(fs)}")
     }
 
     List(prev, next).flatten
