@@ -4,24 +4,24 @@ import java.io.ByteArrayInputStream
 import java.net.URL
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.{AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain}
+import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
 import com.amazonaws.regions.Region
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
-import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpec}
+import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSpec }
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.core.models.Errors._
-import com.gu.core.models.{Avatar, Error, Status}
+import com.gu.core.models.{ Avatar, Error, Status }
 import com.gu.core.store._
 import com.gu.core.utils.ErrorHandling._
-import com.gu.core.utils.{ISODateFormatter, KVLocationFromID}
-import org.joda.time.{DateTime, DateTimeZone}
+import com.gu.core.utils.{ ISODateFormatter, KVLocationFromID }
+import org.joda.time.{ DateTime, DateTimeZone }
 
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{ NonEmptyList, \/ }
 
 object AWSCredentials {
   val awsCredentials = new AWSCredentialsProviderChain(

@@ -11,12 +11,12 @@ object Links {
 
     val next = for (c <- cursor if hasMore || query.until.isDefined) yield {
       val fs = query.copy(since = Some(c), until = None)
-      Link("next", s"${url.base}${url.path}${FilterUtils.queryString(fs)}")
+      Link("next", s"${url.base}${url.path}${Filter.queryString(fs)}")
     }
 
     val prev = for (f <- first if query.since.isDefined || query.until.isDefined) yield {
       val fs = query.copy(until = Some(f), since = None)
-      Link("prev", s"${url.base}${url.path}${FilterUtils.queryString(fs)}")
+      Link("prev", s"${url.base}${url.path}${Filter.queryString(fs)}")
     }
 
     List(prev, next).flatten

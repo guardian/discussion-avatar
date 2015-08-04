@@ -6,7 +6,7 @@ case class Req(base: String, path: String, filters: Filters = Filters(Approved, 
 
 object Req {
   def toString(req: Req): String = {
-    val queryString = FilterUtils.queryString(req.filters)
+    val queryString = Filter.queryString(req.filters)
     req.base + req.path + queryString
   }
 }

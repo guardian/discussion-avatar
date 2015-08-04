@@ -95,7 +95,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars", operation(getAvatars)) { auth: String =>
     for {
-      filters <- FilterUtils.fromParams(params)
+      filters <- Filter.fromParams(params)
       avatar <- store.get(filters)
       url = Req(apiUrl, request.getPathInfo, filters)
     } yield (avatar, url)

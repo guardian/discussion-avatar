@@ -9,7 +9,7 @@ import org.scalatra.Params
 
 import scalaz.{ Success, _ }
 
-object FilterUtils {
+object Filter {
 
   def fromParams[A](params: Params): InvalidFilters \/ Filters = {
     val status: Validation[NonEmptyList[String], Status] = params.get("status") match {
