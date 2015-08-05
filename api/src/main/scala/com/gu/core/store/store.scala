@@ -141,7 +141,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
           isActive = false
         )
       )
-      _ <- fs.put(incomingBucket, s"$location/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
+      _ <- fs.put(incomingBucket, location, file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
   }
 
