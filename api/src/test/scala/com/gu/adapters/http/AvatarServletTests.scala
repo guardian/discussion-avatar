@@ -8,8 +8,9 @@ import com.gu.adapters.store.{ TestFileStore, TestKVStore }
 import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
 import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
+import com.gu.adapters.http.Cookies.preProdCookie
 
-class AvatarServletTests extends TestHelpers with PreProdCookie {
+class AvatarServletTests extends TestHelpers {
 
   val config = Config()
   val avatarServletProps = config.avatarServletProperties

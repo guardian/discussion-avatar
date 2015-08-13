@@ -3,10 +3,11 @@ package com.gu.adapters.http
 import com.gu.core.models.User
 import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys }
 import org.scalatest.{ FunSuite, Matchers }
+import com.gu.adapters.http.Cookies.preProdCookie
 
 import scalaz.\/-
 
-class AuthenticationTests extends FunSuite with Matchers with PreProdCookie {
+class AuthenticationTests extends FunSuite with Matchers {
 
   val decoder = new IdentityCookieDecoder(new PreProductionKeys)
 
