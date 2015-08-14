@@ -2,33 +2,26 @@ package com.gu.adapters.store
 
 import java.io.ByteArrayInputStream
 import java.net.URL
-import java.util.UUID
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
-import com.amazonaws.regions.{ Region, Regions }
+import com.amazonaws.regions.Region
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
 import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSpec }
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
-import com.gu.adapters.config.Config
-import com.gu.adapters.http.Filters
-import com.gu.adapters.utils.{ ASCII, ISODateFormatter, S3FoldersFromId }
-import com.gu.core.Errors._
-import com.gu.core.{ _ }
-import com.typesafe.scalalogging.LazyLogging
+import com.gu.core.models.Errors._
+import com.gu.core.models.{ Avatar, Error, Status }
+import com.gu.core.store._
+import com.gu.core.utils.ErrorHandling._
+import com.gu.core.utils.{ ISODateFormatter, KVLocationFromID }
 import org.joda.time.{ DateTime, DateTimeZone }
-import com.gu.adapters.utils.ErrorHandling._
+
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
-
-case class QueryResponse(
-  avatars: List[Avatar],
-  hasMore: Boolean
-)
 
 object AWSCredentials {
   val awsCredentials = new AWSCredentialsProviderChain(
@@ -37,27 +30,29 @@ object AWSCredentials {
   )
 }
 
-trait KVStore {
-  def get(table: String, id: String): Error \/ Avatar
-  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
-  def put(table: String, avatar: Avatar): Error \/ Avatar
-  def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
+case class DynamoProperties(
+  pageSize: Int,
+  rawBucket: String,
+  processedBucket: String
+)
+
+object DynamoProperties {
+  def apply(storeProps: StoreProperties): DynamoProperties = DynamoProperties(
+    pageSize = storeProps.pageSize,
+    rawBucket = storeProps.fsRawBucket,
+    processedBucket = storeProps.fsProcessedBucket
+  )
 }
 
-case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
-
-  val pageSize = Config.pageSize
-  val rawBucket = Config.s3RawBucket
-  val processedBucket = Config.s3ProcessedBucket
+case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends KVStore {
 
   def asAvatar(item: Item): Error \/ Avatar = {
     val avatarId = item.getString("AvatarId")
-    val folder = S3FoldersFromId(avatarId)
+    val location = KVLocationFromID(avatarId)
 
     for {
-      secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
-      secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
+      secureUrl <- fs.presignedUrl(props.processedBucket, location)
+      secureRawUrl <- fs.presignedUrl(props.rawBucket, location)
     } yield {
       Avatar(
         id = avatarId,
@@ -91,7 +86,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
-      .withMaxResultSize(pageSize)
+      .withMaxResultSize(props.pageSize)
 
     if (until.isEmpty) spec.withScanIndexForward(false)
     since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
@@ -150,35 +145,11 @@ case class Dynamo(db: DynamoDB, fs: FileStore) extends KVStore {
 }
 
 object Dynamo {
-  def apply(): Dynamo = {
+  def apply(awsRegion: Region, props: DynamoProperties): Dynamo = {
     val client = new AmazonDynamoDBClient(AWSCredentials.awsCredentials)
-    client.setRegion(Config.awsRegion)
-    Dynamo(new DynamoDB(client), S3())
+    client.setRegion(awsRegion)
+    Dynamo(new DynamoDB(client), S3(awsRegion), props)
   }
-}
-
-trait FileStore {
-  def copy(
-    fromBucket: String,
-    fromKey: String,
-    toBucket: String,
-    toKey: String
-  ): Error \/ Unit
-
-  def put(
-    bucket: String,
-    key: String,
-    file: Array[Byte],
-    metadata: ObjectMetadata
-  ): Error \/ Unit
-
-  def delete(bucket: String, key: String): Error \/ Unit
-
-  def presignedUrl(
-    bucket: String,
-    key: String,
-    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
-  ): Error \/ URL
 }
 
 case class S3(client: AmazonS3Client) extends FileStore {
@@ -229,205 +200,9 @@ case class S3(client: AmazonS3Client) extends FileStore {
 }
 
 object S3 {
-  def apply(): S3 = {
+  def apply(awsRegion: Region): S3 = {
     val client = new AmazonS3Client(AWSCredentials.awsCredentials)
-    client.setRegion(Config.awsRegion)
+    client.setRegion(awsRegion)
     S3(client)
   }
-}
-
-case class AvatarStore(fs: FileStore, kvs: KVStore) extends LazyLogging {
-
-  val incomingBucket = Config.s3IncomingBucket
-  val rawBucket = Config.s3RawBucket
-  val processedBucket = Config.s3ProcessedBucket
-  val publicBucket = Config.s3PublicBucket
-  val dynamoTable = Config.dynamoTable
-  val statusIndex = Config.statusIndex
-  val userIndex = Config.userIndex
-
-  def get(filters: Filters): \/[Error, FoundAvatars] = {
-    for {
-      qr <- kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until)
-    } yield FoundAvatars(qr.avatars, qr.hasMore)
-  }
-
-  def get(id: String): Error \/ FoundAvatar = {
-    kvs.get(dynamoTable, id) map FoundAvatar
-  }
-
-  def get(user: User): \/[Error, FoundAvatars] = {
-    for {
-      qr <- kvs.query(
-        dynamoTable,
-        userIndex,
-        user.id,
-        None,
-        None
-      )
-      // avatars <- qr.avatars.map(_.sortWith { case (a, b) => a.lastModified isAfter b.lastModified})
-    } yield FoundAvatars(qr.avatars, qr.hasMore)
-  }
-
-  def getActive(user: User): Error \/ FoundAvatar = {
-    for {
-      found <- get(user)
-      avatar <- found.body.find(_.isActive)
-        .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
-    } yield FoundAvatar(avatar)
-  }
-
-  def getPersonal(user: User): Error \/ FoundAvatar = {
-    for {
-      found <- get(user)
-      avatar <- found.body.find(a => a.isActive || a.status == Inactive)
-        .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
-    } yield FoundAvatar(avatar)
-  }
-
-  def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
-    val metadata = new ObjectMetadata()
-    metadata.addUserMetadata("avatar-id", avatarId.toString)
-    metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", ASCII(originalFilename))
-    metadata.setCacheControl("max-age=3600")
-    metadata.setContentType(mimeType)
-    metadata
-  }
-
-  def userUpload(
-    user: User,
-    file: Array[Byte],
-    mimeType: String,
-    originalFilename: String,
-    isSocial: Boolean = false
-  ): Error \/ CreatedAvatar = {
-
-    val avatarId = UUID.randomUUID
-    val now = DateTime.now(DateTimeZone.UTC)
-    val folder = S3FoldersFromId(avatarId.toString)
-
-    for {
-      secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
-      secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
-      avatar <- kvs.put(
-        dynamoTable,
-        Avatar(
-          id = avatarId.toString,
-          avatarUrl = secureUrl.toString,
-          userId = user.id,
-          originalFilename = originalFilename,
-          rawUrl = secureRawUrl.toString,
-          status = Pending,
-          createdAt = now,
-          lastModified = now,
-          isSocial = isSocial,
-          isActive = false
-        )
-      )
-      _ <- fs.put(incomingBucket, s"$folder/$avatarId", file, objectMetadata(avatarId, user, originalFilename, mimeType))
-    } yield CreatedAvatar(avatar)
-  }
-
-  def migratedUserUpload(
-    user: User,
-    originalFile: Array[Byte],
-    originalFileMimeType: String,
-    processedFile: Array[Byte],
-    processedFileMimeType: String,
-    originalFilename: String,
-    status: Status,
-    createdAt: DateTime,
-    isSocial: Boolean
-  ): Error \/ CreatedAvatar = {
-
-    def migrate(): Error \/ Avatar = {
-      val avatarId = UUID.randomUUID
-      val now = DateTime.now(DateTimeZone.UTC)
-      val folder = S3FoldersFromId(avatarId.toString)
-
-      for {
-        secureUrl <- fs.presignedUrl(processedBucket, s"$folder/$avatarId")
-        secureRawUrl <- fs.presignedUrl(rawBucket, s"$folder/$avatarId")
-        avatar <- kvs.put(
-          dynamoTable,
-          Avatar(
-            id = avatarId.toString,
-            avatarUrl = secureUrl.toString,
-            userId = user.id,
-            originalFilename = originalFilename,
-            rawUrl = secureRawUrl.toString,
-            status = status,
-            createdAt = createdAt,
-            lastModified = now,
-            isSocial = isSocial,
-            isActive = status == Approved
-          )
-        )
-        _ <- fs.put(rawBucket, s"$folder/$avatarId", originalFile, objectMetadata(avatarId, user, originalFilename, originalFileMimeType))
-        _ <- fs.put(processedBucket, s"$folder/$avatarId", processedFile, objectMetadata(avatarId, user, originalFilename, processedFileMimeType))
-      } yield avatar
-    }
-
-    if (getPersonal(user).nonEmpty) {
-      avatarAlreadyExists(NonEmptyList(s"User ${user.id} already has a migrated avatar")).left
-    } else {
-      val avatar = migrate()
-      if (status == Approved) avatar.map(copyToPublic)
-      avatar.map(CreatedAvatar)
-    }
-  }
-
-  def copyToPublic(avatar: Avatar): Error \/ Avatar = {
-    val folder = S3FoldersFromId(avatar.id)
-    fs.copy(
-      processedBucket,
-      s"$folder/${avatar.id}",
-      publicBucket,
-      s"user/${avatar.userId.toString}"
-    ) map (_ => avatar)
-  }
-
-  def deleteFromPublic(avatar: Avatar): Error \/ Avatar = {
-    fs.delete(
-      publicBucket,
-      s"user/${avatar.userId.toString}"
-    ) map (_ => avatar)
-  }
-
-  def updateS3(old: Avatar, updated: Avatar): Error \/ Avatar = updated.status match {
-    case Approved => copyToPublic(updated)
-    case Rejected if old.isActive => deleteFromPublic(updated)
-    case _ => updated.right
-  }
-
-  def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
-    val oldAvatar = kvs.get(dynamoTable, id)
-
-    val result = status match {
-      case noChange if oldAvatar.exists(_.status == status) => oldAvatar map UpdatedAvatar
-      case Approved => {
-        for {
-          old <- oldAvatar
-          active = getActive(User(old.userId))
-            .map(a => kvs.update(dynamoTable, a.body.id, a.body.status, isActive = false))
-          updated <- kvs.update(dynamoTable, id, status, isActive = true)
-          _ <- updateS3(old, updated)
-        } yield UpdatedAvatar(updated)
-      }
-      case _ => {
-        for {
-          old <- oldAvatar
-          updated <- kvs.update(dynamoTable, id, status, isActive = false)
-          _ <- updateS3(old, updated)
-        } yield UpdatedAvatar(updated)
-      }
-    }
-
-    logIfError(s"Unable to update status for Avatar ID: $id. Avatar may be left in an inconsistent state.", result)
-  }
-}
-
-object AvatarStore {
-  def apply(): AvatarStore = AvatarStore(S3(), Dynamo())
 }

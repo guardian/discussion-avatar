@@ -1,21 +1,15 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.utils.ISODateFormatter
-import com.gu.core.Errors.invalidFilters
-import com.gu.core._
+import com.gu.core.models.Errors.invalidFilters
+import com.gu.core.models._
+import com.gu.core.utils.ErrorHandling.attempt
+import com.gu.core.utils.ISODateFormatter
 import org.joda.time.DateTime
 import org.scalatra.Params
-import com.gu.adapters.utils.ErrorHandling.attempt
 
-import scalaz._
+import scalaz.{ Success, _ }
 
-case class Filters(
-  status: Status,
-  since: Option[DateTime],
-  until: Option[DateTime]
-)
-
-object Filters {
+object Filter {
 
   def fromParams[A](params: Params): InvalidFilters \/ Filters = {
     val status: Validation[NonEmptyList[String], Status] = params.get("status") match {

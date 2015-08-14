@@ -1,4 +1,4 @@
-package com.gu.core
+package com.gu.core.models
 
 import scalaz.NonEmptyList
 
@@ -14,17 +14,12 @@ case class TokenAuthorizationFailed(message: String, errors: NonEmptyList[String
 case class UserAuthorizationFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class IOFailed(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadStatusRequest(message: String, errors: NonEmptyList[String]) extends Error
-case class UnableToReadMigratedAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends Error
 case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidIsSocialFlag(message: String, errors: NonEmptyList[String]) extends Error
-case class AvatarAlreadyExists(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
-
-  def avatarAlreadyExists(errors: NonEmptyList[String]): AvatarAlreadyExists =
-    AvatarAlreadyExists("Avatar already exists for this user ID", errors)
 
   def invalidContentType(errors: NonEmptyList[String]): InvalidContentType =
     InvalidContentType(
@@ -56,10 +51,6 @@ object Errors {
 
   def unableToReadAvatarRequest(errors: NonEmptyList[String]): UnableToReadStatusRequest = {
     UnableToReadStatusRequest("Unable to read avatar request", errors)
-  }
-
-  def unableToReadMigratedAvatarRequest(errors: NonEmptyList[String]): UnableToReadMigratedAvatarRequest = {
-    UnableToReadMigratedAvatarRequest("Unable to read avatar request", errors)
   }
 
   def invalidUserId(errors: NonEmptyList[String]): InvalidUserId = {

@@ -3,175 +3,80 @@ package com.gu.adapters.http
 import java.io.File
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.store.{ TestFileStore, TestKVStore }
 import com.gu.adapters.notifications.TestPublisher
-import com.gu.adapters.store.AvatarStore
-import com.gu.core._
+import com.gu.adapters.store.{ TestFileStore, TestKVStore }
+import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
+import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
+import com.gu.adapters.http.Cookies.preProdCookie
 
 class AvatarServletTests extends TestHelpers {
 
+  val config = Config()
+  val avatarServletProps = config.avatarServletProperties
+  val storeProps = config.storeProperties
   implicit val swagger = new AvatarSwagger
+  val apiKey = avatarServletProps.apiKeys.head
+  val apiUrl = avatarServletProps.apiUrl
 
   addServlet(
     new AvatarServlet(
-      AvatarStore(new TestFileStore, new TestKVStore),
-      Config.cookieDecoder,
-      new TestPublisher
+      AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps),
+      new TestPublisher,
+      avatarServletProps
     ),
     "/*"
   )
 
   test("Healthcheck should return OK") {
-    getOk("/service/healthcheck", _.body == "OK", Nil, Map("Authorization" -> ""))
+    checkGetOk("/service/healthcheck", _.body == "OK", Nil, Map("Authorization" -> ""))
   }
 
   test("Error if no Authorization header") {
-    getError("/avatars", 401, _.message.startsWith("Unable to get API access token."), Map("Authorization" -> ""))
+    checkGetError("/avatars", 401, _.message.startsWith("Unable to get API access token."), Map("Authorization" -> ""))
   }
 
   test("Error if Authorization token invalid") {
-    getError("/avatars", 401, _.message.startsWith("Unable to get API access token."), Map("Authorization" -> "Bearer token=bad"))
+    checkGetError("/avatars", 401, _.message.startsWith("Unable to get API access token."), Map("Authorization" -> "Bearer token=bad"))
   }
 
   test("Get avatars") {
-    getAvatars("/avatars")
+    checkGetAvatars("/avatars")
   }
 
   test("Get avatars by status") {
     val statuses = Set(Inactive, Pending, Approved, Rejected)
-    statuses.foreach(s => getAvatars(s"/avatars?status=${s.asString}", _.data.status == s))
+    statuses.foreach(s => checkGetAvatars(s"/avatars?status=${s.asString}", _.data.status == s))
   }
 
   test("Error response if invalid status") {
-    getError("/avatars?status=badStatus", 400, _.message == "Invalid filter parameters")
+    checkGetError("/avatars?status=badStatus", 400, _.message == "Invalid filter parameters")
   }
 
   test("Get avatar by ID") {
-    getAvatar("/avatars/9f51970f-fc24-400a-9ceb-9b347d9b5e5e", _.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e")
+    checkGetAvatar("/avatars/9f51970f-fc24-400a-9ceb-9b347d9b5e5e", _.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e")
   }
 
   test("Get avatars by user ID") {
-    getAvatars(s"/avatars/user/123456", _.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e")
+    checkGetAvatars(s"/avatars/user/123456", _.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e")
   }
 
   test("Get active avatar by user ID") {
-    getAvatar(s"/avatars/user/123456/active", a => a.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e" && a.data.isActive)
+    checkGetAvatar(s"/avatars/user/123456/active", a => a.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e" && a.data.isActive)
   }
 
   test("Get personal avatar by user ID") {
-    val (userId, cookie) = Config.preProdCookie
-    getAvatar(
+    val (userId, cookie) = preProdCookie
+    checkGetAvatar(
       s"/avatars/user/me/active",
       cookie,
       a => a.data.userId == userId && a.data.status == Inactive
     )
   }
 
-  test("Post migrated avatar for non-social user") {
-    val image = new File("src/test/resources/avatar.gif").toURI.toString
-    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId = 991
-
-    postMigratedAvatar(201)(
-      "/migrateAvatar",
-      userId,
-      image,
-      processedImage,
-      "original.gif",
-      "approved",
-      "2015-12-09T17:54:06Z",
-      isSocial = false,
-      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && !a.data.isSocial
-    )
-  }
-
-  test("Post migrated avatar for social user") {
-    val image = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId = 992
-
-    postMigratedAvatar(201)(
-      "/migrateAvatar",
-      userId,
-      image,
-      image,
-      "original.gif",
-      "inactive",
-      "2015-12-09T17:54:06Z",
-      isSocial = true,
-      a => a.data.userId == userId && a.data.status == Inactive && !a.data.isActive && a.data.isSocial
-    )
-  }
-
-  test("Reject invalid migrated avatar mime-type") {
-    val image = new File("src/test/resources/avatar.svg").toURI.toString
-    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId = 993
-
-    postMigratedAvatar(400)(
-      "/migrateAvatar",
-      userId,
-      image,
-      processedImage,
-      "avatar.svg",
-      "approved",
-      "2015-12-09T17:54:06Z",
-      isSocial = true,
-      a => a.data.userId == userId && a.data.status == Approved
-    )
-  }
-
-  test("Post migrated avatar checking URL encoding is applied") {
-    val image = new File("src/test/resources/avatar with spaces.gif").toURI.toString
-    val userId = 994
-
-    postMigratedAvatar(201)(
-      "/migrateAvatar",
-      userId,
-      image,
-      image,
-      "original.gif",
-      "approved",
-      "2015-12-09T17:54:06Z",
-      isSocial = false,
-      a => a.data.userId == userId && a.data.status == Approved && a.data.isActive && !a.data.isSocial
-    )
-  }
-
-  test("Reject migration of already existing user") {
-
-    val image = new File("src/test/resources/avatar.gif").toURI.toString
-    val processedImage = new File("src/test/resources/avatar.gif").toURI.toString
-    val userId = 999
-
-    postMigratedAvatar(201)(
-      "/migrateAvatar",
-      userId,
-      image,
-      processedImage,
-      "original.gif",
-      "approved",
-      "2015-12-09T17:54:06Z",
-      isSocial = false,
-      a => a.data.userId == userId && a.data.status == Approved && !a.data.isSocial
-    )
-
-    postMigratedAvatar(409)(
-      "/migrateAvatar",
-      userId,
-      image,
-      processedImage,
-      "original.gif",
-      "approved",
-      "2015-12-09T17:54:06Z",
-      isSocial = true,
-      a => a.data.userId == userId && a.data.status == Approved
-    )
-  }
-
   test("Post avatar") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = Config.preProdCookie
+    val (userId, cookie) = preProdCookie
 
     postAvatar(
       "/avatars",
@@ -185,7 +90,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Error response if bad isSocial parameter") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = Config.preProdCookie
+    val (userId, cookie) = preProdCookie
 
     postError(
       "/avatars",
@@ -207,11 +112,11 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Error on Avatar not found") {
-    getError("/avatars/does-not-exist", 404, _.message == "Avatar not found")
+    checkGetError("/avatars/does-not-exist", 404, _.message == "Avatar not found")
   }
 
   test("Support CORS") {
     val headers = Map("Origin" -> "http://example.com")
-    getOk("/avatars", _.headers("Access-Control-Allow-Origin") == "*", Nil, headers)
+    checkGetOk("/avatars", _.headers("Access-Control-Allow-Origin") == "*", Nil, headers)
   }
 }

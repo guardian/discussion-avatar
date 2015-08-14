@@ -1,9 +1,8 @@
 package com.gu.adapters.http
 
-import com.gu.adapters.config.Config
-import com.gu.adapters.utils.ErrorHandling.attempt
-import com.gu.core.Errors._
-import com.gu.core.{ Error, User }
+import com.gu.core.models.Errors._
+import com.gu.core.models.{ Error, User }
+import com.gu.core.utils.ErrorHandling.attempt
 import com.gu.identity.cookie.IdentityCookieDecoder
 
 import scalaz.Scalaz._
@@ -11,9 +10,7 @@ import scalaz.{ NonEmptyList, \/ }
 
 object TokenAuth {
 
-  val apiKeys = Config.apiKeys
-
-  def isValidKey(authHeader: Option[String]): Error \/ String = {
+  def isValidKey(authHeader: Option[String], apiKeys: List[String]): Error \/ String = {
 
     val tokenHeader = "Bearer token="
     val token = authHeader.withFilter(_.startsWith(tokenHeader)).map(_.stripPrefix(tokenHeader))
