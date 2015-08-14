@@ -28,11 +28,7 @@ object AvatarBuild extends Build {
 
   val guardianReleases = "Guardian releases" at "http://guardian.github.io/maven/repo-releases"
 
-
   lazy val project = Project (
-
-
-
     Name,
     file("."),
     settings = ScalatraPlugin.scalatraWithJRebel ++ scalateSettings ++ scalariformSettings ++ Seq(
