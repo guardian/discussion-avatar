@@ -1,6 +1,0 @@
-{
-  "checkpoints": {
-    "CODE": { "url": "***REMOVED***/v1/service/build", "overdue": "10M" },
-    "PROD": { "url": "***REMOVED***/v1/service/build", "overdue": "8H" }
-  }
-}

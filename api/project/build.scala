@@ -5,15 +5,13 @@ import sbt._
 import sbtassembly.AssemblyKeys._
 import sbtassembly._
 import com.typesafe.sbt.SbtScalariform.{ScalariformKeys, scalariformSettings}
-import sbtbuildinfo.{BuildInfoKey, BuildInfoPlugin}
 import scalariform.formatter.preferences._
-import sbtbuildinfo.BuildInfoKeys._
 
 object AvatarBuild extends Build {
   val Organization = "com.gu"
   val Name = "avatar"
   val Version = "0.1.0-SNAPSHOT"
-  val ScalaVersion = "2.11.7"
+  val ScalaVersion = "2.11.5"
   val ScalatraVersion = "2.3.0"
   
   val jettyVersion = "9.1.5.v20140505"
@@ -67,14 +65,5 @@ object AvatarBuild extends Build {
       ScalariformKeys.preferences := ScalariformKeys.preferences.value
         .setPreference(DoubleIndentClassDeclaration, true)
     )
-
-  ).enablePlugins(BuildInfoPlugin).settings(
-      buildInfoKeys := Seq[BuildInfoKey](
-        name,
-        BuildInfoKey.constant("gitCommitId", Option(System.getenv("BUILD_VCS_NUMBER")) getOrElse(try {
-          "git rev-parse HEAD".!!.trim
-        } catch {
-          case e: Exception => "unknown"
-        }))
-      ), buildInfoPackage := "app")
+  )
 }
