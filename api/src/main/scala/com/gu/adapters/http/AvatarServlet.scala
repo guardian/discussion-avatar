@@ -78,6 +78,10 @@ class AvatarServlet(store: AvatarStore, decoder: IdentityCookieDecoder, publishe
     NotImplemented(ErrorResponse("Endpoint needs to be specified"))
   }
 
+  get("/service/build") {
+    Message(Map("git-commit-id" -> app.BuildInfo.gitCommitId))
+  }
+
   get("/") {
     Message(
       uri = Some(apiUrl),
