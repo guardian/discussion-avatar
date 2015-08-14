@@ -79,6 +79,10 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     NotImplemented(ErrorResponse("Endpoint needs to be specified"))
   }
 
+  get("/service/build") {
+    Message(Map("git-commit-id" -> app.BuildInfo.gitCommitId))
+  }
+
   get("/") {
     Message(
       uri = Some(apiUrl),
