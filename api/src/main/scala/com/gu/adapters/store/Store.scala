@@ -25,7 +25,7 @@ import scalaz.{ NonEmptyList, \/ }
 
 object AWSCredentials {
   val awsCredentials = new AWSCredentialsProviderChain(
-    new ProfileCredentialsProvider("gu-aws-discussion"),
+    new ProfileCredentialsProvider("discussion"),
     new DefaultAWSCredentialsProviderChain()
   )
 }
