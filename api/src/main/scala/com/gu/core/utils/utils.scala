@@ -2,7 +2,7 @@ package com.gu.core.utils
 
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone }
-import sun.nio.cs.US_ASCII
+import org.apache.commons.lang3.StringEscapeUtils.escapeJava
 
 object ISODateFormatter {
   val dateFormat = ISODateTimeFormat.dateTimeNoMillis.withZone(DateTimeZone.UTC)
@@ -10,8 +10,8 @@ object ISODateFormatter {
   def print(dt: DateTime): String = dateFormat.print(dt)
 }
 
-object ASCII {
-  def apply(s: String) = new String(s.getBytes, new US_ASCII)
+object EscapedUnicode {
+  def apply(s: String) = escapeJava(s)
 }
 
 object KVLocationFromID {

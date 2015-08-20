@@ -8,7 +8,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.utils.ErrorHandling.logIfError
-import com.gu.core.utils.{ ASCII, KVLocationFromID }
+import com.gu.core.utils.{ EscapedUnicode, KVLocationFromID }
 import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{ DateTime, DateTimeZone }
 
@@ -105,7 +105,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     val metadata = new ObjectMetadata()
     metadata.addUserMetadata("avatar-id", avatarId.toString)
     metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", ASCII(originalFilename))
+    metadata.addUserMetadata("original-filename", EscapedUnicode(originalFilename))
     metadata.setCacheControl("max-age=3600")
     metadata.setContentType(mimeType)
     metadata
