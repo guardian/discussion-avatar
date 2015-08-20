@@ -123,7 +123,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     val now = DateTime.now(DateTimeZone.UTC)
     val location = KVLocationFromID(avatarId.toString)
 
-    for {
+    val created = for {
       secureUrl <- fs.presignedUrl(processedBucket, location)
       secureRawUrl <- fs.presignedUrl(rawBucket, location)
       avatar <- kvs.put(
@@ -143,6 +143,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       )
       _ <- fs.put(incomingBucket, location, file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
+
+    logIfError(s"Unable to create Avatar  wth ID: $id. Avatar may be left in an inconsistent state.", created)
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
