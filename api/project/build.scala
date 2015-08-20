@@ -23,6 +23,7 @@ object AvatarBuild extends Build {
   val typesafeConfigVersion = "1.2.1"
   val amazonawsVersion = "1.9.6"
   val scalaLoggingVersion = "3.1.0"
+  val apacheCommonsVersion = "3.4"
 
   val guardianReleases = "Guardian releases" at "http://guardian.github.io/maven/repo-releases"
 
@@ -52,7 +53,8 @@ object AvatarBuild extends Build {
         "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
         "com.typesafe" % "config" % typesafeConfigVersion,
         "com.amazonaws" % "aws-java-sdk" % amazonawsVersion,
-        "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
+        "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
+        "org.apache.commons" % "commons-lang3" % apacheCommonsVersion
 
       ),
       assemblyMergeStrategy in assembly := {
