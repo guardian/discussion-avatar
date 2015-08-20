@@ -144,7 +144,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       _ <- fs.put(incomingBucket, location, file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
 
-    logIfError(s"Unable to create Avatar  wth ID: $id. Avatar may be left in an inconsistent state.", created)
+    logIfError(s"Unable to create Avatar with ID: $id. Avatar may be left in an inconsistent state.", created)
   }
 
   def copyToPublic(avatar: Avatar): Error \/ Avatar = {
