@@ -3,7 +3,7 @@ package com.gu.adapters.http
 import com.gu.core.models.Errors._
 import com.gu.core.models.{ Error, User }
 import com.gu.core.utils.ErrorHandling.attempt
-import com.gu.identity.cookie.IdentityCookieDecoder
+import com.gu.identity.cookie.GuUDecoder
 
 import scalaz.Scalaz._
 import scalaz.{ NonEmptyList, \/ }
@@ -26,7 +26,7 @@ object TokenAuth {
 
 object CookieDecoder {
 
-  def userFromHeader(decoder: IdentityCookieDecoder, authHeader: Option[String]): Error \/ User = {
+  def userFromHeader(decoder: GuUDecoder, authHeader: Option[String]): Error \/ User = {
     val guu = authHeader.map(_.stripPrefix("Bearer cookie="))
 
     val user = for {

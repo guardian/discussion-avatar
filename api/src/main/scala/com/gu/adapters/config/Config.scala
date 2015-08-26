@@ -4,7 +4,7 @@ import com.amazonaws.regions.{ Region, Regions }
 import com.gu.adapters.http.AvatarServletProperties
 import com.gu.adapters.notifications.SnsProperties
 import com.gu.core.store.StoreProperties
-import com.gu.identity.cookie.{ IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
+import com.gu.identity.cookie.{ GuUDecoder, IdentityCookieDecoder, PreProductionKeys, ProductionKeys }
 import com.typesafe.config.{ Config => TypesafeConfig, ConfigFactory }
 
 case class Config(
@@ -50,7 +50,7 @@ object Config {
       snsTopicArn = conf.getString("aws.sns.topic.arn")
     )
 
-  private def cookieDecoder(conf: TypesafeConfig): IdentityCookieDecoder = {
+  private def cookieDecoder(conf: TypesafeConfig): GuUDecoder = {
     val keys = conf.getString("stage") match {
       case "PROD" => new ProductionKeys
       case _ => new PreProductionKeys

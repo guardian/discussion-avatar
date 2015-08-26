@@ -3,6 +3,7 @@ package com.gu.adapters.store
 import java.net.URL
 
 import com.amazonaws.services.s3.model.ObjectMetadata
+import com.gu.adapters.http.TestCookie
 import com.gu.adapters.store.TestStoreHelpers.path
 import com.gu.core.models._
 import com.gu.core.store.{ FileStore, KVStore, QueryResponse }
@@ -107,7 +108,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     dynamoTable + "/6cdab5ef-e93c-4cc3-b761-dc97f66ae257" -> Avatar(
       "6cdab5ef-e93c-4cc3-b761-dc97f66ae257",
       "http://avatar-url-4",
-      21801602,
+      TestCookie.userId,
       "gra.gif",
       "http://avatar-raw-url-4",
       Inactive,
