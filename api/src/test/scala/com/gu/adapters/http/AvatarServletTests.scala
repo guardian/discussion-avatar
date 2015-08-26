@@ -8,16 +8,19 @@ import com.gu.adapters.store.{ TestFileStore, TestKVStore }
 import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
 import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
-import com.gu.adapters.http.Cookies.preProdCookie
+import com.gu.adapters.http.TestCookie.testCookie
 
 class AvatarServletTests extends TestHelpers {
 
   val config = Config()
-  val avatarServletProps = config.avatarServletProperties
+  val avatarServletProps = config.avatarServletProperties.copy(cookieDecoder = StubGuUDecoder)
   val storeProps = config.storeProperties
   implicit val swagger = new AvatarSwagger
+
+  // NOTE: This won't compile if you don't explicitly specify the type due to compiler bug.
+  // See https://issues.scala-lang.org/browse/SI-5091
+  val apiUrl: String = avatarServletProps.apiUrl
   val apiKey = avatarServletProps.apiKeys.head
-  val apiUrl = avatarServletProps.apiUrl
 
   addServlet(
     new AvatarServlet(
@@ -66,7 +69,7 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Get personal avatar by user ID") {
-    val (userId, cookie) = preProdCookie
+    val (userId, cookie) = testCookie
     checkGetAvatar(
       s"/avatars/user/me/active",
       cookie,
@@ -76,7 +79,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Post avatar") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = preProdCookie
+    val (userId, cookie) = testCookie
 
     postAvatar(
       "/avatars",
@@ -90,7 +93,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Error response if bad isSocial parameter") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = preProdCookie
+    val (userId, cookie) = testCookie
 
     postError(
       "/avatars",

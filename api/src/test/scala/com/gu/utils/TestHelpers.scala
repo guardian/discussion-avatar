@@ -60,7 +60,7 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
       status should equal(200)
       val avatar = read[AvatarResponse](body)
       avatar.uri should be(Some(apiUrl + "/avatars/" + avatar.data.id))
-      p(avatar) should be(true)
+      assert(p(avatar), "The avatar did not satisfy the supplied conditions. Avatar: " + avatar)
     }
   }
 

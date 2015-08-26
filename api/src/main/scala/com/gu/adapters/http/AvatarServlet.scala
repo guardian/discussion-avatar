@@ -7,7 +7,7 @@ import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{ attempt, logError }
-import com.gu.identity.cookie.IdentityCookieDecoder
+import com.gu.identity.cookie.GuUDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
@@ -229,7 +229,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 case class AvatarServletProperties(
   apiKeys: List[String],
   apiUrl: String,
-  cookieDecoder: IdentityCookieDecoder,
+  cookieDecoder: GuUDecoder,
   pageSize: Int,
   snsTopicArn: String
 )
