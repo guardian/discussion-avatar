@@ -5,7 +5,6 @@ import java.util.UUID
 
 import com.amazonaws.regions.Region
 import com.amazonaws.services.s3.model.ObjectMetadata
-import com.gu.core.models
 import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.utils.ErrorHandling.logIfError
