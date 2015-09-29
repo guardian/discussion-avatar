@@ -122,6 +122,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
     val location = KVLocationFromID(avatarId.toString)
+    val status = if (isSocial) Inactive else Pending
 
     val created = for {
       secureUrl <- fs.presignedUrl(processedBucket, location)
@@ -134,7 +135,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
           userId = user.id,
           originalFilename = originalFilename,
           rawUrl = secureRawUrl.toString,
-          status = Pending,
+          status = status,
           createdAt = now,
           lastModified = now,
           isSocial = isSocial,

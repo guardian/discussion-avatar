@@ -84,10 +84,24 @@ class AvatarServletTests extends TestHelpers {
     postAvatar(
       "/avatars",
       file,
+      "false",
+      userId,
+      cookie,
+      a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive && !a.data.isSocial
+    )
+  }
+
+  test("Social Avatar should default to Inactive status") {
+    val file = new File("src/test/resources/avatar.gif")
+    val (userId, cookie) = testCookie
+
+    postAvatar(
+      "/avatars",
+      file,
       "true",
       userId,
       cookie,
-      a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive && a.data.isSocial
+      a => a.data.userId == userId && a.data.status == Inactive && !a.data.isActive && a.data.isSocial
     )
   }
 
