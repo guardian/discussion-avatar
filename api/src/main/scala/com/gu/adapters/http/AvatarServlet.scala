@@ -151,7 +151,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     } yield (updated, req)
   }
 
-  def handleSuccess: PartialFunction[\/[Error, (Success, Req)], ActionResult] = {
+  def handleSuccess: PartialFunction[Error \/ (Success, Req), ActionResult] = {
     case \/-((success, url)) => success match {
       case CreatedAvatar(avatar) => Created(AvatarResponse(avatar, url))
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
@@ -162,7 +162,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
     case -\/(error) =>
-
       val response: ActionResult =
         error match {
           case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors))

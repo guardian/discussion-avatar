@@ -29,12 +29,19 @@ object CookieDecoder {
   def userFromHeader(decoder: GuUDecoder, authHeader: Option[String]): Error \/ User = {
     val guu = authHeader.map(_.stripPrefix("Bearer cookie="))
 
-    val user = for {
+    // TODO remove support for GU_U once confident SC_GU_U works and clients have switched over
+    val guuUser = for {
       cook <- guu.toRightDisjunction("No GU_U cookie in request")
       user <- attempt(decoder.getUserDataForGuU(cook)).toOption.flatten.map(_.user)
         .toRightDisjunction("Unable to extract user data from Authorization header")
     } yield User(user.id.toInt)
 
-    user.leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
+    val scguuUser = for {
+      cook <- guu.toRightDisjunction("No SC_GU_U cookie in request")
+      user <- attempt(decoder.getUserDataForScGuU(cook)).toOption.flatten
+        .toRightDisjunction("Unable to extract user data from Authorization header")
+    } yield User(user.getId.toInt)
+
+    guuUser.orElse(scguuUser).leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
   }
 }
