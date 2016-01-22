@@ -105,11 +105,11 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
     file: File,
     isSocial: String,
     userId: Int,
-    guuCookie: String,
+    cookie: String,
     code: Int,
     p: ErrorResponse => Boolean
   ): Unit = {
-    post(uri, Map("isSocial" -> isSocial), List("file" -> file), Map("Authorization" -> ("Bearer cookie=" + guuCookie))) {
+    post(uri, Map("isSocial" -> isSocial), List("file" -> file), Map("Cookie" -> s"SC_GU_U=$cookie;")) {
       status should equal(code)
       val error = read[ErrorResponse](body)
       p(error) should be(true)

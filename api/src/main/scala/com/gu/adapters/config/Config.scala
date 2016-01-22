@@ -18,6 +18,8 @@ object Config {
 
   private val pageSize = 10
 
+  val secureCookie = "SC_GU_U"
+
   def apply(): Config = {
     apply(ConfigFactory.load())
   }

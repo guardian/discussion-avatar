@@ -26,6 +26,10 @@ object TokenAuth {
 
 object CookieDecoder {
 
+  def userFromHeaderOrCookie(decoder: GuUDecoder, authHeader: Option[String], cookie: Option[String]): Error \/ User = {
+    userFromHeader(decoder, authHeader) orElse userFromCookie(decoder, cookie)
+  }
+
   def userFromHeader(decoder: GuUDecoder, authHeader: Option[String]): Error \/ User = {
     val guu = authHeader.map(_.stripPrefix("Bearer cookie="))
 
@@ -36,12 +40,22 @@ object CookieDecoder {
         .toRightDisjunction("Unable to extract user data from Authorization header")
     } yield User(user.id.toInt)
 
-    val scguuUser = for {
-      cookie <- guu.toRightDisjunction("No SC_GU_U cookie in request")
-      user <- attempt(decoder.getUserDataForScGuU(cookie)).toOption.flatten
-        .toRightDisjunction("Unable to extract user data from Authorization header")
-    } yield User(user.getId.toInt)
+    guuUser.leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
+  }
 
-    guuUser.orElse(scguuUser).leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
+  def userFromCookie(decoder: GuUDecoder, cookie: Option[String]): Error \/ User = {
+    val authedUser = for {
+      c <- cookie.toRightDisjunction("No secure cookie in request")
+      user <- readCookie(decoder, c)
+    } yield user
+
+    authedUser.leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
+  }
+
+  private[this] def readCookie(decoder: GuUDecoder, cookie: String): String \/ User = {
+    for {
+      user <- attempt(decoder.getUserDataForScGuU(cookie))
+        .toOption.flatten.toRightDisjunction("Unable to extract user data from Authorization header")
+    } yield User(user.getId.toInt)
   }
 }
