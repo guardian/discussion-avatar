@@ -8,7 +8,7 @@ import com.gu.adapters.store.{ TestFileStore, TestKVStore }
 import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
 import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
-import com.gu.adapters.http.TestCookie.testCookie
+import com.gu.adapters.http.TestCookie.{ testCookie, testSecureCookie }
 
 class AvatarServletTests extends TestHelpers {
 
@@ -107,7 +107,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Error response if bad isSocial parameter") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = testCookie
+    val (userId, cookie) = testSecureCookie
 
     postError(
       "/avatars",

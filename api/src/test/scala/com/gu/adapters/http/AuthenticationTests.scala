@@ -15,9 +15,8 @@ class AuthenticationTests extends FunSuite with Matchers {
     user should be(\/-(User(TestCookie.userId)))
   }
 
-  test("Decode SC_GU_U cookie from Authorization header") {
-    val authHeader = "Bearer cookie=" + TestCookie.fakeScguu
-    val user = CookieDecoder.userFromHeader(decoder, Some(authHeader))
+  test("Decode SC_GU_U cookie from cookie") {
+    val user = CookieDecoder.userFromCookie(decoder, Some(TestCookie.fakeScguu))
     user should be(\/-(User(TestCookie.userId)))
   }
 

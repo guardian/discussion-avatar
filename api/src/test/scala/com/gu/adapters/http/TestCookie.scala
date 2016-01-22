@@ -7,7 +7,8 @@ object TestCookie {
   val userId = 654321
   val fakeGuu = "valid-gu-u"
   val fakeScguu = "valid-sc-gu-u"
-  val testCookie = userId -> fakeScguu
+  val testCookie = userId -> fakeGuu
+  val testSecureCookie = userId -> fakeScguu
 }
 
 object StubGuUDecoder extends GuUDecoder(null) {
