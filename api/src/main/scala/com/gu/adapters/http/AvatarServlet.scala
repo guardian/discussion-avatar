@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.CookieDecoder.userFromHeaderOrCookie
+import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{ Notifications, Publisher }
 import com.gu.core.models.Errors._
@@ -127,7 +127,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     for {
-      user <- userFromHeaderOrCookie(decoder, request.header("Authorization"), request.cookies.get(Config.secureCookie))
+      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
       avatar <- store.getPersonal(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -135,7 +135,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   postWithErrors("/avatars", operation(postAvatar)) {
     for {
-      user <- userFromHeaderOrCookie(decoder, request.header("Authorization"), request.cookies.get(Config.secureCookie))
+      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
       created <- uploadAvatar(request, user, fileParams)
       req = Req(apiUrl, request.getPathInfo)
     } yield {

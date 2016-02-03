@@ -66,8 +66,8 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
 
   def checkGetAvatar(uri: String): Unit = checkGetAvatar(uri, _ => true)
 
-  def checkGetAvatar(uri: String, guuCookie: String, p: AvatarResponse => Boolean): Unit = {
-    checkGetAvatar(uri, p, Nil, Map("Authorization" -> ("Bearer cookie=" + guuCookie)))
+  def checkGetAvatar(uri: String, cookie: String, p: AvatarResponse => Boolean): Unit = {
+    checkGetAvatar(uri, p, Nil, Map("Cookie" -> s"SC_GU_U=$cookie;"))
   }
 
   def checkGetError(
@@ -88,11 +88,11 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
     file: File,
     isSocial: String,
     userId: Int,
-    guuCookie: String,
+    cookie: String,
     p: AvatarResponse => Boolean
   ): Unit = {
 
-    post("/avatars", Map("isSocial" -> isSocial), List("file" -> file), Map("Authorization" -> ("Bearer cookie=" + guuCookie))) {
+    post("/avatars", Map("isSocial" -> isSocial), List("file" -> file), Map("Cookie" -> s"SC_GU_U=$cookie;")) {
       status should equal(201)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)
