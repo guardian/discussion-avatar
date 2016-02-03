@@ -3,12 +3,12 @@ package com.gu.adapters.http
 import java.io.File
 
 import com.gu.adapters.config.Config
+import com.gu.adapters.http.TestCookie.testSecureCookie
 import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.{ TestFileStore, TestKVStore }
 import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
 import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
-import com.gu.adapters.http.TestCookie.{ testCookie, testSecureCookie }
 
 class AvatarServletTests extends TestHelpers {
 
@@ -69,7 +69,7 @@ class AvatarServletTests extends TestHelpers {
   }
 
   test("Get personal avatar by user ID") {
-    val (userId, cookie) = testCookie
+    val (userId, cookie) = testSecureCookie
     checkGetAvatar(
       s"/avatars/user/me/active",
       cookie,
@@ -79,7 +79,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Post avatar") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = testCookie
+    val (userId, cookie) = testSecureCookie
 
     postAvatar(
       "/avatars",
@@ -93,7 +93,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Social Avatar should default to Inactive status") {
     val file = new File("src/test/resources/avatar.gif")
-    val (userId, cookie) = testCookie
+    val (userId, cookie) = testSecureCookie
 
     postAvatar(
       "/avatars",
