@@ -119,8 +119,13 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) { auth =>
     for {
-      user <- userFromRequest(params("userId"))
-      active <- store.getActive(user)
+      requestedUser <- userFromRequest(params("userId"))
+      user = userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      active <- if (user.exists(_.id == requestedUser.id)) {
+        store.getPersonal(requestedUser)
+      } else {
+        store.getActive(requestedUser)
+      }
       req = Req(apiUrl, request.getPathInfo)
     } yield (active, req)
   }
