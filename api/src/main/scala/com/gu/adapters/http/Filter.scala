@@ -33,11 +33,19 @@ object Filter {
       case None => Success(None)
     }
 
+    val order: Validation[NonEmptyList[String], OrderBy] = params.get("order") match {
+      case Some(Descending.asString) => Success(Descending)
+      case Some(Ascending.asString) => Success(Ascending)
+      case Some(invalid) => Failure(NonEmptyList(""))
+      case None => Success(Descending)
+    }
+
     val filters = for {
       s <- status
       f <- since
       b <- until
-    } yield Filters(s, f, b)
+      o <- order
+    } yield Filters(s, f, b, o)
 
     filters
       .ensure(NonEmptyList("Cannot specify both 'since' and 'until' parameters"))(f => f.since.isEmpty || f.until.isEmpty)

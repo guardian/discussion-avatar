@@ -13,7 +13,7 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.core.models.Errors._
-import com.gu.core.models.{ Avatar, Error, Status }
+import com.gu.core.models.{ Avatar, Error, Status, OrderBy, Ascending, Descending }
 import com.gu.core.store._
 import com.gu.core.utils.ErrorHandling._
 import com.gu.core.utils.{ ISODateFormatter, KVLocationFromID }
@@ -81,16 +81,26 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     key: String,
     value: A,
     since: Option[DateTime] = None,
-    until: Option[DateTime] = None
+    until: Option[DateTime] = None,
+    order: OrderBy = Descending
   ): Error \/ QueryResponse = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
       .withMaxResultSize(props.pageSize)
 
-    if (until.isEmpty) spec.withScanIndexForward(false)
-    since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-    until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
+    order match {
+      case Descending => {
+        if (until.isEmpty) spec.withScanIndexForward(false) else spec.withScanIndexForward(true)
+        since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+        until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
+      }
+      case Ascending => {
+        if (until.isEmpty) spec.withScanIndexForward(true) else spec.withScanIndexForward(false)
+        since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
+        until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+      }
+    }
 
     val result = handleIoErrors(db.getTable(table).getIndex(index).query(spec))
 
@@ -109,8 +119,8 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     query(table, index, "UserId", userId, since, until)
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
-    query(table, index, "Status", status.asString, since, until)
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: OrderBy): Error \/ QueryResponse = {
+    query(table, index, "Status", status.asString, since, until, order)
   }
 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {

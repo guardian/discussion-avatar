@@ -5,5 +5,6 @@ import org.joda.time.DateTime
 case class Filters(
   status: Status,
   since: Option[DateTime],
-  until: Option[DateTime]
+  until: Option[DateTime],
+  order: OrderBy
 )
