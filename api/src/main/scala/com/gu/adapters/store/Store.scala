@@ -82,7 +82,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     value: A,
     since: Option[DateTime] = None,
     until: Option[DateTime] = None,
-    order: OrderBy = Descending
+    order: Option[OrderBy] = Some(Descending)
   ): Error \/ QueryResponse = {
 
     val spec = new QuerySpec()
@@ -90,15 +90,15 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
       .withMaxResultSize(props.pageSize)
 
     order match {
-      case Descending => {
-        if (until.isEmpty) spec.withScanIndexForward(false) else spec.withScanIndexForward(true)
-        since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-        until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
-      }
-      case Ascending => {
+      case Some(Ascending) => {
         if (until.isEmpty) spec.withScanIndexForward(true) else spec.withScanIndexForward(false)
         since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
         until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+      }
+      case _ => {
+        if (until.isEmpty) spec.withScanIndexForward(false) else spec.withScanIndexForward(true)
+        since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+        until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
       }
     }
 
@@ -119,7 +119,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     query(table, index, "UserId", userId, since, until)
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: OrderBy): Error \/ QueryResponse = {
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse = {
     query(table, index, "Status", status.asString, since, until, order)
   }
 

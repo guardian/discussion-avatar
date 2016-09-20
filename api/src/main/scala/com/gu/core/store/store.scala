@@ -23,7 +23,7 @@ case class QueryResponse(
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
   def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: OrderBy): Error \/ QueryResponse
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
 }
