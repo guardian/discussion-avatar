@@ -127,7 +127,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): models.Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.status == status).toList, hasMore = false).right
   }
 

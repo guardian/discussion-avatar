@@ -33,11 +33,19 @@ object Filter {
       case None => Success(None)
     }
 
+    val order: Validation[NonEmptyList[String], Option[OrderBy]] = params.get("order") match {
+      case Some(Descending.asString) => Success(Some(Descending))
+      case Some(Ascending.asString) => Success(Some(Ascending))
+      case Some(invalid) => Failure(NonEmptyList(s"'$invalid' is not a valid order type. Must be '${Ascending.asString}' or '${Descending.asString}' (default)."))
+      case None => Success(None)
+    }
+
     val filters = for {
       s <- status
       f <- since
       b <- until
-    } yield Filters(s, f, b)
+      o <- order
+    } yield Filters(s, f, b, o)
 
     filters
       .ensure(NonEmptyList("Cannot specify both 'since' and 'until' parameters"))(f => f.since.isEmpty || f.until.isEmpty)
@@ -48,7 +56,8 @@ object Filter {
     val params = List(
       "status" -> Some(f.status.asString),
       "since" -> f.since.map(t => ISODateFormatter.print(t)),
-      "until" -> f.until.map(t => ISODateFormatter.print(t))
+      "until" -> f.until.map(t => ISODateFormatter.print(t)),
+      "order" -> f.order.map(_.asString)
     ) collect {
         case (key, Some(value)) => s"$key=$value"
       }
