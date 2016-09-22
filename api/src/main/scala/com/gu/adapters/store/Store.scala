@@ -89,17 +89,21 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
       .withHashKey(key, value)
       .withMaxResultSize(props.pageSize)
 
-    order match {
-      case Some(Ascending) => {
-        if (until.isEmpty) spec.withScanIndexForward(true) else spec.withScanIndexForward(false)
-        since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
-        until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-      }
-      case _ => {
-        if (until.isEmpty) spec.withScanIndexForward(false) else spec.withScanIndexForward(true)
-        since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-        until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
-      }
+    val hasBefore = until.isDefined
+    val oldestFirst = order.contains(Ascending)
+
+    if (hasBefore && oldestFirst) {
+      until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+      spec.withScanIndexForward(false)
+    } else if (!hasBefore && oldestFirst) {
+      since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
+      spec.withScanIndexForward(true)
+    } else if (hasBefore) {
+      until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
+      spec.withScanIndexForward(true)
+    } else if (!hasBefore) {
+      since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
+      spec.withScanIndexForward(false)
     }
 
     val result = handleIoErrors(db.getTable(table).getIndex(index).query(spec))
