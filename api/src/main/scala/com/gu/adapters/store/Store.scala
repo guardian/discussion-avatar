@@ -57,7 +57,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
       Avatar(
         id = avatarId,
         avatarUrl = secureUrl.toString,
-        userId = item.getString("UserId").toInt,
+        userId = item.getString("UserId"),
         originalFilename = item.getString("OriginalFilename"),
         rawUrl = secureRawUrl.toString,
         status = Status(item.getString("Status")),
@@ -119,8 +119,8 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     }
   }
 
-  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
-    query(table, index, "UserId", userId, since, until)
+  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
+    query(table, index, "UserId", userId.toInt, since, until)
   }
 
   def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse = {
@@ -130,7 +130,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
   def put(table: String, avatar: Avatar): Error \/ Avatar = {
     val item = new Item()
       .withPrimaryKey("AvatarId", avatar.id)
-      .withNumber("UserId", avatar.userId)
+      .withNumber("UserId", avatar.userId.toInt)
       .withString("OriginalFilename", avatar.originalFilename)
       .withString("Status", avatar.status.asString)
       .withString("CreatedAt", ISODateFormatter.print(avatar.createdAt))

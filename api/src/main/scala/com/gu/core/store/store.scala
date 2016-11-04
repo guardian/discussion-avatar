@@ -22,7 +22,7 @@ case class QueryResponse(
 
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
-  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
+  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
   def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
@@ -132,7 +132,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
         Avatar(
           id = avatarId.toString,
           avatarUrl = secureUrl.toString,
-          userId = user.id,
+          userId = user.id.toString,
           originalFilename = originalFilename,
           rawUrl = secureRawUrl.toString,
           status = status,
@@ -154,14 +154,14 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       processedBucket,
       location,
       publicBucket,
-      s"user/${avatar.userId.toString}"
+      s"user/${avatar.userId}"
     ) map (_ => avatar)
   }
 
   def deleteFromPublic(avatar: Avatar): Error \/ Avatar = {
     fs.delete(
       publicBucket,
-      s"user/${avatar.userId.toString}"
+      s"user/${avatar.userId}"
     ) map (_ => avatar)
   }
 
