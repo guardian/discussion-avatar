@@ -221,8 +221,8 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
   }
 
   def userFromRequest(userId: String): Error \/ User = {
-    attempt(User(userId.toInt))
-      .leftMap(_ => invalidUserId(NonEmptyList("Expected integer, found: " + userId)))
+    attempt(User(userId))
+      .leftMap(_ => invalidUserId(NonEmptyList("Expected userId, found: " + userId)))
   }
 }
 

@@ -72,7 +72,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     dynamoTable + "/9f51970f-fc24-400a-9ceb-9b347d9b5e5e" -> Avatar(
       "9f51970f-fc24-400a-9ceb-9b347d9b5e5e",
       "http://avatar-url-1",
-      123456,
+      "123456",
       "foo.gif",
       "http://avatar-raw-url1",
       Approved,
@@ -84,7 +84,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     dynamoTable + "/5aa5aa52-ee78-4319-8fa0-93bfd1dc204b" -> Avatar(
       "5aa5aa52-ee78-4319-8fa0-93bfd1dc204b",
       "http://avatar-url-2",
-      234567,
+      "234567",
       "bar.gif",
       "http://avatar-raw-url2",
       Approved,
@@ -96,7 +96,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     dynamoTable + "/f1d07680-fd11-492c-9bbf-fc996b435590" -> Avatar(
       "f1d07680-fd11-492c-9bbf-fc996b435590",
       "http://avatar-url-3",
-      345678,
+      "345678",
       "gra.gif",
       "http://avatar-raw-url3",
       Pending,
@@ -123,7 +123,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"avatar with ID '$id' does not exist")))
   }
 
-  def query(table: String, index: String, userId: Int, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
+  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
   }
 

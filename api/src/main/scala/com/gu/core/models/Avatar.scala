@@ -5,7 +5,7 @@ import org.joda.time.DateTime
 case class Avatar(
   id: String,
   avatarUrl: String,
-  userId: Int,
+  userId: String,
   originalFilename: String,
   rawUrl: String,
   status: Status,

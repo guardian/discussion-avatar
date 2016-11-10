@@ -87,7 +87,7 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
     uri: String,
     file: File,
     isSocial: String,
-    userId: Int,
+    userId: String,
     cookie: String,
     p: AvatarResponse => Boolean
   ): Unit = {
@@ -104,7 +104,7 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
     uri: String,
     file: File,
     isSocial: String,
-    userId: Int,
+    userId: String,
     cookie: String,
     code: Int,
     p: ErrorResponse => Boolean
