@@ -4,6 +4,8 @@ import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.DefaultServlet
 import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatra.servlet.ScalatraListener
+import ch.qos.logback.access.jetty.RequestLogImpl
+import org.eclipse.jetty.server.handler.{ HandlerCollection, RequestLogHandler }
 
 object JettyLauncher extends App {
 
@@ -16,7 +18,15 @@ object JettyLauncher extends App {
   context.addEventListener(new ScalatraListener)
   context.addServlet(classOf[DefaultServlet], "/")
 
-  server.setHandler(context)
+  val requestLog = new RequestLogImpl()
+  requestLog.setResource("/logback-access.xml")
+  val requestLogHandler = new RequestLogHandler()
+  requestLogHandler.setRequestLog(requestLog)
+
+  val handlers = new HandlerCollection()
+  handlers.setHandlers(Array(context, requestLogHandler))
+
+  server.setHandler(handlers)
 
   server.start
   server.join

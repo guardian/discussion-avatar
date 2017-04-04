@@ -16,7 +16,8 @@ object AvatarBuild extends Build {
   
   val jettyVersion = "9.1.5.v20140505"
   val json4sVersion = "3.2.10"
-  val logbackVersion = "1.1.3"
+  val logbackVersion = "1.1.6"
+  val logstashEncoderVersion = "4.6"
   val servletApiVersion = "3.1.0"
   val scalazVersion = "7.1.1"
   val identityCookieVersion = "3.44"
@@ -41,6 +42,8 @@ object AvatarBuild extends Build {
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "ch.qos.logback" % "logback-classic" % logbackVersion,
+        "ch.qos.logback" % "logback-access" % logbackVersion,
+        "net.logstash.logback" % "logstash-logback-encoder" % logstashEncoderVersion,
         "org.eclipse.jetty" % "jetty-webapp" % jettyVersion % "container;compile",
         "org.eclipse.jetty" % "jetty-plus" % jettyVersion % "container",
         "javax.servlet" % "javax.servlet-api" % servletApiVersion,
@@ -55,7 +58,6 @@ object AvatarBuild extends Build {
         "com.amazonaws" % "aws-java-sdk" % amazonawsVersion,
         "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
         "org.apache.commons" % "commons-lang3" % apacheCommonsVersion
-
       ),
       assemblyMergeStrategy in assembly := {
         case "version.txt" => MergeStrategy.discard
