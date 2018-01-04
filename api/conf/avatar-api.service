@@ -1,0 +1,15 @@
+[Unit]
+Description=Avatar API
+
+[Service]
+WorkingDirectory=/opt/avatar-api
+ExecStart=/opt/avatar-api/bin/avatar-api
+Restart=always
+LimitNOFILE=65536
+LimitNPROC=4096
+LimitMEMLOCK=infinity
+User=avatar-api
+EnvironmentFile=/etc/default/avatar-api
+
+[Install]
+WantedBy=multi-user.target

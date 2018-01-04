@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
+  <appender name="LOGFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/avatar-api-application.log</file>
+
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>logs/avatar-api-application.log.%d{yyyy-MM-dd}.gz</fileNamePattern>
+      <totalFileCap>100MB</totalFileCap>
+      <maxHistory>3</maxHistory>
+    </rollingPolicy>
+
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+  </appender>
+
+  <appender name="ASYNC-LOGFILE" class="net.logstash.logback.appender.AccessEventAsyncDisruptorAppender">
+    <appender-ref ref="LOGFILE" />
+  </appender>
+
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
   </appender>
 
   <root level="INFO">
-    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="ASYNC-LOGFILE"/>
   </root>
 
 </configuration>
