@@ -21,7 +21,7 @@ val servletApiVersion = "3.1.0"
 val scalazVersion = "7.1.1"
 val identityCookieVersion = "3.44"
 val typesafeConfigVersion = "1.2.1"
-val amazonawsVersion = "1.9.6"
+val amazonawsVersion = "1.11.26"
 val scalaLoggingVersion = "3.1.0"
 val apacheCommonsVersion = "3.4"
 
@@ -52,7 +52,8 @@ libraryDependencies ++= Seq(
   "com.typesafe" % "config" % typesafeConfigVersion,
   "com.amazonaws" % "aws-java-sdk" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
-  "org.apache.commons" % "commons-lang3" % apacheCommonsVersion
+  "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
+  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "0.8"
 )
 
 sourceDirectory in webappPrepare := (sourceDirectory in Compile).value / "resources/webapp"
