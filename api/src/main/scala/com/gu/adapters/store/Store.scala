@@ -159,8 +159,14 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
 
   def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
     def check(r: BatchWriteItemResult): Error \/ BatchWriteItemResult = {
-      val errors = r.getUnprocessedItems.get(table).iterator().asScala.toList
+      val errors: List[String] = r
+        .getUnprocessedItems
+        .asScala
+        .get(table)
+        .toSeq
+        .flatMap(_.iterator().asScala)
         .map(_.getDeleteRequest.getKey.get("AvatarId").getS)
+        .toList
 
       if (errors.nonEmpty) {
         deletionFailed(errors.toNel.getOrElse(NonEmptyList("Unable to list IDs"))).left
@@ -168,13 +174,18 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
         r.right
       }
     }
+    def delete() = {
+      val deleteRequest = new TableWriteItems(table).addHashOnlyPrimaryKeysToDelete("AvatarId", ids: _*)
+      for {
+        response <- handleIoErrors(db.batchWriteItem(deleteRequest)).map(_.getBatchWriteItemResult)
+        _ <- check(response)
+      } yield DeleteResponse(ids)
+    }
 
-    val deleteRequest = new TableWriteItems(table).addHashOnlyPrimaryKeysToDelete("AvatarId", ids: _*)
-
-    for {
-      response <- handleIoErrors(db.batchWriteItem(deleteRequest)).map(_.getBatchWriteItemResult)
-      _ <- check(response)
-    } yield DeleteResponse(ids)
+    ids match {
+      case Nil => DeleteResponse(ids).right
+      case _ => delete()
+    }
   }
 }
 
@@ -218,18 +229,10 @@ case class S3(client: AmazonS3Client) extends FileStore {
   }
 
   def delete(bucket: String, keys: String*): Error \/ Unit = {
-    keys.toList match {
-      case key :: Nil => {
-        val request = new DeleteObjectRequest(bucket, key)
-        handleIoErrors(client.deleteObject(request))
-      }
-      case multiple => {
-        val request = new DeleteObjectsRequest(bucket).withKeys(keys: _*)
-        handleIoErrors(client.deleteObjects(request))
-      }
-    }
-
-
+    if (keys.nonEmpty) {
+      val request = new DeleteObjectsRequest(bucket).withKeys(keys: _*)
+      handleIoErrors(client.deleteObjects(request))
+    } else ().right
   }
 
   def presignedUrl(
