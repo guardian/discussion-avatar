@@ -88,7 +88,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     val dryRun = params.get("dryRun").contains("true")
 
     for {
-      user <- userFromRequest(params("userId"))
+      user <- User.userFromId(params("userId"))
       deleted <- store.deleteAll(user, isDryRun = dryRun)
       req = Req(apiUrl, request.getPathInfo)
     } yield (deleted, req)
@@ -125,7 +125,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars/user/:userId", operation(getAvatarsForUser)) { auth =>
     for {
-      user <- userFromRequest(params("userId"))
+      user <- User.userFromId(params("userId"))
       avatar <- store.get(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -133,7 +133,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) { auth =>
     for {
-      user <- userFromRequest(params("userId"))
+      user <- User.userFromId(params("userId"))
       active <- store.getActive(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (active, req)
@@ -236,10 +236,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
       .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def userFromRequest(userId: String): Error \/ User = {
-    attempt(User(userId))
-      .leftMap(_ => invalidUserId(NonEmptyList("Expected userId, found: " + userId)))
-  }
 }
 
 case class AvatarServletProperties(

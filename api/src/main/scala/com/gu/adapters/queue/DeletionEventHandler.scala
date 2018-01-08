@@ -8,26 +8,45 @@ import com.amazonaws.services.sqs.{AmazonSQSAsync, AmazonSQSAsyncClientBuilder}
 import com.gu.adapters.store.AWSCredentials
 import com.gu.core.akka.Akka
 import com.gu.core.akka.Akka._
-import com.gu.core.models.Errors.invalidUserId
-import com.gu.core.models.{Error, User}
+import com.gu.core.models.{Error, InvalidUserId, User}
 import com.gu.core.store.AvatarStore
-import com.gu.core.utils.ErrorHandling.attempt
 import com.typesafe.scalalogging.LazyLogging
 import org.json4s.{DefaultFormats, Formats}
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scalaz.{NonEmptyList, \/}
 import scala.language.postfixOps
 
-case class DeletionEvent(userId: String)
+case class DeletionMessage(userId: String)
+
+case class DeletionEvent(Message: String) {
+  import DeletionEvent._
+  def userId: Option[String] = {
+    for {
+      messageJson <- parseOpt(Message)
+      deletionMessage <- messageJson.extractOpt[DeletionMessage]
+    } yield deletionMessage.userId
+  }
+}
+
+object DeletionEvent {
+  implicit val jsonFormats: Formats = DefaultFormats
+
+  def deletionEvent(event: String): Option[String] = {
+    for {
+      deletionEventJson <- parseOpt(event)
+      deletionEvent <- deletionEventJson.extractOpt[DeletionEvent]
+      userId <- deletionEvent.userId
+    } yield userId
+  }
+}
 
 case class DeletionEventProps(queueUrl: String, region: String)
 
 class DeletionEventHandler(props: DeletionEventProps, avatarStore: AvatarStore) extends LazyLogging {
-  implicit val jsonFormats: Formats = DefaultFormats
-
   private val client: AmazonSQSAsync = AmazonSQSAsyncClientBuilder
     .standard()
     .withCredentials(AWSCredentials.awsCredentials)
@@ -45,15 +64,13 @@ class DeletionEventHandler(props: DeletionEventProps, avatarStore: AvatarStore) 
       }
   }
 
-  private def userFromId(userId: String): Error \/ User = {
-    attempt(User(userId))
-      .leftMap(_ => invalidUserId(NonEmptyList("Expected userId, found: " + userId)))
-  }
+  def deleteUser(m: Message): Future[MessageAction] = Akka.executeBlocking {
+    val event = DeletionEvent.deletionEvent(m.getBody)
+    val eventUserId = event.toRight(InvalidUserId("Unable to get userId from sqs message", NonEmptyList(m.getBody)))
 
-  private def deleteUser(m: Message): Future[MessageAction] = Akka.executeBlocking {
-    val event = parse(m.getBody).extract[DeletionEvent]
     val result: \/[Error, Ack] = for {
-      user <- userFromId(event.userId)
+      userId <- \/.fromEither(eventUserId)
+      user <- User.userFromId(userId)
       deleted <- avatarStore.deleteAll(user, isDryRun = false)
     } yield {
       logger.info(s"Successfully deleted $deleted")

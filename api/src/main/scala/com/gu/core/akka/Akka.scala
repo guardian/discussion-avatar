@@ -12,7 +12,7 @@ object Akka {
   implicit val defaultDispatcher: ExecutionContextExecutor = system.dispatcher
   val scheduler: Scheduler = system.scheduler
 
-  private val blockingOperations: MessageDispatcher = system.dispatchers.lookup("blocking-operations")
+  private val blockingOperations: MessageDispatcher = system.dispatchers.lookup("akka.blocking-operations")
 
   def executeBlocking[T](block: => T): Future[T] = {
     Future(block)(blockingOperations)

@@ -10,7 +10,7 @@ enablePlugins(
 organization := "com.gu"
 name := "avatar-api"
 version := "1.0"
-scalaVersion := "2.11.5"
+scalaVersion := "2.11.11"
 
 val ScalatraVersion = "2.3.0"
 val jettyVersion = "9.1.5.v20140505"
