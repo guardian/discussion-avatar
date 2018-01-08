@@ -47,7 +47,7 @@ object DeletionEvent {
 case class DeletionEventProps(queueUrl: String, region: String)
 
 class DeletionEventHandler(props: DeletionEventProps, avatarStore: AvatarStore) extends LazyLogging {
-  private val client: AmazonSQSAsync = AmazonSQSAsyncClientBuilder
+  private lazy val client: AmazonSQSAsync = AmazonSQSAsyncClientBuilder
     .standard()
     .withCredentials(AWSCredentials.awsCredentials)
     .withEndpointConfiguration(new EndpointConfiguration(props.queueUrl, props.region))
