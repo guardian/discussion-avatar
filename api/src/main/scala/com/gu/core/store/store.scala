@@ -79,7 +79,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
 
   def get(user: User): \/[Error, FoundAvatars] = {
     for {
-        qr <- kvs.query(
+      qr <- kvs.query(
         dynamoTable,
         userIndex,
         user.id,
