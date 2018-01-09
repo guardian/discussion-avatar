@@ -80,6 +80,20 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
     NotImplemented(ErrorResponse("Endpoint needs to be specified"))
   }
 
+  get("/service/data/:userId") {
+    NotImplemented(ErrorResponse("Endpoint needs to be specified"))
+  }
+
+  apiDelete("/service/data/:userId", operation(deleteUserPermanently)) { auth =>
+    val dryRun = params.get("dryRun").contains("true")
+
+    for {
+      user <- User.userFromId(params("userId"))
+      deleted <- store.deleteAll(user, isDryRun = dryRun)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (deleted, req)
+  }
+
   get("/") {
     Message(
       uri = Some(apiUrl),
@@ -111,7 +125,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars/user/:userId", operation(getAvatarsForUser)) { auth =>
     for {
-      user <- userFromRequest(params("userId"))
+      user <- User.userFromId(params("userId"))
       avatar <- store.get(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -119,7 +133,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
 
   apiGet("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) { auth =>
     for {
-      user <- userFromRequest(params("userId"))
+      user <- User.userFromId(params("userId"))
       active <- store.getActive(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (active, req)
@@ -158,6 +172,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, pageSize))
       case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+      case ud: UserDeleted => Ok(DeletedUserResponse(None, ud, Nil))
     }
   }
 
@@ -177,6 +192,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
           case UnableToReadAvatarRequest(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
+          case UserDeletionFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
         }
       logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status.code))
 
@@ -220,10 +236,6 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
       .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
   }
 
-  def userFromRequest(userId: String): Error \/ User = {
-    attempt(User(userId))
-      .leftMap(_ => invalidUserId(NonEmptyList("Expected userId, found: " + userId)))
-  }
 }
 
 case class AvatarServletProperties(

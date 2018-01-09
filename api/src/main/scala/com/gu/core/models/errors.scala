@@ -18,6 +18,7 @@ case class InvalidUserId(message: String, errors: NonEmptyList[String]) extends 
 case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidIsSocialFlag(message: String, errors: NonEmptyList[String]) extends Error
+case class UserDeletionFailed(message: String, errors: NonEmptyList[String]) extends Error
 
 object Errors {
 
@@ -63,5 +64,9 @@ object Errors {
 
   def invalidMimeType(errors: NonEmptyList[String]): InvalidMimeType = {
     InvalidMimeType("Invalid mime type", errors)
+  }
+
+  def deletionFailed(errors: NonEmptyList[String]): UserDeletionFailed = {
+    UserDeletionFailed("Unable to delete one or more records for the user", errors)
   }
 }

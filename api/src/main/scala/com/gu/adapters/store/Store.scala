@@ -4,24 +4,24 @@ import java.io.ByteArrayInputStream
 import java.net.URL
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.{ AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain }
+import com.amazonaws.auth.{AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.regions.Region
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
-import com.amazonaws.services.dynamodbv2.document.spec.{ QuerySpec, UpdateItemSpec }
+import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpec}
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.core.models.Errors._
-import com.gu.core.models.{ Avatar, Error, Status, OrderBy, Ascending, Descending }
+import com.gu.core.models.{Ascending, Avatar, Descending, Error, OrderBy, Status}
 import com.gu.core.store._
 import com.gu.core.utils.ErrorHandling._
-import com.gu.core.utils.{ ISODateFormatter, KVLocationFromID }
-import org.joda.time.{ DateTime, DateTimeZone }
+import com.gu.core.utils.{ISODateFormatter, KVLocationFromID}
+import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 object AWSCredentials {
   val awsCredentials = new AWSCredentialsProviderChain(
@@ -156,6 +156,37 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
       avatar <- asAvatar(item)
     } yield avatar
   }
+
+  def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
+    def check(r: BatchWriteItemResult): Error \/ BatchWriteItemResult = {
+      val errors: List[String] = r
+        .getUnprocessedItems
+        .asScala
+        .get(table)
+        .toSeq
+        .flatMap(_.iterator().asScala)
+        .map(_.getDeleteRequest.getKey.get("AvatarId").getS)
+        .toList
+
+      if (errors.nonEmpty) {
+        deletionFailed(errors.toNel.getOrElse(NonEmptyList("Unable to list IDs"))).left
+      } else {
+        r.right
+      }
+    }
+    def delete() = {
+      val deleteRequest = new TableWriteItems(table).addHashOnlyPrimaryKeysToDelete("AvatarId", ids: _*)
+      for {
+        response <- handleIoErrors(db.batchWriteItem(deleteRequest)).map(_.getBatchWriteItemResult)
+        _ <- check(response)
+      } yield DeleteResponse(ids)
+    }
+
+    ids match {
+      case Nil => DeleteResponse(ids).right
+      case _ => delete()
+    }
+  }
 }
 
 object Dynamo {
@@ -197,9 +228,11 @@ case class S3(client: AmazonS3Client) extends FileStore {
     handleIoErrors(client.putObject(request))
   }
 
-  def delete(bucket: String, key: String): Error \/ Unit = {
-    val request = new DeleteObjectRequest(bucket, key)
-    handleIoErrors(client.deleteObject(request))
+  def delete(bucket: String, keys: String*): Error \/ Unit = {
+    if (keys.nonEmpty) {
+      val request = new DeleteObjectsRequest(bucket).withKeys(keys: _*)
+      handleIoErrors(client.deleteObjects(request))
+    } else ().right
   }
 
   def presignedUrl(

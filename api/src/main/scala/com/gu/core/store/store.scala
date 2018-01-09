@@ -20,12 +20,17 @@ case class QueryResponse(
   hasMore: Boolean
 )
 
+case class DeleteResponse(
+  ids: List[String]
+)
+
 trait KVStore {
   def get(table: String, id: String): Error \/ Avatar
   def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
   def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse
   def put(table: String, avatar: Avatar): Error \/ Avatar
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
+  def delete(table: String, ids: List[String]): Error \/ DeleteResponse
 }
 
 trait FileStore {
@@ -43,7 +48,7 @@ trait FileStore {
     metadata: ObjectMetadata
   ): Error \/ Unit
 
-  def delete(bucket: String, key: String): Error \/ Unit
+  def delete(bucket: String, keys: String*): Error \/ Unit
 
   def presignedUrl(
     bucket: String,
@@ -163,6 +168,34 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       publicBucket,
       s"user/${avatar.userId}"
     ) map (_ => avatar)
+  }
+
+  def deleteAll(user: User, isDryRun: Boolean): Error \/ UserDeleted = {
+    // Execute unless dry run
+    def deleteFs(bucket: String, paths: String*) = if (isDryRun) ().right else fs.delete(bucket, paths: _*)
+    def deleteKv(table: String, ids: List[String]) = if (isDryRun) ().right else kvs.delete(table, ids)
+
+    def deletePublic() = deleteFs(publicBucket, s"user/${user.id}")
+    def deleteProcessed(paths: Seq[String]) = deleteFs(processedBucket, paths: _*)
+    def deleteRaw(paths: Seq[String]) = deleteFs(rawBucket, paths: _*)
+    def deleteKVData(ids: List[String]) = deleteKv(dynamoTable, ids)
+
+    // used to return a list of deleted resources to the client
+    def resources(ids: List[String], locations: List[String]): List[String] = {
+      ids.map(id => s"kv:$id") ::: locations.map(l => s"fs:$l")
+    }
+
+    for {
+      avatars <- get(user)
+
+      ids = avatars.body.map(_.id)
+      locations = ids.map(id => KVLocationFromID(id))
+
+      _ <- deletePublic()
+      _ <- deleteRaw(locations)
+      _ <- deleteProcessed(locations)
+      _ <- deleteKVData(ids)
+    } yield UserDeleted(user, resources(ids, locations))
   }
 
   def updateFileStore(old: Avatar, updated: Avatar): Error \/ Avatar = updated.status match {

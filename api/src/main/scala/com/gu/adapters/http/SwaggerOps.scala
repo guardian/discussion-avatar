@@ -1,6 +1,6 @@
 package com.gu.adapters.http
 
-import com.gu.core.models.Avatar
+import com.gu.core.models.{Avatar, User}
 import org.scalatra.swagger._
 
 trait SwaggerOps {
@@ -52,4 +52,10 @@ trait SwaggerOps {
         bodyParam[StatusRequest]("")
           .description("The request includes the Avatar's new status")
       )
+
+  def deleteUserPermanently =
+    apiOperation[User]("deleteUserPermanently")
+      .summary("Delete all of a user's avatar data. Cannot be undone!")
+      .parameter(pathParam[Int]("userId"))
+      .parameter(queryParam[Boolean]("dryRun"))
 }

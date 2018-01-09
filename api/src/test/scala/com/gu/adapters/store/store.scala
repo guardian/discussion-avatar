@@ -6,14 +6,14 @@ import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.TestCookie
 import com.gu.adapters.store.TestStoreHelpers.path
 import com.gu.core.models._
-import com.gu.core.store.{ FileStore, KVStore, QueryResponse }
+import com.gu.core.store.{DeleteResponse, FileStore, KVStore, QueryResponse}
 import com.gu.core._
 import com.gu.core.utils.KVLocationFromID
 import Errors.avatarNotFound
-import org.joda.time.{ DateTime, DateTimeZone }
+import org.joda.time.{DateTime, DateTimeZone}
 
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
@@ -60,8 +60,10 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     new URL("http://some-url/").right
   }
 
-  def delete(bucket: String, key: String): models.Error \/ Unit = {
-    files -= path(bucket, key)
+  def delete(bucket: String, keys: String*): models.Error \/ Unit = {
+    val paths = keys.map(key => path(bucket, key))
+    files = files.filterKeys(key => !paths.contains(key))
+
     ().right
   }
 }
@@ -144,5 +146,10 @@ class TestKVStore(dynamoTable: String) extends KVStore {
       docs += p -> updated
       updated
     }
+  }
+
+  def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
+    docs = docs.filterKeys(id => !ids.contains(id))
+    DeleteResponse(ids).right
   }
 }
