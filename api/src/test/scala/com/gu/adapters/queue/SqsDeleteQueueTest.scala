@@ -2,9 +2,9 @@ package com.gu.adapters.queue
 
 import akka.stream.alpakka.sqs.{Ack, RequeueWithDelay}
 import com.amazonaws.services.sqs.model.Message
-import com.gu.core.models.{Error, User, UserDeleted, UserDeletionFailed}
+import com.gu.core.models.{ User, UserDeleted, UserDeletionFailed}
 import com.gu.core.store.AvatarStore
-import org.scalatest.concurrent.{Futures, ScalaFutures}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 import org.mockito.Mockito._
@@ -13,12 +13,11 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import scala.concurrent.duration._
 import scalaz.{NonEmptyList, \/}
 
-class DeletionEventHandlerTest extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
+class SqsDeleteQueueTest extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
   trait DeletionEventHandlerScope {
-    val eventHandlerProps = DeletionEventProps("queueUrl", "region")
+    val eventHandlerProps = SqsDeletionConsumerProps("queueUrl", "region")
     val avatarStore = mock[AvatarStore]
-    val deletionEventHandler = new DeletionEventHandler(eventHandlerProps, avatarStore)
 
     val messageBody =
       """
@@ -42,13 +41,13 @@ class DeletionEventHandlerTest extends FlatSpec with Matchers with MockitoSugar 
 
   "DeletionEventHandler" should "delete users from avatar store and Ack" in new DeletionEventHandlerScope {
     when(avatarStore.deleteAll(User("18467226"), isDryRun = false)) thenReturn \/.right(UserDeleted(User("18467226"), List.empty))
-    whenReady(deletionEventHandler.deleteUser(message), Timeout(5 seconds)) (_ shouldBe Ack())
+    whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds)) (_ shouldBe Ack())
     verify(avatarStore).deleteAll(User("18467226"), isDryRun = false)
   }
 
   it should "should requeue with delay on error" in new DeletionEventHandlerScope {
     when(avatarStore.deleteAll(User("18467226"), isDryRun = false)) thenReturn \/.left(UserDeletionFailed("blah", NonEmptyList("blah")))
-    whenReady(deletionEventHandler.deleteUser(message), Timeout(5 seconds)) (_ shouldBe RequeueWithDelay(10))
+    whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds)) (_ shouldBe RequeueWithDelay(10))
     verify(avatarStore).deleteAll(User("18467226"), isDryRun = false)
   }
 

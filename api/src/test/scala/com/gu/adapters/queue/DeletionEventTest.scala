@@ -1,5 +1,6 @@
 package com.gu.adapters.queue
 
+import com.gu.core.models.DeletionEvent
 import org.scalatest.{FlatSpec, Matchers}
 
 class DeletionEventTest extends FlatSpec with Matchers {
@@ -21,7 +22,7 @@ class DeletionEventTest extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    DeletionEvent.deletionEvent(eventData) shouldBe Some("18467226")
+    DeletionEvent.userId(eventData) shouldBe Some("18467226")
 
   }
 
@@ -42,7 +43,7 @@ class DeletionEventTest extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    DeletionEvent.deletionEvent(eventData) shouldBe None
+    DeletionEvent.userId(eventData) shouldBe None
 
   }
 
@@ -52,7 +53,7 @@ class DeletionEventTest extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    DeletionEvent.deletionEvent(eventData) shouldBe None
+    DeletionEvent.userId(eventData) shouldBe None
 
   }
 

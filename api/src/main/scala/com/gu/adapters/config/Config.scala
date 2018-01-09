@@ -3,7 +3,7 @@ package com.gu.adapters.config
 import com.amazonaws.regions.{Region, Regions}
 import com.gu.adapters.http.AvatarServletProperties
 import com.gu.adapters.notifications.SnsProperties
-import com.gu.adapters.queue.DeletionEventProps
+import com.gu.adapters.queue.SqsDeletionConsumerProps
 import com.gu.core.store.StoreProperties
 import com.gu.identity.cookie.{GuUDecoder, IdentityCookieDecoder, PreProductionKeys, ProductionKeys}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
@@ -11,7 +11,7 @@ import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 case class Config(
     avatarServletProperties: AvatarServletProperties,
     storeProperties: StoreProperties,
-    deletionEventsProps: DeletionEventProps
+    deletionEventsProps: SqsDeletionConsumerProps
 ) {
   val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
 }
@@ -33,8 +33,8 @@ object Config {
       deletionEventsProps(conf)
     )
 
-  private def deletionEventsProps(conf: TypesafeConfig): DeletionEventProps = {
-    DeletionEventProps(conf.getString("aws.sqs.deleted.url"), conf.getString("aws.region") )
+  private def deletionEventsProps(conf: TypesafeConfig): SqsDeletionConsumerProps = {
+    SqsDeletionConsumerProps(conf.getString("aws.sqs.deleted.url"), conf.getString("aws.region") )
   }
 
   protected def storeProperties(conf: TypesafeConfig): StoreProperties =

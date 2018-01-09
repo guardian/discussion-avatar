@@ -4,7 +4,7 @@ import javax.servlet.ServletContext
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.{AvatarServlet, AvatarSwagger, ResourcesApp}
 import com.gu.adapters.notifications.SNS
-import com.gu.adapters.queue.DeletionEventHandler
+import com.gu.adapters.queue.SqsDeletionConsumer
 import com.gu.adapters.store.{Dynamo, DynamoProperties, S3}
 import com.gu.core.store.AvatarStore
 import org.scalatra._
@@ -26,6 +26,6 @@ class ScalatraBootstrap extends LifeCycle {
     )
     context.mount(avatarServlet, "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")
-    new DeletionEventHandler(config.deletionEventsProps, avatarStore).sqsQueue()
+    new SqsDeletionConsumer(config.deletionEventsProps, avatarStore).listen()
   }
 }
