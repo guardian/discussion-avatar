@@ -126,30 +126,6 @@ class TestKVStore(dynamoTable: String) extends KVStore {
       new DateTime(),
       isSocial = true,
       isActive = false
-    ),
-    dynamoTable + "/abcdefg_1" -> Avatar(
-      "abcdefg_1",
-      "http://avatar-url-2",
-      "user_1",
-      "bar.gif",
-      "http://avatar-raw-url2",
-      Approved,
-      new DateTime(),
-      new DateTime(),
-      isSocial = false,
-      isActive = true
-    ),
-    dynamoTable + "/abcdefg_2" -> Avatar(
-      "abcdefg_2",
-      "http://avatar-url-3",
-      "user_1",
-      "gra.gif",
-      "http://avatar-raw-url3",
-      Pending,
-      new DateTime(),
-      new DateTime(),
-      isSocial = false,
-      isActive = false
     )
   )
 
