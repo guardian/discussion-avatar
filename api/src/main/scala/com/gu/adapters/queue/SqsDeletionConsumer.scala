@@ -44,7 +44,7 @@ object SqsDeletionConsumer extends LazyLogging {
     val result: \/[Error, Ack] = for {
       userId <- \/.fromEither(eventUserId)
       user <- User.userFromId(userId)
-      deleted <- avatarStore.deleteAll(user, isDryRun = false)
+      deleted <- avatarStore.deleteAll(user)
     } yield {
       logger.info(s"Successfully deleted $deleted")
       Ack()

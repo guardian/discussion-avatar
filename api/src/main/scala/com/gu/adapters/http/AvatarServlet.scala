@@ -3,22 +3,25 @@ package com.gu.adapters.http
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.Image._
-import com.gu.adapters.notifications.{ Notifications, Publisher }
+import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
-import com.gu.core.store.AvatarStore
-import com.gu.core.utils.ErrorHandling.{ attempt, logError }
+import com.gu.core.store.{AvatarStore, AvatarUpdateService}
+import com.gu.core.utils.ErrorHandling.{attempt, logError}
 import com.gu.identity.cookie.GuUDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
-import org.scalatra.swagger.{ Swagger, SwaggerSupport }
+import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
-import scalaz.{ Success => _, _ }
+import scalaz.{Success => _, _}
 
-class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServletProperties)(implicit val swagger: Swagger)
+class AvatarServlet(store: AvatarStore,
+                    avatarUpdateService: AvatarUpdateService,
+                    publisher: Publisher,
+                    props: AvatarServletProperties)(implicit val swagger: Swagger)
     extends ScalatraServlet
     with ServletWithErrorHandling[Error, Success]
     with AuthorizedApiServlet[Success]
@@ -85,11 +88,10 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
   }
 
   apiDelete("/service/data/:userId", operation(deleteUserPermanently)) { auth =>
-    val dryRun = params.get("dryRun").contains("true")
 
     for {
       user <- User.userFromId(params("userId"))
-      deleted <- store.deleteAll(user, isDryRun = dryRun)
+      deleted <- store.deleteAll(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (deleted, req)
   }
@@ -161,7 +163,7 @@ class AvatarServlet(store: AvatarStore, publisher: Publisher, props: AvatarServl
   apiPut("/avatars/:id/status", operation(putAvatarStatus)) { auth =>
     for {
       sr <- statusRequestFromBody(parsedBody)
-      updated <- store.updateStatus(params("id"), sr.status)
+      updated <- avatarUpdateService.updateStatus(params("id"), sr.status)
       req = Req(apiUrl, request.getPathInfo)
     } yield (updated, req)
   }

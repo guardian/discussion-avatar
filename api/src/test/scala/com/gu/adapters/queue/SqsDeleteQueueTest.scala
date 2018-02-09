@@ -9,7 +9,7 @@ import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
-
+import scala.language.postfixOps
 import scala.concurrent.duration._
 import scalaz.{NonEmptyList, \/}
 
@@ -40,15 +40,15 @@ class SqsDeleteQueueTest extends FlatSpec with Matchers with MockitoSugar with S
   }
 
   "DeletionEventHandler" should "delete users from avatar store and Ack" in new DeletionEventHandlerScope {
-    when(avatarStore.deleteAll(User("18467226"), isDryRun = false)) thenReturn \/.right(UserDeleted(User("18467226"), List.empty))
+    when(avatarStore.deleteAll(User("18467226"))) thenReturn \/.right(UserDeleted(User("18467226"), List.empty))
     whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds)) (_ shouldBe Ack())
-    verify(avatarStore).deleteAll(User("18467226"), isDryRun = false)
+    verify(avatarStore).deleteAll(User("18467226"))
   }
 
   it should "should requeue with delay on error" in new DeletionEventHandlerScope {
-    when(avatarStore.deleteAll(User("18467226"), isDryRun = false)) thenReturn \/.left(UserDeletionFailed("blah", NonEmptyList("blah")))
+    when(avatarStore.deleteAll(User("18467226"))) thenReturn \/.left(UserDeletionFailed("blah", NonEmptyList("blah")))
     whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds)) (_ shouldBe RequeueWithDelay(10))
-    verify(avatarStore).deleteAll(User("18467226"), isDryRun = false)
+    verify(avatarStore).deleteAll(User("18467226"))
   }
 
 }

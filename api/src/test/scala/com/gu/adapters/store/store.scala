@@ -26,6 +26,14 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     Map(s"$s3ProcessedBucket/${KVLocationFromID(id)}" -> "some-file")
   }
 
+  def exists(bucket: String, key: String): Boolean = {
+    files.get(TestStoreHelpers.path(bucket, key)).nonEmpty
+  }
+
+  def get(bucket: String, key: String): Option[String] = {
+    files.get(TestStoreHelpers.path(bucket, key))
+  }
+
   def copy(
     fromBucket: String,
     fromKey: String,
@@ -48,7 +56,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     metadata: ObjectMetadata
   ): models.Error \/ Unit = {
 
-    files += path(bucket, key) -> file.toString
+    files += path(bucket, key) -> file.map(_.toChar).mkString
     ().right
   }
 
@@ -118,12 +126,38 @@ class TestKVStore(dynamoTable: String) extends KVStore {
       new DateTime(),
       isSocial = true,
       isActive = false
+    ),
+    dynamoTable + "/abcdefg_1" -> Avatar(
+      "abcdefg_1",
+      "http://avatar-url-2",
+      "user_1",
+      "bar.gif",
+      "http://avatar-raw-url2",
+      Approved,
+      new DateTime(),
+      new DateTime(),
+      isSocial = false,
+      isActive = true
+    ),
+    dynamoTable + "/abcdefg_2" -> Avatar(
+      "abcdefg_2",
+      "http://avatar-url-3",
+      "user_1",
+      "gra.gif",
+      "http://avatar-raw-url3",
+      Pending,
+      new DateTime(),
+      new DateTime(),
+      isSocial = false,
+      isActive = false
     )
   )
 
   def get(table: String, id: String): models.Error \/ Avatar = {
     docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"avatar with ID '$id' does not exist")))
   }
+
+  def getKey(table: String, id: String): Option[Avatar] = docs.get(path(table, id))
 
   def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
@@ -149,7 +183,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
   }
 
   def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
-    docs = docs.filterKeys(id => !ids.contains(id))
+    docs = docs.filterKeys(id => !ids.map(k => s"$dynamoTable/${k}").contains(id))
     DeleteResponse(ids).right
   }
 }
