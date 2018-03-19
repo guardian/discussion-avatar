@@ -6,7 +6,7 @@ import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
-import com.gu.core.store.{AvatarStore, AvatarUpdateService}
+import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
 import com.gu.identity.cookie.GuUDecoder
 import org.json4s.JsonAST.JValue
@@ -18,11 +18,12 @@ import org.scalatra.swagger.{Swagger, SwaggerSupport}
 
 import scalaz.{Success => _, _}
 
-class AvatarServlet(store: AvatarStore,
-                    avatarUpdateService: AvatarUpdateService,
-                    publisher: Publisher,
-                    props: AvatarServletProperties)(implicit val swagger: Swagger)
-    extends ScalatraServlet
+class AvatarServlet(
+  store: AvatarStore,
+  publisher: Publisher,
+  props: AvatarServletProperties
+)(implicit val swagger: Swagger)
+  extends ScalatraServlet
     with ServletWithErrorHandling[Error, Success]
     with AuthorizedApiServlet[Success]
     with JacksonJsonSupport
@@ -88,7 +89,6 @@ class AvatarServlet(store: AvatarStore,
   }
 
   apiDelete("/service/data/:userId", operation(deleteUserPermanently)) { auth =>
-
     for {
       user <- User.userFromId(params("userId"))
       deleted <- store.deleteAll(user)
@@ -163,7 +163,7 @@ class AvatarServlet(store: AvatarStore,
   apiPut("/avatars/:id/status", operation(putAvatarStatus)) { auth =>
     for {
       sr <- statusRequestFromBody(parsedBody)
-      updated <- avatarUpdateService.updateStatus(params("id"), sr.status)
+      updated <- store.updateStatus(params("id"), sr.status)
       req = Req(apiUrl, request.getPathInfo)
     } yield (updated, req)
   }

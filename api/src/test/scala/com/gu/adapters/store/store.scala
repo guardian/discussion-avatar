@@ -44,7 +44,6 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     val oldPath = path(fromBucket, fromKey)
     val newPath = path(toBucket, toKey)
     val file = files(oldPath)
-    files -= oldPath
     files += newPath -> file
     ().right
   }
@@ -70,6 +69,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
 
   def delete(bucket: String, keys: String*): models.Error \/ Unit = {
     val paths = keys.map(key => path(bucket, key))
+
     files = files.filterKeys(key => !paths.contains(key))
 
     ().right

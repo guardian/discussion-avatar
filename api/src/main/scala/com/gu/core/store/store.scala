@@ -73,8 +73,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
 
-  def get(id: String): Error \/ FoundAvatar = {
-    kvs.get(dynamoTable, id) map FoundAvatar
+  def get(avatarId: String): Error \/ FoundAvatar = {
+    kvs.get(dynamoTable, avatarId) map FoundAvatar
   }
 
   def get(user: User): \/[Error, FoundAvatars] = {
@@ -106,14 +106,34 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     } yield FoundAvatar(avatar)
   }
 
-  def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
-    val metadata = new ObjectMetadata()
-    metadata.addUserMetadata("avatar-id", avatarId.toString)
-    metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", EscapedUnicode(originalFilename))
-    metadata.setCacheControl("max-age=3600")
-    metadata.setContentType(mimeType)
-    metadata
+  def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
+    def handleApproved(oldAvatarE: \/[Error, Avatar]) = {
+      for {
+        oldAvatar <- oldAvatarE
+        _ <- deleteActiveAvatar(oldAvatar.userId)
+        updated <- updateKv(oldAvatar.id, Approved, isActive = true)
+        _ <- copyToPublic(updated)
+      } yield updated
+    }
+
+    def handleRejected(oldAvatarE: \/[Error, Avatar]) = {
+      for {
+        oldAvatar <- oldAvatarE
+        updated <- updateKv(oldAvatar.id, Rejected, isActive = false)
+        _ <- if (oldAvatar.isActive) deletePublicAvatarFile(updated.userId).map(_ => ()) else ().right
+      } yield updated
+    }
+
+    val oldAvatar: \/[Error, Avatar] = get(id).map(_.body)
+
+    val result = status match {
+      case noChange if oldAvatar.exists(_.status == status) => oldAvatar
+      case Approved => handleApproved(oldAvatar)
+      case Rejected => handleRejected(oldAvatar)
+      case otherStatus => updateKv(id, otherStatus, isActive = false)
+    }
+
+    logIfError(s"Unable to update status for Avatar ID: $id. Avatar may be left in an inconsistent state.", result.map(UpdatedAvatar.apply))
   }
 
   def userUpload(
@@ -163,18 +183,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     ) map (_ => avatar)
   }
 
-  def deletePublicAvatarFile(userId: String): \/[Error, String] = {
-    val location = s"user/$userId"
-    fs.delete(publicBucket, s"user/$userId").map(_ => location)
-  }
-
-  private def deleteAvatarFiles(bucket: String, avatarIds: List[String]): \/[Error, List[String]] = {
-    val locations = avatarIds.map(KVLocationFromID.apply)
-    fs.delete(bucket, locations: _*).map(_ => locations)
-  }
-
-  private def deleteAvatarKvEntries(avatarIds: List[String]): \/[Error, DeleteResponse] = kvs.delete(dynamoTable, avatarIds)
-
   def deleteAll(user: User): Error \/ UserDeleted = {
     // used to return a list of deleted resources to the client
     def resources(ids: List[String], locations: List[String]): List[String] = {
@@ -186,15 +194,39 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       ids = avatars.body.map(_.id)
 
       _ <- deletePublicAvatarFile(user.id)
+      incomingLocations <- deleteAvatarFiles(incomingBucket, ids) // strictly speaking this shouldn't be necessary
       rawLocations <- deleteAvatarFiles(rawBucket, ids)
       processedLocations <- deleteAvatarFiles(processedBucket, ids)
       _ <- deleteAvatarKvEntries(ids)
-    } yield UserDeleted(user, resources(ids, rawLocations ::: processedLocations))
+    } yield UserDeleted(user, resources(ids, rawLocations ::: processedLocations ::: incomingLocations))
   }
 
-  def deleteActiveAvatar(userId: String): \/[Error, DeleteResult] = {
+  private[this] def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
+    val metadata = new ObjectMetadata()
+    metadata.addUserMetadata("avatar-id", avatarId.toString)
+    metadata.addUserMetadata("user-id", user.toString)
+    metadata.addUserMetadata("original-filename", EscapedUnicode(originalFilename))
+    metadata.setCacheControl("max-age=3600")
+    metadata.setContentType(mimeType)
+    metadata
+  }
+
+  private[this] def deletePublicAvatarFile(userId: String): \/[Error, String] = {
+    val location = s"user/$userId"
+    fs.delete(publicBucket, s"user/$userId").map(_ => location)
+  }
+
+  private[this] def deleteAvatarFiles(bucket: String, avatarIds: List[String]): \/[Error, List[String]] = {
+    val locations = avatarIds.map(KVLocationFromID.apply)
+    fs.delete(bucket, locations: _*).map(_ => locations)
+  }
+
+  private[this] def deleteAvatarKvEntries(avatarIds: List[String]): \/[Error, DeleteResponse] = kvs.delete(dynamoTable, avatarIds)
+
+  private[this] def deleteActiveAvatar(userId: String): \/[Error, DeleteResult] = {
     def delete(avatar: Avatar) = {
       for {
+        incomingLocations <- deleteAvatarFiles(incomingBucket, avatar.id :: Nil) // strictly speaking this shouldn't be necessary
         publicImage <- deletePublicAvatarFile(avatar.userId)
         rawResources <- deleteAvatarFiles(rawBucket, avatar.id :: Nil)
         processedResources <- deleteAvatarFiles(processedBucket, avatar.id :: Nil)
@@ -211,7 +243,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     }
   }
 
-  def updateKv(avatarId: String, status: Status, isActive: Boolean): \/[Error, Avatar] = {
+  private[this] def updateKv(avatarId: String, status: Status, isActive: Boolean): \/[Error, Avatar] = {
     kvs.update(dynamoTable, avatarId, status, isActive = isActive)
   }
 

@@ -7,7 +7,7 @@ import com.gu.adapters.http.TestCookie.testSecureCookie
 import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.{TestFileStore, TestKVStore}
 import com.gu.core.models.{Approved, Inactive, Pending, Rejected}
-import com.gu.core.store.{AvatarStore, AvatarUpdateService}
+import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
 
 class AvatarServletTests extends TestHelpers {
@@ -22,12 +22,12 @@ class AvatarServletTests extends TestHelpers {
   val apiUrl: String = avatarServletProps.apiUrl
   val apiKey = avatarServletProps.apiKeys.head
   val avatarStore = AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps)
-  val avatarUpdateService = new AvatarUpdateService(avatarStore)
+  //val avatarUpdateService = new AvatarUpdateService(avatarStore)
 
   addServlet(
     new AvatarServlet(
       avatarStore,
-      avatarUpdateService,
+      //avatarUpdateService,
       new TestPublisher,
       avatarServletProps
     ),
