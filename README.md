@@ -3,6 +3,43 @@
 The Avatar Service comprises of an API and various related tasks,
 which take the form of Lambda functions.
 
+## Architecture
+
+Metadata about avatars is stored in Dynamo. Image files are stored in
+S3.
+
+The Avatar API is used for uploading avatars and updating their status
+(for moderation purposes).
+
+Some lambdas are used to resize avatars on initial upload. These live
+in the Discussion Platform repo.
+
+There are 4 S3 buckets used:
+
+* incoming (for newly uploaded avatars)
+* raw (to preserve original files)
+* processed (for resized files)
+* origin (for approved files - this bucket is public)
+
+The exact flow is:
+
+    upload (api)
+    -> + incoming
+
+    resize (lambda)
+    -> + raw
+    -> + processed
+    -> - incoming
+
+    approved (api - moderation)
+    -> + origin
+    -> old avatar files and records deleted
+
+(+/- indicate add/remove from bucket.)
+
+If the avatar is instead rejected by the moderatorsn, the image is not
+moved to origin and any previous avatar files are left in place.
+
 ## Running locally
 
 ### Configuring AWS Credentials
@@ -47,4 +84,3 @@ limitations under the License.
  VK       / /  \ \  | |\ \  \7
            "     "    "  "
 ```
-
