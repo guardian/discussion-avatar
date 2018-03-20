@@ -82,25 +82,20 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
   }
 
   "deleting a user" should "remove key value (Dynamo) data and also associated files (S3)" in new WithStore {
-    val avatar1 = uploadAvatar("first")
-    val avatar2 = uploadAvatar("second")
+    val avatar = uploadAvatar("first")
     val user = User(userId)
 
-    avatarStore.updateStatus(avatar1.id, Approved)
+    avatarStore.updateStatus(avatar.id, Approved)
 
-    val bucketPath1 = KVLocationFromID(avatar1.id)
-    val bucketPath2 = KVLocationFromID(avatar2.id)
+    val bucketPath1 = KVLocationFromID(avatar.id)
+    val bucketPath2 = KVLocationFromID(avatar.id)
 
     val deleted = avatarStore.deleteAll(user)
     val expected = List(
-      s"kv:${avatar1.id}",
+      s"kv:${avatar.id}",
       s"fs:com-gu-avatar-processed-dev/$bucketPath1",
       s"fs:com-gu-avatar-raw-dev/$bucketPath1",
-      s"fs:com-gu-avatar-incoming-dev/$bucketPath1",
-      s"kv:${avatar2.id}",
-      s"fs:com-gu-avatar-processed-dev/$bucketPath2",
-      s"fs:com-gu-avatar-raw-dev/$bucketPath2",
-      s"fs:com-gu-avatar-incoming-dev/$bucketPath2"
+      s"fs:com-gu-avatar-incoming-dev/$bucketPath1"
     )
 
     deleted.getOrElse(null).resources should contain only (expected:_*)
@@ -110,14 +105,20 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
 
   "cleaning a user" should "remove all non-active avatars" in new WithStore {
     val avatar1 = uploadAvatar("first")
-    val avatar2 = uploadAvatar("second")
-    val user = User(userId)
-
     avatarStore.updateStatus(avatar1.id, Approved)
+
+    // Note, because cleaning happens automatically now on status updates, we
+    // have to artificially do setup
+    val bytes = "myimage".getBytes
+    val avatar2 = avatar1.copy(id = "foobar", status = Approved, isActive = false)
+    kvStore.put(storeProps.kvTable, avatar2)
+    fileStore.put(storeProps.fsRawBucket, KVLocationFromID(avatar2.id), bytes, new ObjectMetadata())
+    fileStore.put(storeProps.fsIncomingBucket, KVLocationFromID(avatar2.id), bytes, new ObjectMetadata())
+    fileStore.put(storeProps.fsProcessedBucket, KVLocationFromID(avatar2.id), bytes, new ObjectMetadata())
 
     val bucketPath = KVLocationFromID(avatar2.id)
 
-    val cleaned = avatarStore.cleanup(user)
+    val cleaned = avatarStore.cleanupInactive(User(userId))
     val expected = List(
       s"kv:${avatar2.id}",
       s"fs:com-gu-avatar-processed-dev/$bucketPath",

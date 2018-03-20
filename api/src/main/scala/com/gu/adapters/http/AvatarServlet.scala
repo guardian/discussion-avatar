@@ -99,7 +99,7 @@ class AvatarServlet(
   apiPut("/avatars/user/:userId/cleanup", operation(cleanupUser)) { auth: String =>
     for {
       user <- User.userFromId(params("userId"))
-      deleted <- store.cleanup(user)
+      deleted <- store.cleanupInactive(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (deleted, req)
   }

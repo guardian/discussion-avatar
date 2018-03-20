@@ -22,7 +22,6 @@ class AvatarServletTests extends TestHelpers {
   val apiUrl: String = avatarServletProps.apiUrl
   val apiKey = avatarServletProps.apiKeys.head
   val avatarStore = AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps)
-  //val avatarUpdateService = new AvatarUpdateService(avatarStore)
 
   addServlet(
     new AvatarServlet(

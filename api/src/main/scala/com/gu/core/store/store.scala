@@ -107,31 +107,43 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
   }
 
   def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
-    def handleApproved(oldAvatarE: \/[Error, Avatar]) = {
+    def demoteActive(user: User): Error \/ Unit = {
+      def recoverNotFound(e: Error): Error \/ Unit = e match {
+        case AvatarNotFound(_, _) => ().right
+        case err => err.left
+      }
+
+      getActive(user)
+        .flatMap(active => updateKv(active.body.id, active.body.status, isActive = false))
+        .fold(recoverNotFound, _ => ().right)
+    }
+
+    def handleApproved(user: User, avatar: Avatar) = {
       for {
-        oldAvatar <- oldAvatarE
-        _ <- deleteActiveAvatar(oldAvatar.userId)
-        updated <- updateKv(oldAvatar.id, Approved, isActive = true)
+        _ <- demoteActive(user)
+        updated <- updateKv(avatar.id, Approved, isActive = true)
         _ <- copyToPublic(updated)
+        _ <- cleanupInactive(user)
       } yield updated
     }
 
-    def handleRejected(oldAvatarE: \/[Error, Avatar]) = {
+    def handleRejected(user: User, avatar: Avatar) = {
       for {
-        oldAvatar <- oldAvatarE
-        updated <- updateKv(oldAvatar.id, Rejected, isActive = false)
-        _ <- if (oldAvatar.isActive) deletePublicAvatarFile(updated.userId).map(_ => ()) else ().right
+        updated <- updateKv(avatar.id, Rejected, isActive = false)
+        _ <- if (avatar.isActive) deletePublicAvatarFile(updated.userId).map(_ => ()) else ().right
       } yield updated
     }
 
-    val oldAvatar: \/[Error, Avatar] = get(id).map(_.body)
-
-    val result = status match {
-      case noChange if oldAvatar.exists(_.status == status) => oldAvatar
-      case Approved => handleApproved(oldAvatar)
-      case Rejected => handleRejected(oldAvatar)
-      case otherStatus => updateKv(id, otherStatus, isActive = false)
-    }
+    val result = for {
+      avatar <- get(id).map(_.body)
+      user = User(avatar.userId)
+      updated <- status match {
+        case noChange if avatar.status == status => avatar.right
+        case Approved => handleApproved(user, avatar)
+        case Rejected => handleRejected(user, avatar)
+        case otherStatus => updateKv(id, otherStatus, isActive = false)
+      }
+    } yield updated
 
     logIfError(s"Unable to update status for Avatar ID: $id. Avatar may be left in an inconsistent state.", result.map(UpdatedAvatar.apply))
   }
@@ -183,7 +195,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     ) map (_ => avatar)
   }
 
-  def cleanup(user: User): Error \/ UserCleaned = {
+  def cleanupInactive(user: User): Error \/ UserCleaned = {
     val avatars = for {
       resp <- get(user)
     } yield resp.body
@@ -209,7 +221,6 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
   }
 
   def deleteAll(user: User): Error \/ UserDeleted = {
-    // used to return a list of deleted resources to the client
     for {
       avatars <- get(user)
       ids = avatars.body.map(_.id)
