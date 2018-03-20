@@ -183,22 +183,42 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     ) map (_ => avatar)
   }
 
+  def cleanup(user: User): Error \/ UserCleaned = {
+    val avatars = for {
+      resp <- get(user)
+    } yield resp.body
+
+    val hasActive = avatars.exists(_.exists(_.isActive))
+
+    if (hasActive) {
+      for {
+        as <- avatars
+        inactiveIDs = as.filterNot(_.isActive).map(_.id)
+        buckets = List(incomingBucket, rawBucket, processedBucket)
+
+        _ <- deleteAvatarKvEntries(inactiveIDs)
+        locations <- deletePrivateAvatarFiles(buckets, inactiveIDs)
+      } yield UserCleaned(user, resources(inactiveIDs, locations))
+    } else {
+      UserCleaned(user, Nil).right // no-op
+    }
+  }
+
+  private[this] def resources(ids: List[String], locations: List[String]): List[String] = {
+    ids.map(id => s"kv:$id") ::: locations.map(l => s"fs:$l")
+  }
+
   def deleteAll(user: User): Error \/ UserDeleted = {
     // used to return a list of deleted resources to the client
-    def resources(ids: List[String], locations: List[String]): List[String] = {
-      ids.map(id => s"kv:$id") ::: locations.map(l => s"fs:$l")
-    }
-
     for {
       avatars <- get(user)
       ids = avatars.body.map(_.id)
+      buckets = List(incomingBucket, rawBucket, processedBucket)
 
       _ <- deletePublicAvatarFile(user.id)
-      incomingLocations <- deleteAvatarFiles(incomingBucket, ids) // strictly speaking this shouldn't be necessary
-      rawLocations <- deleteAvatarFiles(rawBucket, ids)
-      processedLocations <- deleteAvatarFiles(processedBucket, ids)
+      locations <- deletePrivateAvatarFiles(buckets, ids)
       _ <- deleteAvatarKvEntries(ids)
-    } yield UserDeleted(user, resources(ids, rawLocations ::: processedLocations ::: incomingLocations))
+    } yield UserDeleted(user, resources(ids, locations))
   }
 
   private[this] def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
@@ -216,23 +236,33 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     fs.delete(publicBucket, s"user/$userId").map(_ => location)
   }
 
-  private[this] def deleteAvatarFiles(bucket: String, avatarIds: List[String]): \/[Error, List[String]] = {
-    val locations = avatarIds.map(KVLocationFromID.apply)
-    fs.delete(bucket, locations: _*).map(_ => locations)
+  private[this] def deletePrivateAvatarFiles(buckets: Seq[String], avatarIds: List[String]): \/[Error, List[String]] = {
+    val paths = avatarIds.map(KVLocationFromID.apply)
+
+    val zero = List[String]().right[Error]
+    buckets.foldLeft(zero){ (acc, bucket) =>
+      acc match {
+        case \/-(locAcc) => {
+          val locations = paths.map(path => s"$bucket/$path")
+          val res = fs.delete(bucket, paths: _*).map(_ => locations)
+          res.map(_ ::: locAcc)
+        }
+        case error => error
+      }
+    }
   }
 
   private[this] def deleteAvatarKvEntries(avatarIds: List[String]): \/[Error, DeleteResponse] = kvs.delete(dynamoTable, avatarIds)
 
   private[this] def deleteActiveAvatar(userId: String): \/[Error, DeleteResult] = {
     def delete(avatar: Avatar) = {
+      val buckets = List(incomingBucket, rawBucket, processedBucket)
       for {
-        incomingLocations <- deleteAvatarFiles(incomingBucket, avatar.id :: Nil) // strictly speaking this shouldn't be necessary
+        locations <- deletePrivateAvatarFiles(buckets, avatar.id :: Nil)
         publicImage <- deletePublicAvatarFile(avatar.userId)
-        rawResources <- deleteAvatarFiles(rawBucket, avatar.id :: Nil)
-        processedResources <- deleteAvatarFiles(processedBucket, avatar.id :: Nil)
         _ <- deleteAvatarKvEntries(avatar.id :: Nil)
       } yield {
-        AvatarDeleted(avatar, publicImage :: rawResources ::: processedResources)
+        AvatarDeleted(avatar, publicImage :: locations)
       }
     }
 

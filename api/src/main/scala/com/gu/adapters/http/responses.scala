@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.http.Links._
-import com.gu.core.models.{Avatar, UserDeleted}
+import com.gu.core.models.{Avatar, UserCleaned, UserDeleted}
 
 import scalaz.NonEmptyList
 
@@ -14,6 +14,7 @@ case class CreatedAvatarResponse(uri: Option[String], data: Avatar) extends Argo
 case class AvatarResponse(uri: Option[String], data: Avatar, links: List[Link]) extends Argo
 case class AvatarsResponse(uri: Option[String], data: List[AvatarResponse], links: List[Link]) extends Argo
 case class DeletedUserResponse(uri: Option[String], data: UserDeleted, links: List[Link]) extends Argo
+case class CleanedUserResponse(uri: Option[String], data: UserCleaned, links: List[Link]) extends Argo
 
 object Message {
   def apply(msg: Map[String, String]): Message = Message(None, msg, Nil)

@@ -21,7 +21,7 @@ object TestStoreHelpers {
 
 class TestFileStore(s3ProcessedBucket: String) extends FileStore {
 
-  private[this] var files: Map[String, String] = {
+  private[store] var files: Map[String, String] = {
     val id = "f1d07680-fd11-492c-9bbf-fc996b435590"
     Map(s"$s3ProcessedBucket/${KVLocationFromID(id)}" -> "some-file")
   }

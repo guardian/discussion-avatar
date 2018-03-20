@@ -96,6 +96,14 @@ class AvatarServlet(
     } yield (deleted, req)
   }
 
+  apiPut("/avatars/user/:userId/cleanup", operation(cleanupUser)) { auth: String =>
+    for {
+      user <- User.userFromId(params("userId"))
+      deleted <- store.cleanup(user)
+      req = Req(apiUrl, request.getPathInfo)
+    } yield (deleted, req)
+  }
+
   get("/") {
     Message(
       uri = Some(apiUrl),
@@ -175,6 +183,7 @@ class AvatarServlet(
       case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, pageSize))
       case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case ud: UserDeleted => Ok(DeletedUserResponse(None, ud, Nil))
+      case uc: UserCleaned => Ok(CleanedUserResponse(None, uc, Nil))
     }
   }
 

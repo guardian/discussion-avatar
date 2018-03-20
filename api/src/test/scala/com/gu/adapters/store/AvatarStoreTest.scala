@@ -84,35 +84,48 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
   "deleting a user" should "remove key value (Dynamo) data and also associated files (S3)" in new WithStore {
     val avatar1 = uploadAvatar("first")
     val avatar2 = uploadAvatar("second")
-    avatarStore.updateStatus(avatar1.id, Approved)
-
     val user = User(userId)
 
-    // check files and records exist
-    fileStore.exists(storeProps.fsPublicBucket, s"user/$userId") shouldBe true
+    avatarStore.updateStatus(avatar1.id, Approved)
 
-    val privateBuckets = Set(storeProps.fsRawBucket, storeProps.fsIncomingBucket, storeProps.fsProcessedBucket)
+    val bucketPath1 = KVLocationFromID(avatar1.id)
+    val bucketPath2 = KVLocationFromID(avatar2.id)
 
-    for {
-      bucket <- privateBuckets
-      avatar <- Set(avatar1, avatar2)
-    } {
-      withClue(s"Avatar should exist in bucket $bucket") {
-        fileStore.exists(bucket, KVLocationFromID(avatar.id)) shouldBe true
-      }
-    }
+    val deleted = avatarStore.deleteAll(user)
+    val expected = List(
+      s"kv:${avatar1.id}",
+      s"fs:com-gu-avatar-processed-dev/$bucketPath1",
+      s"fs:com-gu-avatar-raw-dev/$bucketPath1",
+      s"fs:com-gu-avatar-incoming-dev/$bucketPath1",
+      s"kv:${avatar2.id}",
+      s"fs:com-gu-avatar-processed-dev/$bucketPath2",
+      s"fs:com-gu-avatar-raw-dev/$bucketPath2",
+      s"fs:com-gu-avatar-incoming-dev/$bucketPath2"
+    )
 
-    // now delete and verify gone
-    avatarStore.deleteAll(user)
+    deleted.getOrElse(null).resources should contain only (expected:_*)
+    fileStore.files.exists { case (path, _) => path.contains(bucketPath1) } shouldBe false
+    fileStore.files.exists { case (path, _) => path.contains(bucketPath2) } shouldBe false
+  }
 
-    avatarStore.get(user).getOrElse(FoundAvatars(List(avatar1), false)).body shouldBe Nil
+  "cleaning a user" should "remove all non-active avatars" in new WithStore {
+    val avatar1 = uploadAvatar("first")
+    val avatar2 = uploadAvatar("second")
+    val user = User(userId)
 
-    fileStore.exists(storeProps.fsPublicBucket, s"user/$userId") shouldBe false
+    avatarStore.updateStatus(avatar1.id, Approved)
 
-    privateBuckets.foreach { bucket =>
-      withClue(s"Avatar should no longer exist in bucket $bucket") {
-        fileStore.exists(bucket, KVLocationFromID(avatar1.id)) shouldBe false
-      }
-    }
+    val bucketPath = KVLocationFromID(avatar2.id)
+
+    val cleaned = avatarStore.cleanup(user)
+    val expected = List(
+      s"kv:${avatar2.id}",
+      s"fs:com-gu-avatar-processed-dev/$bucketPath",
+      s"fs:com-gu-avatar-raw-dev/$bucketPath",
+      s"fs:com-gu-avatar-incoming-dev/$bucketPath"
+    )
+
+    cleaned.getOrElse(null).resources should contain only (expected:_*)
+    fileStore.files.exists { case (path, _) => path.contains(bucketPath) } shouldBe false
   }
 }
