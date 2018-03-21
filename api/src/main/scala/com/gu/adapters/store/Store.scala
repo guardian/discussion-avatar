@@ -239,7 +239,9 @@ case class S3(client: AmazonS3Client) extends FileStore {
       val withErrors = resp match {
         case Success(_) => ().right
         case Failure(ex: MultiObjectDeleteException) =>
-          val errors = ex.getErrors.asScala.toList.map(ex => s"Unable to delete object ${ex.getKey}, reason: ${ex.getMessage}").mkString(", ")
+          val errors = ex.getErrors.asScala.toList
+            .map(ex => s"Unable to delete object '${ex.getKey}' from bucket '$bucket', reason: ${ex.getMessage}")
+            .mkString(", ")
           Errors.ioFailed(errors.wrapNel).left
         case Failure(err) => ioError(err).left
       }
