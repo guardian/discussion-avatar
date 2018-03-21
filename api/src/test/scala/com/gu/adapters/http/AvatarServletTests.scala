@@ -26,7 +26,6 @@ class AvatarServletTests extends TestHelpers {
   addServlet(
     new AvatarServlet(
       avatarStore,
-      //avatarUpdateService,
       new TestPublisher,
       avatarServletProps
     ),
