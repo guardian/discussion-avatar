@@ -200,9 +200,13 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       resp <- get(user)
     } yield resp.body
 
-    val hasActive = avatars.exists(_.exists(_.isActive))
+    val actives = avatars.map(_.filter(_.isActive)).getOrElse(Nil)
 
-    if (hasActive) {
+    if (actives.size > 1) {
+      logger.error(s"User ${user.id} has multiple (${actives.size} active avatars")
+    }
+
+    if (actives.nonEmpty) {
       for {
         as <- avatars
         inactiveIDs = as.filterNot(_.isActive).map(_.id)
