@@ -12,6 +12,7 @@ import com.gu.core.utils.{EscapedUnicode, KVLocationFromID}
 import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{DateTime, DateTimeZone}
 
+import scala.util.Try
 import scalaz.Scalaz._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
@@ -222,20 +223,19 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     } yield resp.body
 
     val actives = avatars.map(_.filter(_.isActive)).getOrElse(Nil)
+    val inactives = avatars.map(_.filterNot(_.isActive)).getOrElse(Nil)
 
     if (actives.size > 1) {
       logger.error(s"User ${user.id} has multiple (${actives.size} active avatars")
     }
 
-    if (actives.nonEmpty) {
-      for {
-        as <- avatars
-        inactiveIDs = as.filterNot(_.isActive).map(_.id)
-        buckets = List(incomingBucket, rawBucket, processedBucket)
+    if (actives.nonEmpty && inactives.nonEmpty) {
+      val buckets = List(incomingBucket, rawBucket, processedBucket)
+      val inactiveIDs = inactives.map(_.id)
 
-        _ <- deleteAvatarKvEntries(inactiveIDs)
-        locations <- deletePrivateAvatarFiles(buckets, inactiveIDs)
-      } yield UserCleaned(user, resources(inactiveIDs, locations))
+      for {
+        resources <- deleteAvatars(buckets, inactiveIDs)
+      } yield UserCleaned(user, resources)
     } else {
       UserCleaned(user, Nil).right // no-op
     }
@@ -252,9 +252,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       buckets = List(incomingBucket, rawBucket, processedBucket)
 
       _ <- deletePublicAvatarFile(user.id)
-      locations <- deletePrivateAvatarFiles(buckets, ids)
-      _ <- deleteAvatarKvEntries(ids)
-    } yield UserDeleted(user, resources(ids, locations))
+      resources <- deleteAvatars(buckets, ids)
+    } yield UserDeleted(user, resources)
   }
 
   private[this] def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
@@ -288,15 +287,34 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     }
   }
 
+  private[this] def deleteAvatars(buckets: Seq[String], ids: List[String]): Error \/ List[String] = {
+    def delete(ids: List[String]): Error \/ List[String] = {
+      for {
+        locations <- deletePrivateAvatarFiles(buckets, ids)
+        _ <- deleteAvatarKvEntries(ids)
+      } yield resources(ids, locations)
+    }
+
+    val awsBatchLimit = 25
+    val groups = ids.sliding(awsBatchLimit)
+
+    // batch as AWS apis can only handle up to 25 items at a time
+    val zero = List.empty[String].right[Error]
+    val rs = groups.foldLeft(zero) { case (acc, ids) =>
+      acc.flatMap(locations => delete(ids).map(_ ::: locations))
+    }
+
+    rs
+  }
+
   private[this] def deleteAvatarKvEntries(avatarIds: List[String]): \/[Error, DeleteResponse] = kvs.delete(dynamoTable, avatarIds)
 
   private[this] def deleteActiveAvatar(userId: String): \/[Error, DeleteResult] = {
     def delete(avatar: Avatar) = {
       val buckets = List(incomingBucket, rawBucket, processedBucket)
       for {
-        locations <- deletePrivateAvatarFiles(buckets, avatar.id :: Nil)
+        locations <- deleteAvatars(buckets, List(avatar.id))
         publicImage <- deletePublicAvatarFile(avatar.userId)
-        _ <- deleteAvatarKvEntries(avatar.id :: Nil)
       } yield {
         AvatarDeleted(avatar, publicImage :: locations)
       }
