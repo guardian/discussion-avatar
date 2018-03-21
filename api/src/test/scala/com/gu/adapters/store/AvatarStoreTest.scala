@@ -5,6 +5,7 @@ import com.gu.adapters.config.Config
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.KVLocationFromID
+import org.joda.time.DateTime
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.mock.MockitoSugar
 
@@ -128,5 +129,31 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
 
     cleaned.getOrElse(null).resources should contain only (expected:_*)
     fileStore.files.exists { case (path, _) => path.contains(bucketPath) } shouldBe false
+  }
+
+  // Historically, all avatars were preserved so it is possible to have many
+  "getAll" should "return all avatars for a user" in new WithStore {
+    val avatarProto = Avatar(
+      "9f3450f-fc24-400a-9ceb-9b347d95646e5e",
+      "http://avatar-url-1",
+      "735437",
+      "foo.gif",
+      "http://avatar-raw-url1",
+      Approved,
+      new DateTime(),
+      new DateTime(),
+      isSocial = false,
+      isActive = false
+    )
+
+    (1 to 50).foreach { _ =>
+      val avatar = avatarProto.copy(id = util.Random.nextString(10))
+      kvStore.put(storeProps.kvTable, avatar)
+    }
+
+    avatarStore.getAll(User(avatarProto.userId))
+      .map(_.body)
+      .getOrElse(Nil)
+      .size shouldBe 50
   }
 }

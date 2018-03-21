@@ -90,6 +90,27 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
 
+  // Beware - everything about this function assumes small n
+  def getAll(user: User): Error \/ FoundAvatars = {
+    def loop(acc: List[Avatar], since: Option[DateTime]): Error \/ FoundAvatars = {
+      val resp = kvs.query(
+          dynamoTable,
+          userIndex,
+          user.id,
+          since,
+          None
+        )
+
+      resp match {
+        case \/-(found) if found.hasMore => loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
+        case \/-(last) => FoundAvatars(body = acc ::: last.avatars, hasMore = false).right
+        case -\/(error) => error.left
+      }
+    }
+
+    loop(Nil, None)
+  }
+
   def getActive(user: User): Error \/ FoundAvatar = {
     for {
       found <- get(user)
@@ -197,7 +218,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
 
   def cleanupInactive(user: User): Error \/ UserCleaned = {
     val avatars = for {
-      resp <- get(user)
+      resp <- getAll(user)
     } yield resp.body
 
     val actives = avatars.map(_.filter(_.isActive)).getOrElse(Nil)
