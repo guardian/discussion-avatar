@@ -36,7 +36,7 @@ object ErrorHandling extends LazyLogging {
 
   def ioError(e: Throwable): Error = ioFailed(NonEmptyList(e.getMessage))
 
-  def logError(msg: String, statusCode: Option[Int] = None, e: Error): Error = {
+  def logError(msg: String, e: Error, statusCode: Option[Int] = None): Error = {
     val errors = e.message + " " + e.errors.toList.mkString("(", ", ", ")")
     statusCode match {
       case Some(statusCode) => logger.error(s"$msg - status code=${statusCode} - cause is: $errors")
