@@ -8,3 +8,4 @@ project/plugins/project/
 dynamo-local/
 node_modules/
 *.log
+api/logs
