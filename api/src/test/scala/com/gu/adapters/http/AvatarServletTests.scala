@@ -5,8 +5,8 @@ import java.io.File
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.TestCookie.testSecureCookie
 import com.gu.adapters.notifications.TestPublisher
-import com.gu.adapters.store.{ TestFileStore, TestKVStore }
-import com.gu.core.models.{ Approved, Inactive, Pending, Rejected }
+import com.gu.adapters.store.{TestFileStore, TestKVStore}
+import com.gu.core.models.{Approved, Inactive, Pending, Rejected}
 import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
 
@@ -21,10 +21,11 @@ class AvatarServletTests extends TestHelpers {
   // See https://issues.scala-lang.org/browse/SI-5091
   val apiUrl: String = avatarServletProps.apiUrl
   val apiKey = avatarServletProps.apiKeys.head
+  val avatarStore = AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps)
 
   addServlet(
     new AvatarServlet(
-      AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps),
+      avatarStore,
       new TestPublisher,
       avatarServletProps
     ),

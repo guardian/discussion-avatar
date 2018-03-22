@@ -58,4 +58,11 @@ trait SwaggerOps {
       .summary("Delete all of a user's avatar data. Cannot be undone!")
       .parameter(pathParam[Int]("userId"))
       .parameter(queryParam[Boolean]("dryRun"))
+
+
+  def cleanupUser =
+    apiOperation[User]("cleanupUser")
+      .summary("Delete all data for non-active avatars iff the user has an active avatar")
+      .parameter(pathParam[Int]("userId"))
+      .parameter(queryParam[Boolean]("dryRun"))
 }

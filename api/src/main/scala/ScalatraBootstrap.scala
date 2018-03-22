@@ -6,6 +6,7 @@ import com.gu.adapters.http.{AvatarServlet, AvatarSwagger, ResourcesApp}
 import com.gu.adapters.notifications.SNS
 import com.gu.adapters.queue.SqsDeletionConsumer
 import com.gu.adapters.store.{Dynamo, DynamoProperties, S3}
+import com.gu.core.akka.Akka
 import com.gu.core.store.AvatarStore
 import org.scalatra._
 
@@ -27,5 +28,9 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(avatarServlet, "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")
     new SqsDeletionConsumer(config.deletionEventsProps, avatarStore).listen()
+  }
+
+  override def destroy(context:ServletContext) {
+    Akka.system.terminate()
   }
 }

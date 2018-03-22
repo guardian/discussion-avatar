@@ -13,13 +13,14 @@ import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.gu.core.models.Errors._
-import com.gu.core.models.{Ascending, Avatar, Descending, Error, OrderBy, Status}
+import com.gu.core.models.{Ascending, Avatar, Descending, Error, Errors, IOFailed, OrderBy, Status}
 import com.gu.core.store._
 import com.gu.core.utils.ErrorHandling._
 import com.gu.core.utils.{ISODateFormatter, KVLocationFromID}
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
@@ -231,8 +232,25 @@ case class S3(client: AmazonS3Client) extends FileStore {
   def delete(bucket: String, keys: String*): Error \/ Unit = {
     if (keys.nonEmpty) {
       val request = new DeleteObjectsRequest(bucket).withKeys(keys: _*)
-      handleIoErrors(client.deleteObjects(request))
-    } else ().right
+      val resp = Try(client.deleteObjects(request))
+
+      // We need to unpack MultiObjectDeleteExceptions to ensure errors
+      // returned/logged are useful
+      val withErrors = resp match {
+        case Success(_) => ().right
+        case Failure(ex: MultiObjectDeleteException) =>
+          val errors = ex.getErrors.asScala.toList
+            .map(ex => s"Unable to delete object '${ex.getKey}' from bucket '$bucket', reason: ${ex.getMessage}")
+            .mkString(", ")
+          Errors.ioFailed(errors.wrapNel).left
+        case Failure(err) => ioError(err).left
+      }
+
+      withErrors.leftMap(e => logError("Multi-delete failed", e))
+      withErrors
+    } else {
+      ().right
+    }
   }
 
   def presignedUrl(

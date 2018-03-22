@@ -21,9 +21,17 @@ object TestStoreHelpers {
 
 class TestFileStore(s3ProcessedBucket: String) extends FileStore {
 
-  private[this] var files: Map[String, String] = {
+  private[store] var files: Map[String, String] = {
     val id = "f1d07680-fd11-492c-9bbf-fc996b435590"
     Map(s"$s3ProcessedBucket/${KVLocationFromID(id)}" -> "some-file")
+  }
+
+  def exists(bucket: String, key: String): Boolean = {
+    files.get(TestStoreHelpers.path(bucket, key)).nonEmpty
+  }
+
+  def get(bucket: String, key: String): Option[String] = {
+    files.get(TestStoreHelpers.path(bucket, key))
   }
 
   def copy(
@@ -36,7 +44,6 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     val oldPath = path(fromBucket, fromKey)
     val newPath = path(toBucket, toKey)
     val file = files(oldPath)
-    files -= oldPath
     files += newPath -> file
     ().right
   }
@@ -48,7 +55,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     metadata: ObjectMetadata
   ): models.Error \/ Unit = {
 
-    files += path(bucket, key) -> file.toString
+    files += path(bucket, key) -> file.map(_.toChar).mkString
     ().right
   }
 
@@ -62,6 +69,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
 
   def delete(bucket: String, keys: String*): models.Error \/ Unit = {
     val paths = keys.map(key => path(bucket, key))
+
     files = files.filterKeys(key => !paths.contains(key))
 
     ().right
@@ -125,6 +133,8 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"avatar with ID '$id' does not exist")))
   }
 
+  def getKey(table: String, id: String): Option[Avatar] = docs.get(path(table, id))
+
   def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
     QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
   }
@@ -149,7 +159,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
   }
 
   def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
-    docs = docs.filterKeys(id => !ids.contains(id))
+    docs = docs.filterKeys(id => !ids.map(k => s"$dynamoTable/${k}").contains(id))
     DeleteResponse(ids).right
   }
 }
