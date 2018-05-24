@@ -5,7 +5,7 @@ import org.eclipse.jetty.servlet.DefaultServlet
 import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatra.servlet.ScalatraListener
 import ch.qos.logback.access.jetty.RequestLogImpl
-import org.eclipse.jetty.server.handler.{ HandlerCollection, RequestLogHandler }
+import org.eclipse.jetty.server.handler.{HandlerCollection, RequestLogHandler}
 
 object JettyLauncher extends App {
 
@@ -30,4 +30,5 @@ object JettyLauncher extends App {
 
   server.start
   server.join
+
 }

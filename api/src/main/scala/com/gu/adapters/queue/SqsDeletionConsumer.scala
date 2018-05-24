@@ -5,7 +5,7 @@ import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.sqs.model.Message
 import com.amazonaws.services.sqs.{AmazonSQSAsync, AmazonSQSAsyncClientBuilder}
-import com.gu.adapters.store.AWSCredentials
+import com.gu.auth.AWSCredentials
 import com.gu.core.akka.Akka
 import com.gu.core.akka.Akka._
 import com.gu.core.models.{DeletionEvent, Error, InvalidUserId, User}

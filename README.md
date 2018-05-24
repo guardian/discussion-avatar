@@ -55,7 +55,7 @@ aws_secret_access_key=[YOUR_AWS_SECRET_ACCESS_KEY]
 ```
 cd api/
 sbt
-jetty:start
+run
 ```
 ==========
 ### License

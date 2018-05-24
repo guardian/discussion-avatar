@@ -8,10 +8,13 @@ import com.gu.core.store.StoreProperties
 import com.gu.identity.cookie.{GuUDecoder, IdentityCookieDecoder, PreProductionKeys, ProductionKeys}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 
+case class ElkConfig(enabled: Boolean, streamName: String, region: String, stage: String)
+
 case class Config(
     avatarServletProperties: AvatarServletProperties,
     storeProperties: StoreProperties,
-    deletionEventsProps: SqsDeletionConsumerProps
+    deletionEventsProps: SqsDeletionConsumerProps,
+    elkConfig: ElkConfig
 ) {
   val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
 }
@@ -30,7 +33,8 @@ object Config {
     Config(
       avatarServletProperties(conf),
       storeProperties(conf),
-      deletionEventsProps(conf)
+      deletionEventsProps(conf),
+      elkConfig(conf)
     )
 
   private def deletionEventsProps(conf: TypesafeConfig): SqsDeletionConsumerProps = {
@@ -65,5 +69,14 @@ object Config {
       case _ => new PreProductionKeys
     }
     new IdentityCookieDecoder(keys)
+  }
+
+  private def elkConfig(conf: TypesafeConfig): ElkConfig = {
+    ElkConfig(
+      conf.getString("elk.logging.enabled").toBoolean,
+      conf.getString("elk.logging.stream"),
+      conf.getString("aws.region"),
+      conf.getString("stage")
+    )
   }
 }
