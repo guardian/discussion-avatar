@@ -50,10 +50,15 @@ libraryDependencies ++= Seq(
   "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion,
   "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
-  "com.amazonaws" % "aws-java-sdk" % amazonawsVersion,
+  "com.amazonaws" % "aws-java-sdk-ses" % amazonawsVersion,
+  "com.amazonaws" % "aws-java-sdk-sqs" % amazonawsVersion,
+  "com.amazonaws" % "aws-java-sdk-s3" % amazonawsVersion,
+  "com.amazonaws" % "aws-java-sdk-sns" % amazonawsVersion,
+  "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "0.9"
+  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "0.9",
+  "com.gu" % "kinesis-logback-appender" % "1.4.2"
 )
 
 sourceDirectory in webappPrepare := (sourceDirectory in Compile).value / "resources/webapp"

@@ -3,8 +3,6 @@ package com.gu.adapters.store
 import java.io.ByteArrayInputStream
 import java.net.URL
 
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.{AWSCredentialsProviderChain, DefaultAWSCredentialsProviderChain}
 import com.amazonaws.regions.Region
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.document._
@@ -23,13 +21,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
-
-object AWSCredentials {
-  val awsCredentials = new AWSCredentialsProviderChain(
-    new ProfileCredentialsProvider("discussion"),
-    new DefaultAWSCredentialsProviderChain()
-  )
-}
+import com.gu.auth.AWSCredentials
 
 case class DynamoProperties(
   pageSize: Int,
