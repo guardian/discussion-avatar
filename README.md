@@ -61,7 +61,7 @@ sbt
 run
 ```
 
-Note that the app will run on port 8080 by default (configurable by setting the PORT environment variable - not 8900 as is implied by the output when you start the service.
+Note that the app will run on port 8080 by default (configurable by setting the PORT environment variable - not 8900 as is implied by the output when you start the service).
 
 ==========
 ### License
