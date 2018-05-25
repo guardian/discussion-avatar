@@ -3,6 +3,9 @@
 The Avatar Service comprises of an API and various related tasks,
 which take the form of Lambda functions.
 
+https://avatar.code.dev-theguardian.com/v1
+https://avatar.theguardian.com/v1
+
 ## Architecture
 
 Metadata about avatars is stored in Dynamo. Image files are stored in
@@ -57,6 +60,9 @@ cd api/
 sbt
 run
 ```
+
+Note that the app will run on port 8080 by default (configurable by setting the PORT environment variable - not 8900 as is implied by the output when you start the service.
+
 ==========
 ### License
 ```
