@@ -1,6 +1,7 @@
 package com.gu.adapters.queue
 
-import akka.stream.alpakka.sqs.{Ack, MessageAction, RequeueWithDelay}
+import akka.stream.alpakka.sqs.MessageAction
+import akka.stream.alpakka.sqs.MessageAction.{Delete, Ignore}
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.services.sqs.model.Message
@@ -41,17 +42,18 @@ object SqsDeletionConsumer extends LazyLogging {
   def deleteUser(m: Message, avatarStore: AvatarStore): Future[MessageAction] = Akka.executeBlocking {
     val eventUserId = DeletionEvent.userId(m.getBody).toRight(InvalidUserId("Unable to get userId from sqs message", NonEmptyList(m.getBody)))
 
-    val result: \/[Error, Ack] = for {
+    val result: \/[Error, MessageAction] = for {
       userId <- \/.fromEither(eventUserId)
       user <- User.userFromId(userId)
       deleted <- avatarStore.deleteAll(user)
     } yield {
       logger.info(s"Successfully deleted $deleted")
-      Ack()
+      Delete
     }
     result.leftMap { e =>
       logger.error(s"Failed to process delete event $m", e)
-      RequeueWithDelay(10)
+      // If the avatar can't be deleted, don’t change that message, and let it reappear in the queue after the visibility timeout
+      Ignore
     }.merge
   }
 }
