@@ -57,7 +57,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "0.9",
+  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "0.20",
   "com.gu" % "kinesis-logback-appender" % "1.4.2"
 )
 
