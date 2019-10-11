@@ -205,7 +205,7 @@ class AvatarServlet(
           case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case UserDeletionFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
         }
-      logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status.code))
+      logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status))
 
       response
   }
