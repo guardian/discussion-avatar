@@ -14,7 +14,7 @@ object StubGuUDecoder extends GuUDecoder(null) {
 
   override def getUserDataForScGuU(cookieValue: String): Option[User] = {
     if (cookieValue contains fakeScguu) {
-      val user = User().copy(primaryEmailAddress = "user@test.com", id = userId)
+      val user = User(primaryEmailAddress = "user@test.com", id = userId)
       Some(user)
     } else
       None
