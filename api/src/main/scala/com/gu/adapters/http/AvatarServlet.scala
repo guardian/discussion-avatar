@@ -9,13 +9,13 @@ import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
 import com.gu.identity.cookie.GuUDecoder
+import com.typesafe.scalalogging.LazyLogging
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-
 import scalaz.{Success => _, _}
 
 class AvatarServlet(
@@ -30,7 +30,8 @@ class AvatarServlet(
     with SwaggerSupport
     with SwaggerOps
     with FileUploadSupport
-    with CorsSupport {
+    with CorsSupport
+    with LazyLogging {
 
   val apiUrl = props.apiUrl
   val pageSize = props.pageSize
@@ -66,6 +67,11 @@ class AvatarServlet(
   }
 
   options("/*") {
+    // Transient log statement.
+    // Used to determine origin of requests for the purposes of CORS.
+    // If header not present, null is returned.
+    // TODO: remove once set of origins have been determined.
+    logger.info(s"request Origin: ${request.getHeader("Origin")}")
     response.setHeader(
       "Access-Control-Allow-Headers",
       request.getHeader("Access-Control-Request-Headers")
