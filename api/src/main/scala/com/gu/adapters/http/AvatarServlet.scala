@@ -7,13 +7,13 @@ import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
+import com.typesafe.scalalogging.LazyLogging
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-
 import scalaz.{Success => _, _}
 
 class AvatarServlet(
@@ -29,7 +29,8 @@ class AvatarServlet(
     with SwaggerSupport
     with SwaggerOps
     with FileUploadSupport
-    with CorsSupport {
+    with CorsSupport
+    with LazyLogging {
 
   import CorsSupport._
 
