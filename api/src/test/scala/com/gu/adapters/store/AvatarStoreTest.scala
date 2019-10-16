@@ -6,9 +6,8 @@ import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.KVLocationFromID
 import org.joda.time.DateTime
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.mock.MockitoSugar
-
 import scalaz.\/-
 
 class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {

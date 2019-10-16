@@ -8,15 +8,3 @@ object TestCookie {
   val fakeScguu = "valid-sc-gu-u"
   val testSecureCookie = userId -> fakeScguu
 }
-
-object StubGuUDecoder extends GuUDecoder(null) {
-  import TestCookie._
-
-  override def getUserDataForScGuU(cookieValue: String): Option[User] = {
-    if (cookieValue contains fakeScguu) {
-      val user = User(primaryEmailAddress = "user@test.com", id = userId)
-      Some(user)
-    } else
-      None
-  }
-}

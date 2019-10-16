@@ -6,14 +6,17 @@ import com.gu.adapters.config.Config
 import com.gu.adapters.http.TestCookie.testSecureCookie
 import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.{TestFileStore, TestKVStore}
-import com.gu.core.models.{Approved, Inactive, Pending, Rejected}
+import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
+import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
+import scalaz.\/-
 
-class AvatarServletTests extends TestHelpers {
+class AvatarServletTests extends TestHelpers with MockitoSugar {
 
   val config = Config()
-  val avatarServletProps = config.avatarServletProperties.copy(cookieDecoder = StubGuUDecoder)
+  val avatarServletProps = config.avatarServletProperties
   val storeProps = config.storeProperties
   implicit val swagger = new AvatarSwagger
 
@@ -23,11 +26,14 @@ class AvatarServletTests extends TestHelpers {
   val apiKey = avatarServletProps.apiKeys.head
   val avatarStore = AvatarStore(new TestFileStore(storeProps.fsProcessedBucket), new TestKVStore(storeProps.kvTable), storeProps)
 
+  val authenticationService: AuthenticationService = mock[AuthenticationService]
+
   addServlet(
     new AvatarServlet(
       avatarStore,
       new TestPublisher,
-      avatarServletProps
+      avatarServletProps,
+      authenticationService
     ),
     "/*"
   )
@@ -71,6 +77,7 @@ class AvatarServletTests extends TestHelpers {
 
   test("Get personal avatar by user ID") {
     val (userId, cookie) = testSecureCookie
+    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
     checkGetAvatar(
       s"/avatars/user/me/active",
       cookie,
@@ -81,6 +88,7 @@ class AvatarServletTests extends TestHelpers {
   test("Post avatar") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
+    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
 
     postAvatar(
       "/avatars",
@@ -95,6 +103,7 @@ class AvatarServletTests extends TestHelpers {
   test("Social Avatar should default to Inactive status") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
+    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
 
     postAvatar(
       "/avatars",
@@ -109,6 +118,7 @@ class AvatarServletTests extends TestHelpers {
   test("Error response if bad isSocial parameter") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
+    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
 
     postError(
       "/avatars",

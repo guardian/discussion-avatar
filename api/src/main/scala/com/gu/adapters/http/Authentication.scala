@@ -7,13 +7,11 @@ import cats.implicits._
 import com.gu.adapters.config.IdentityConfig
 import com.gu.core.models.Errors._
 import com.gu.core.models.{Error, User}
-import com.gu.core.utils.ErrorHandling.attempt
 import com.gu.identity.auth.{IdentityAuthService, UserCredentials}
-import com.gu.identity.cookie.GuUDecoder
 import com.typesafe.scalalogging.LazyLogging
 import org.http4s.Uri
 import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 import scala.concurrent.ExecutionContext
 
@@ -48,10 +46,11 @@ class AuthenticationService(identityAuthService: IdentityAuthService) {
       identityId <- identityAuthService.authenticateUser(credentials)
     } yield identityId
 
-    // Convert authentication result to return type.
+    // Convert authentication result to return type
+    // (identity-auth-core uses cats (Either); discussion-avatar uses scalaz (\/)).
     result.redeem(
-      err => \/.left(userAuthorizationFailed(NonEmptyList(err.getMessage)): Error),
-      identityId => \/.right(User(identityId))
+      err => -\/(userAuthorizationFailed(NonEmptyList(err.getMessage)): Error),
+      identityId => \/-(User(identityId))
     ).unsafeRunSync()
   }
 }
