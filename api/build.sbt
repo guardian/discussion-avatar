@@ -49,7 +49,6 @@ libraryDependencies ++= Seq(
   "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % Test,
   "org.mockito" % "mockito-core" % "3.1.0" % Test,
   "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion,
-  "com.gu.identity" %% "identity-cookie" % identityVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
   "com.amazonaws" % "aws-java-sdk-ses" % amazonawsVersion,
