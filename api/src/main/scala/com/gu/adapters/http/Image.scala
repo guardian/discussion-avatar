@@ -4,7 +4,7 @@ import java.io.{ ByteArrayInputStream, InputStream }
 import java.net.URLConnection
 import javax.imageio.ImageIO
 
-import com.gu.adapters.http.IO._
+import com.gu.adapters.http.IOUtils._
 import com.gu.core.models.Error
 import com.gu.core.models.Errors.invalidMimeType
 import com.gu.core.utils.ErrorHandling.attempt

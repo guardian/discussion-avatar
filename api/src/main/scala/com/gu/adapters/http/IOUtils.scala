@@ -10,7 +10,7 @@ import org.scalatra.servlet.FileItem
 import scala.util.Try
 import scalaz.{ NonEmptyList, \/ }
 
-object IO {
+object IOUtils {
   def readBytesAndCloseInputStream(is: InputStream): Error \/ Array[Byte] = {
     Try { Stream.continually(is.read).takeWhile(-1 != _).map(_.toByte).toArray }
       .eventually { is.close() }

@@ -2,11 +2,13 @@ package com.gu.adapters.http
 
 import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 
+import cats.effect.IO
+import cats.implicits._
 import com.gu.adapters.config.IdentityConfig
 import com.gu.core.models.Errors._
 import com.gu.core.models.{Error, User}
 import com.gu.core.utils.ErrorHandling.attempt
-import com.gu.identity.auth.IdentityAuthService
+import com.gu.identity.auth.{IdentityAuthService, UserCredentials}
 import com.gu.identity.cookie.GuUDecoder
 import com.typesafe.scalalogging.LazyLogging
 import org.http4s.Uri
@@ -33,20 +35,24 @@ object TokenAuth {
 
 class AuthenticationService(identityAuthService: IdentityAuthService) {
 
-  def userFromCookie(decoder: GuUDecoder, cookie: Option[String]): Error \/ User = {
-    val authedUser = for {
-      c <- cookie.toRightDisjunction("No secure cookie in request")
-      user <- readCookie(decoder, c)
-    } yield user
+  def authenticateUser(scGuUCookie: Option[String]): Error \/ User = {
+    // Attempt to authenticate user.
+    val result = for {
+      value <- IO.fromEither(
+        Either.fromOption(
+          scGuUCookie,
+          new Exception("No secure cookie in request")
+        )
+      )
+      credentials = UserCredentials.SCGUUCookie(value)
+      identityId <- identityAuthService.authenticateUser(credentials)
+    } yield identityId
 
-    authedUser.leftMap(error => userAuthorizationFailed(NonEmptyList(error)))
-  }
-
-  private[this] def readCookie(decoder: GuUDecoder, cookie: String): String \/ User = {
-    for {
-      user <- attempt(decoder.getUserDataForScGuU(cookie))
-        .toOption.flatten.toRightDisjunction("Unable to extract user data from cookie")
-    } yield User(user.id)
+    // Convert authentication result to return type.
+    result.redeem(
+      err => \/.left(userAuthorizationFailed(NonEmptyList(err.getMessage)): Error),
+      identityId => \/.right(User(identityId))
+    ).unsafeRunSync()
   }
 }
 

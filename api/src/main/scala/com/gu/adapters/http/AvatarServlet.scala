@@ -7,7 +7,6 @@ import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
-import com.gu.identity.cookie.GuUDecoder
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
@@ -53,7 +52,6 @@ class AvatarServlet(
   val pageSize = props.pageSize
   val apiKeys = props.apiKeys
   val snsTopicArn = props.snsTopicArn
-  val decoder = props.cookieDecoder
 
   protected implicit val jsonFormats = JsonFormats.all
 
@@ -168,7 +166,7 @@ class AvatarServlet(
 
   getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     for {
-      user <- authenticationService.userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
       avatar <- store.getPersonal(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -176,7 +174,7 @@ class AvatarServlet(
 
   postWithErrors("/avatars", operation(postAvatar)) {
     for {
-      user <- authenticationService.userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
       created <- uploadAvatar(request, user, fileParams)
       req = Req(apiUrl, request.getPathInfo)
     } yield {
@@ -269,7 +267,6 @@ class AvatarServlet(
 case class AvatarServletProperties(
   apiKeys: List[String],
   apiUrl: String,
-  cookieDecoder: GuUDecoder,
   pageSize: Int,
   snsTopicArn: String
 )

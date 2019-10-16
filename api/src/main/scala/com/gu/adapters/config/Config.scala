@@ -5,7 +5,6 @@ import com.gu.adapters.http.AvatarServletProperties
 import com.gu.adapters.notifications.SnsProperties
 import com.gu.adapters.queue.SqsDeletionConsumerProps
 import com.gu.core.store.StoreProperties
-import com.gu.identity.cookie.{GuUDecoder, IdentityCookieDecoder, PreProductionKeys, ProductionKeys}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 
 case class ElkConfig(enabled: Boolean, streamName: String, region: String, stage: String)
@@ -60,18 +59,9 @@ object Config {
     AvatarServletProperties(
       apiKeys = conf.getString("api.keys").split(',').toList,
       apiUrl = conf.getString("api.baseUrl") + "/v1",
-      cookieDecoder = cookieDecoder(conf),
       pageSize = pageSize,
       snsTopicArn = conf.getString("aws.sns.topic.arn")
     )
-
-  private def cookieDecoder(conf: TypesafeConfig): GuUDecoder = {
-    val keys = conf.getString("stage") match {
-      case "PROD" => new ProductionKeys
-      case _ => new PreProductionKeys
-    }
-    new IdentityCookieDecoder(keys)
-  }
 
   private def elkConfig(conf: TypesafeConfig): ElkConfig = {
     ElkConfig(
