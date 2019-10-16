@@ -39,6 +39,6 @@ object CookieDecoder {
     for {
       user <- attempt(decoder.getUserDataForScGuU(cookie))
         .toOption.flatten.toRightDisjunction("Unable to extract user data from cookie")
-    } yield User(user.getId)
+    } yield User(user.id)
   }
 }
