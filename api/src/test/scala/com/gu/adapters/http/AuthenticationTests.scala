@@ -10,13 +10,13 @@ class AuthenticationTests extends FunSuite with Matchers {
   val decoder = StubGuUDecoder
 
   test("Decode cookie") {
-    val user = CookieDecoder.userFromCookie(decoder, Some(TestCookie.fakeScguu))
+    val user = AuthenticationService.userFromCookie(decoder, Some(TestCookie.fakeScguu))
     user should be(\/-(User(TestCookie.userId)))
   }
 
   test("Reject invalid cookie") {
     val authHeader = "Bearer cookie=" + "20394sdkfjs23slkdjfslkjdf234slkdjfsd-23"
-    val user = CookieDecoder.userFromCookie(decoder, Some("bad-cookie-value"))
+    val user = AuthenticationService.userFromCookie(decoder, Some("bad-cookie-value"))
     user.isLeft should be(true)
   }
 }

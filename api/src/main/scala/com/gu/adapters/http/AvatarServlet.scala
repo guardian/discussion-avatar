@@ -1,7 +1,7 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.CookieDecoder.userFromCookie
+import com.gu.adapters.http.AuthenticationService.userFromCookie
 import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
