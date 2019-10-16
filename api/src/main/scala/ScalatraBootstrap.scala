@@ -26,7 +26,7 @@ class ScalatraBootstrap extends LifeCycle {
       avatarStore,
       new SNS(config.snsProperties),
       config.avatarServletProperties,
-      new AuthenticationService
+      AuthenticationService.fromIdentityConfig(config.identityConfig)
     )
     context.mount(avatarServlet, "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")

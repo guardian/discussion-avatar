@@ -14,7 +14,8 @@ case class Config(
     avatarServletProperties: AvatarServletProperties,
     storeProperties: StoreProperties,
     deletionEventsProps: SqsDeletionConsumerProps,
-    elkConfig: ElkConfig
+    elkConfig: ElkConfig,
+    identityConfig: IdentityConfig
 ) {
   val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
 }
@@ -34,7 +35,8 @@ object Config {
       avatarServletProperties(conf),
       storeProperties(conf),
       deletionEventsProps(conf),
-      elkConfig(conf)
+      elkConfig(conf),
+      IdentityConfig.fromTypesafeConfig(conf)
     )
 
   private def deletionEventsProps(conf: TypesafeConfig): SqsDeletionConsumerProps = {

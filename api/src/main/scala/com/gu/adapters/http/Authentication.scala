@@ -1,12 +1,19 @@
 package com.gu.adapters.http
 
-import com.gu.core.models.Errors._
-import com.gu.core.models.{ Error, User }
-import com.gu.core.utils.ErrorHandling.attempt
-import com.gu.identity.cookie.GuUDecoder
+import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 
+import com.gu.adapters.config.IdentityConfig
+import com.gu.core.models.Errors._
+import com.gu.core.models.{Error, User}
+import com.gu.core.utils.ErrorHandling.attempt
+import com.gu.identity.auth.IdentityAuthService
+import com.gu.identity.cookie.GuUDecoder
+import com.typesafe.scalalogging.LazyLogging
+import org.http4s.Uri
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
+
+import scala.concurrent.ExecutionContext
 
 object TokenAuth {
 
@@ -24,7 +31,7 @@ object TokenAuth {
   }
 }
 
-class AuthenticationService {
+class AuthenticationService(identityAuthService: IdentityAuthService) {
 
   def userFromCookie(decoder: GuUDecoder, cookie: Option[String]): Error \/ User = {
     val authedUser = for {
@@ -40,5 +47,43 @@ class AuthenticationService {
       user <- attempt(decoder.getUserDataForScGuU(cookie))
         .toOption.flatten.toRightDisjunction("Unable to extract user data from cookie")
     } yield User(user.id)
+  }
+}
+
+
+object AuthenticationService {
+
+  object AuthenticationServiceThreadPoolMonitorer extends LazyLogging {
+
+    private val scheduler = Executors.newScheduledThreadPool(1)
+
+    def monitorThreadPool(threadPoolExecutor: ThreadPoolExecutor): Unit = {
+      scheduler.scheduleAtFixedRate(() => {
+        logger.info(s"identity API thread pool stats: $threadPoolExecutor")
+      }, 60, 60, TimeUnit.SECONDS)
+    }
+  }
+
+  def fromIdentityConfig(config: IdentityConfig): AuthenticationService = {
+    // discussion-api uses a thread pool of 30 threads for the authentication service
+    // and the monitoring of that indicates that this is more than sufficient:
+    // when stats are logged there are no active threads and no queued tasks.
+    // Since calls to identity API will be a lot less frequent in this application,
+    // 10 should be more than sufficient, but the stats can be monitored and adjusted accordingly.
+    val blockingThreads = 10
+
+    // ExecutorService returned is a ThreadPoolExecutor.
+    // Explicitly cast to this type so that thread pool can be monitored
+    // (e.g. get access to active thread count etc).
+    val threadPool = Executors.newFixedThreadPool(blockingThreads).asInstanceOf[ThreadPoolExecutor]
+    AuthenticationServiceThreadPoolMonitorer.monitorThreadPool(threadPool)
+
+    implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(threadPool)
+    val identityAuthService = IdentityAuthService.unsafeInit(
+      identityApiUri = Uri.unsafeFromString(config.apiUrl),
+      accessToken = config.accessToken
+    )
+
+    new AuthenticationService(identityAuthService)
   }
 }
