@@ -56,7 +56,7 @@ class AuthenticationService(identityAuthService: IdentityAuthService) {
 }
 
 
-object AuthenticationService {
+object AuthenticationService extends LazyLogging {
 
   object AuthenticationServiceThreadPoolMonitorer extends LazyLogging {
 
@@ -83,9 +83,20 @@ object AuthenticationService {
     val threadPool = Executors.newFixedThreadPool(blockingThreads).asInstanceOf[ThreadPoolExecutor]
     AuthenticationServiceThreadPoolMonitorer.monitorThreadPool(threadPool)
 
+    // Access token that's 'safe' to log e.g secret_token -> sec**********
+    // Assumes size of  token significantly greater than size 3.
+    val scrubbedAccessToken = config.accessToken.zipWithIndex
+      .map { case (c, i) => if (i < 3) c else '*' }
+      .toString
+
+    val uri = Uri.unsafeFromString(config.apiUrl)
+
+    // Log parameters to be sure they are correct.
+    logger.info(s"initialising identity auth service - url: $uri, access token: $scrubbedAccessToken")
+
     implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(threadPool)
     val identityAuthService = IdentityAuthService.unsafeInit(
-      identityApiUri = Uri.unsafeFromString(config.apiUrl),
+      identityApiUri = uri,
       accessToken = config.accessToken
     )
 
