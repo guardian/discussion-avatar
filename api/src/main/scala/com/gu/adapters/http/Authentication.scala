@@ -24,7 +24,7 @@ object TokenAuth {
   }
 }
 
-object AuthenticationService {
+class AuthenticationService {
 
   def userFromCookie(decoder: GuUDecoder, cookie: Option[String]): Error \/ User = {
     val authedUser = for {

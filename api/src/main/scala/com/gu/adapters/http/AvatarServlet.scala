@@ -1,7 +1,6 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.AuthenticationService.userFromCookie
 import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
@@ -21,7 +20,8 @@ import scalaz.{Success => _, _}
 class AvatarServlet(
   store: AvatarStore,
   publisher: Publisher,
-  props: AvatarServletProperties
+  props: AvatarServletProperties,
+  authenticationService: AuthenticationService
 )(implicit val swagger: Swagger)
   extends ScalatraServlet
     with ServletWithErrorHandling[Error, Success]
@@ -168,7 +168,7 @@ class AvatarServlet(
 
   getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     for {
-      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.userFromCookie(decoder, request.cookies.get(Config.secureCookie))
       avatar <- store.getPersonal(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -176,7 +176,7 @@ class AvatarServlet(
 
   postWithErrors("/avatars", operation(postAvatar)) {
     for {
-      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.userFromCookie(decoder, request.cookies.get(Config.secureCookie))
       created <- uploadAvatar(request, user, fileParams)
       req = Req(apiUrl, request.getPathInfo)
     } yield {

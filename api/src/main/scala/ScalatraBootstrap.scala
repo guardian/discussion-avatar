@@ -2,7 +2,7 @@ import java.util.TimeZone
 
 import javax.servlet.ServletContext
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.{AvatarServlet, AvatarSwagger, ResourcesApp}
+import com.gu.adapters.http.{AuthenticationService, AvatarServlet, AvatarSwagger, ResourcesApp}
 import com.gu.adapters.notifications.SNS
 import com.gu.adapters.queue.SqsDeletionConsumer
 import com.gu.adapters.store.{Dynamo, DynamoProperties, S3}
@@ -25,7 +25,8 @@ class ScalatraBootstrap extends LifeCycle {
     val avatarServlet = new AvatarServlet(
       avatarStore,
       new SNS(config.snsProperties),
-      config.avatarServletProperties
+      config.avatarServletProperties,
+      new AuthenticationService
     )
     context.mount(avatarServlet, "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")
