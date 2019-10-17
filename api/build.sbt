@@ -71,6 +71,7 @@ mainClass in Compile := Some("com.gu.adapters.http.JettyLauncher")
 packageName in Universal := normalizedName.value
 riffRaffPackageType := (packageZipTarball in Universal).value
 mappings in Universal ++= directory("conf")
+// See the README (## Deploying the app) to understand how the *.yaml files are provided at build time.
 riffRaffArtifactResources += (file("platform/cloudformation/discussion-avatar-api.yaml"), "cfn/avatar-api.yaml")
 riffRaffArtifactResources += (file("platform/riff-raff.yaml"), "riff-raff.yaml")
 riffRaffArtifactResources += (riffRaffPackageType.value -> s"${name.value}/${name.value}.tgz")
