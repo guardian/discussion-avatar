@@ -55,7 +55,6 @@ class AuthenticationService(identityAuthService: IdentityAuthService) {
   }
 }
 
-
 object AuthenticationService extends LazyLogging {
 
   object AuthenticationServiceThreadPoolMonitorer extends LazyLogging {
