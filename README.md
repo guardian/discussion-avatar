@@ -64,7 +64,9 @@ The AWS infrastructure that this application runs on is defined (using cloudform
 [discussion-avatar](https://github.com/guardian/discussion-platform/tree/master/discussion-avatar) sub directory of the
 discussion-platform repository. To build the application TeamCity constructs the following working directory:
 ```
-discussion-avatar/api/ => .
+Github                                    TeamCity
+------                                    --------
+discussion-avatar/api/                 => .
 discussion-platform/discussion-avatar/ => ./platform
 ```
 and then builds the project. In particular, this is why in `build.sbt` the RiffRaff and cloudformation files are
