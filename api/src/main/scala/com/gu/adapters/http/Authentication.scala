@@ -86,7 +86,7 @@ object AuthenticationService extends LazyLogging {
     // Assumes size of  token significantly greater than size 3.
     val scrubbedAccessToken = config.accessToken.zipWithIndex
       .map { case (c, i) => if (i < 3) c else '*' }
-      .toString
+      .mkString
 
     val uri = Uri.unsafeFromString(config.apiUrl)
 
