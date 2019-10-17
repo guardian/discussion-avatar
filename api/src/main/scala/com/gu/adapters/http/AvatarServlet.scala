@@ -1,14 +1,12 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
-import com.gu.identity.cookie.GuUDecoder
 import com.typesafe.scalalogging.LazyLogging
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
@@ -21,7 +19,8 @@ import scalaz.{Success => _, _}
 class AvatarServlet(
   store: AvatarStore,
   publisher: Publisher,
-  props: AvatarServletProperties
+  props: AvatarServletProperties,
+  authenticationService: AuthenticationService
 )(implicit val swagger: Swagger)
   extends ScalatraServlet
     with ServletWithErrorHandling[Error, Success]
@@ -54,7 +53,6 @@ class AvatarServlet(
   val pageSize = props.pageSize
   val apiKeys = props.apiKeys
   val snsTopicArn = props.snsTopicArn
-  val decoder = props.cookieDecoder
 
   protected implicit val jsonFormats = JsonFormats.all
 
@@ -84,11 +82,6 @@ class AvatarServlet(
   }
 
   options("/*") {
-    // Transient log statement.
-    // Used to determine origin of requests for the purposes of CORS.
-    // If header not present, null is returned.
-    // TODO: remove once set of origins have been determined.
-    logger.info(s"request Origin: ${request.getHeader("Origin")}")
     response.setHeader(
       "Access-Control-Allow-Headers",
       request.getHeader("Access-Control-Request-Headers")
@@ -174,7 +167,7 @@ class AvatarServlet(
 
   getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     for {
-      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
       avatar <- store.getPersonal(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -182,7 +175,7 @@ class AvatarServlet(
 
   postWithErrors("/avatars", operation(postAvatar)) {
     for {
-      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
       created <- uploadAvatar(request, user, fileParams)
       req = Req(apiUrl, request.getPathInfo)
     } yield {
@@ -275,7 +268,6 @@ class AvatarServlet(
 case class AvatarServletProperties(
   apiKeys: List[String],
   apiUrl: String,
-  cookieDecoder: GuUDecoder,
   pageSize: Int,
   snsTopicArn: String
 )

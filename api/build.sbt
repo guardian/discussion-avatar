@@ -19,7 +19,7 @@ val logbackVersion = "1.2.0"
 val logstashEncoderVersion = "4.9"
 val servletApiVersion = "3.1.0"
 val scalazVersion = "7.1.17"
-val identityCookieVersion = "3.185"
+val identityVersion = "3.186"
 val typesafeConfigVersion = "1.2.1"
 val amazonawsVersion = "1.11.314"
 val scalaLoggingVersion = "3.6.0"
@@ -46,9 +46,10 @@ libraryDependencies ++= Seq(
   "org.json4s"   %% "json4s-jackson" % json4sVersion,
   "org.scalatra" %% "scalatra-json" % ScalatraVersion,
   "org.scalaz" %% "scalaz-core" % scalazVersion,
-  "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
+  "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % Test,
+  "org.mockito" % "mockito-core" % "3.1.0" % Test,
   "org.scalatra" %% "scalatra-swagger"  % ScalatraVersion,
-  "com.gu.identity" %% "identity-cookie" % identityCookieVersion,
+  "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
   "com.amazonaws" % "aws-java-sdk-ses" % amazonawsVersion,
   "com.amazonaws" % "aws-java-sdk-sqs" % amazonawsVersion,
