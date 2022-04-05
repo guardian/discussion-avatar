@@ -25,7 +25,7 @@ val amazonawsVersion = "1.11.314"
 val scalaLoggingVersion = "3.6.0"
 val apacheCommonsVersion = "3.4"
 
-val guardianReleases = "Guardian releases" at "http://guardian.github.io/maven/repo-releases"
+val guardianReleases = "Guardian releases" at "https://guardian.github.io/maven/repo-releases"
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-target:jvm-1.8")
 
