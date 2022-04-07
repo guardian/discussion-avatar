@@ -1,4 +1,5 @@
 import com.typesafe.sbt.SbtNativePackager.autoImport.NativePackagerHelper._
+import scalariform.formatter.preferences._
 
 enablePlugins(
   RiffRaffArtifact,
@@ -76,3 +77,6 @@ mappings in Universal ++= directory("conf")
 riffRaffArtifactResources += (file("platform/cloudformation/discussion-avatar-api.yaml"), "cfn/avatar-api.yaml")
 riffRaffArtifactResources += (file("platform/riff-raff.yaml"), "riff-raff.yaml")
 riffRaffArtifactResources += (riffRaffPackageType.value -> s"${name.value}/${name.value}.tgz")
+scalariformPreferences := scalariformPreferences.value
+  .setPreference(DanglingCloseParenthesis, Preserve)
+  .setPreference(SpacesAroundMultiImports, false)
