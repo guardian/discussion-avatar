@@ -34,7 +34,7 @@ class ScalatraBootstrap extends LifeCycle {
     new Logstash(new LogbackOperationsPool()).init(config)
   }
 
-  override def destroy(context:ServletContext) {
+  override def destroy(context: ServletContext) {
     Akka.system.terminate()
   }
 }

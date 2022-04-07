@@ -23,14 +23,14 @@ class AvatarServlet(
   authenticationService: AuthenticationService
 )(implicit val swagger: Swagger)
   extends ScalatraServlet
-    with ServletWithErrorHandling[Error, Success]
-    with AuthorizedApiServlet[Success]
-    with JacksonJsonSupport
-    with SwaggerSupport
-    with SwaggerOps
-    with FileUploadSupport
-    with CorsSupport
-    with LazyLogging {
+  with ServletWithErrorHandling[Error, Success]
+  with AuthorizedApiServlet[Success]
+  with JacksonJsonSupport
+  with SwaggerSupport
+  with SwaggerOps
+  with FileUploadSupport
+  with CorsSupport
+  with LazyLogging {
 
   import CorsSupport._
 

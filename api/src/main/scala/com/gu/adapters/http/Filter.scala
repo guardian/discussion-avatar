@@ -7,7 +7,7 @@ import com.gu.core.utils.ISODateFormatter
 import org.joda.time.DateTime
 import org.scalatra.Params
 
-import scalaz.{ Success, _ }
+import scalaz.{Success, _}
 
 object Filter {
 

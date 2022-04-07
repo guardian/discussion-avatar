@@ -59,7 +59,6 @@ trait SwaggerOps {
       .parameter(pathParam[Int]("userId"))
       .parameter(queryParam[Boolean]("dryRun"))
 
-
   def cleanupUser =
     apiOperation[User]("cleanupUser")
       .summary("Delete all data for non-active avatars iff the user has an active avatar")

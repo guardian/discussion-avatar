@@ -17,8 +17,8 @@ case class LogStashConf(
   customFields: Map[String, String])
 
 class LogstashLifecycle(
-    playConfig: Config,
-    logbackOperationsPool: LogbackOperationsPool)(implicit executionContext: ExecutionContext) {
+  playConfig: Config,
+  logbackOperationsPool: LogbackOperationsPool)(implicit executionContext: ExecutionContext) {
   def start(): Unit = {
     new Logstash(logbackOperationsPool).init(playConfig)
   }
