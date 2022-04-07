@@ -1,18 +1,18 @@
 package com.gu.adapters.queue
 
 import akka.stream.alpakka.sqs.MessageAction
-import com.amazonaws.services.sqs.model.Message
-import com.gu.core.models.{User, UserDeleted, UserDeletionFailed}
+import com.gu.core.models.{ User, UserDeleted, UserDeletionFailed }
 import com.gu.core.store.AvatarStore
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
 
 import scala.language.postfixOps
 import scala.concurrent.duration._
-import scalaz.{NonEmptyList, \/}
+import scalaz.{ NonEmptyList, \/ }
+import software.amazon.awssdk.services.sqs.model.Message
 
 class SqsDeleteQueueTest extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
@@ -36,19 +36,19 @@ class SqsDeleteQueueTest extends FlatSpec with Matchers with MockitoSugar with S
         |}
       """.stripMargin
 
-    val message = mock[Message]
-    when(message.getBody) thenReturn messageBody
+    val message = Message.builder().body(messageBody).build()
+
   }
 
   "DeletionEventHandler" should "delete users from avatar store and Ack" in new DeletionEventHandlerScope {
     when(avatarStore.deleteAll(User("18467226"))) thenReturn \/.right(UserDeleted(User("18467226"), List.empty))
-    whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds)) (_ shouldBe MessageAction.Delete)
+    whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds))(_ shouldBe MessageAction.Delete(message))
     verify(avatarStore).deleteAll(User("18467226"))
   }
 
   it should "should requeue with delay on error" in new DeletionEventHandlerScope {
     when(avatarStore.deleteAll(User("18467226"))) thenReturn \/.left(UserDeletionFailed("blah", NonEmptyList("blah")))
-    whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds)) (_ shouldBe MessageAction.Ignore)
+    whenReady(SqsDeletionConsumer.deleteUser(message, avatarStore), Timeout(5 seconds))(_ shouldBe MessageAction.Ignore(message))
     verify(avatarStore).deleteAll(User("18467226"))
   }
 
