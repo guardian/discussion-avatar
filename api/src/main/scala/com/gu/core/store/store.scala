@@ -95,12 +95,12 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
   def getAll(user: User): Error \/ FoundAvatars = {
     def loop(acc: List[Avatar], since: Option[DateTime]): Error \/ FoundAvatars = {
       val resp = kvs.query(
-          dynamoTable,
-          userIndex,
-          user.id,
-          since,
-          None
-        )
+        dynamoTable,
+        userIndex,
+        user.id,
+        since,
+        None
+      )
 
       resp match {
         case \/-(found) if found.hasMore => loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
@@ -275,7 +275,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     val paths = avatarIds.map(KVLocationFromID.apply)
 
     val zero = List[String]().right[Error]
-    buckets.foldLeft(zero){ (acc, bucket) =>
+    buckets.foldLeft(zero) { (acc, bucket) =>
       acc match {
         case \/-(locAcc) => {
           val locations = paths.map(path => s"$bucket/$path")
@@ -300,8 +300,9 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
 
     // batch as AWS apis can only handle up to 25 items at a time
     val zero = List.empty[String].right[Error]
-    val rs = groups.foldLeft(zero) { case (acc, ids) =>
-      acc.flatMap(locations => delete(ids).map(_ ::: locations))
+    val rs = groups.foldLeft(zero) {
+      case (acc, ids) =>
+        acc.flatMap(locations => delete(ids).map(_ ::: locations))
     }
 
     rs

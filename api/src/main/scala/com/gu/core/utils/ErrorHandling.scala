@@ -4,9 +4,9 @@ import com.gu.core.models.Error
 import com.gu.core.models.Errors._
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 
 object ErrorHandling extends LazyLogging {
 

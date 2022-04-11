@@ -8,7 +8,7 @@ import com.gu.core.utils.ErrorHandling._
 import org.scalatra.servlet.FileItem
 
 import scala.util.Try
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 
 object IOUtils {
   def readBytesAndCloseInputStream(is: InputStream): Error \/ Array[Byte] = {

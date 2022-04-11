@@ -10,11 +10,11 @@ import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 case class ElkConfig(enabled: Boolean, streamName: String, region: String, stage: String)
 
 case class Config(
-    avatarServletProperties: AvatarServletProperties,
-    storeProperties: StoreProperties,
-    deletionEventsProps: SqsDeletionConsumerProps,
-    elkConfig: ElkConfig,
-    identityConfig: IdentityConfig
+  avatarServletProperties: AvatarServletProperties,
+  storeProperties: StoreProperties,
+  deletionEventsProps: SqsDeletionConsumerProps,
+  elkConfig: ElkConfig,
+  identityConfig: IdentityConfig
 ) {
   val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
 }
@@ -39,7 +39,7 @@ object Config {
     )
 
   private def deletionEventsProps(conf: TypesafeConfig): SqsDeletionConsumerProps = {
-    SqsDeletionConsumerProps(conf.getString("aws.sqs.deleted.url"), conf.getString("aws.region") )
+    SqsDeletionConsumerProps(conf.getString("aws.sqs.deleted.url"), conf.getString("aws.region"))
   }
 
   protected def storeProperties(conf: TypesafeConfig): StoreProperties =

@@ -6,14 +6,14 @@ import com.amazonaws.ClientConfiguration
 import com.amazonaws.handlers.AsyncHandler
 import com.amazonaws.regions.Region
 import com.amazonaws.services.sns.AmazonSNSAsyncClient
-import com.amazonaws.services.sns.model.{ PublishRequest, PublishResult }
+import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.gu.auth.AWSCredentials
-import com.gu.core.models.{ Avatar, CreatedAvatar }
+import com.gu.core.models.{Avatar, CreatedAvatar}
 import com.typesafe.scalalogging.LazyLogging
-import org.json4s.native.{ compactJson, renderJValue }
-import org.json4s.{ DefaultFormats, Extraction }
+import org.json4s.native.{compactJson, renderJValue}
+import org.json4s.{DefaultFormats, Extraction}
 
-import scala.concurrent.{ Future, Promise }
+import scala.concurrent.{Future, Promise}
 
 trait Publisher {
   def publish(arn: String, msg: String, subject: String): Future[String]

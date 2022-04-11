@@ -1,7 +1,7 @@
 package com.gu.core.utils
 
 import org.joda.time.format.ISODateTimeFormat
-import org.joda.time.{ DateTime, DateTimeZone }
+import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.lang3.StringEscapeUtils.escapeJava
 
 object ISODateFormatter {
