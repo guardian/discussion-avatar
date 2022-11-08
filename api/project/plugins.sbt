@@ -1,6 +1,6 @@
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0") 
 
-addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "4.0.1")
+addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "4.0.3")
 
 resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
