@@ -22,13 +22,13 @@ object Filter {
     }
 
     val since: Validation[NonEmptyList[String], Option[DateTime]] = params.get("since") match {
-      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
+      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).toValidation
         .leftMap(_ => NonEmptyList(s"'$s' is not a valid datetime format for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
 
     val until: Validation[NonEmptyList[String], Option[DateTime]] = params.get("until") match {
-      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).validation
+      case Some(s) => attempt(Some(ISODateFormatter.parse(s))).toValidation
         .leftMap(_ => NonEmptyList(s"'$s' is not a valid datetime format for 'until'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Success(None)
     }
@@ -47,9 +47,7 @@ object Filter {
       o <- order
     } yield Filters(s, f, b, o)
 
-    filters
-      .ensure(NonEmptyList("Cannot specify both 'since' and 'until' parameters"))(f => f.since.isEmpty || f.until.isEmpty)
-      .leftMap(invalidFilters).disjunction
+    filters.ensure(NonEmptyList("Cannot specify both 'since' and 'until' parameters"))(f => f.since.isEmpty || f.until.isEmpty).leftMap(invalidFilters).toDisjunction
   }
 
   def queryString(f: Filters): String = {
