@@ -62,7 +62,7 @@ libraryDependencies ++= Seq(
   "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4",
   "com.typesafe.akka" %% "akka-http" % "10.1.15", 
   "com.typesafe.akka" %% "akka-http-core" % "10.1.15",
-  "com.gu" % "kinesis-logback-appender" % "1.4.2"
+  "com.gu" % "kinesis-logback-appender" % "1.4.4"
 )
 
 sourceDirectory in webappPrepare := (sourceDirectory in Compile).value / "resources/webapp"
