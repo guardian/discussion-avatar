@@ -1,7 +1,7 @@
 package com.gu.core.utils
 
 import com.gu.core.utils
-import org.scalatest.{ Matchers, FunSuite }
+import org.scalatest.{Matchers, FunSuite}
 
 class KVLocationFromId extends FunSuite with Matchers {
 
