@@ -1,42 +1,58 @@
 package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.CookieDecoder.userFromCookie
 import com.gu.adapters.http.Image._
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
-import com.gu.identity.cookie.GuUDecoder
+import com.typesafe.scalalogging.LazyLogging
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-
 import scalaz.{Success => _, _}
 
 class AvatarServlet(
   store: AvatarStore,
   publisher: Publisher,
-  props: AvatarServletProperties
+  props: AvatarServletProperties,
+  authenticationService: AuthenticationService
 )(implicit val swagger: Swagger)
   extends ScalatraServlet
-    with ServletWithErrorHandling[Error, Success]
-    with AuthorizedApiServlet[Success]
-    with JacksonJsonSupport
-    with SwaggerSupport
-    with SwaggerOps
-    with FileUploadSupport
-    with CorsSupport {
+  with ServletWithErrorHandling[Error, Success]
+  with AuthorizedApiServlet[Success]
+  with JacksonJsonSupport
+  with SwaggerSupport
+  with SwaggerOps
+  with FileUploadSupport
+  with CorsSupport
+  with LazyLogging {
+
+  import CorsSupport._
+
+  // When upgrading the API to Scala 2.12, we had to upgrade Scalatra from 2.3 to 2.6,
+  // since 2.3 wasn't available for Scala 2.12.
+  // The CorsSupport functionality differs in 2.6.
+  // Of relevance, the Access-Control-Allow-Origin head is only set
+  // if the Origin header is present AND it is in the configured set of allowed origins,
+  // in contrast to 2.3 where it is set if the Origin header is present.
+  // Ultimately we want to establish a set of allowed domains (work has been done towards this goal)
+  // but as a stop gap, simulate the behaviour of 2.3.
+  override protected def augmentSimpleRequest(): Unit = {
+    super.augmentSimpleRequest()
+    if (response.headers.get(AccessControlAllowOriginHeader).isEmpty) {
+      response.setHeader(AccessControlAllowOriginHeader, request.headers.getOrElse(OriginHeader, ""))
+    }
+  }
 
   val apiUrl = props.apiUrl
   val pageSize = props.pageSize
   val apiKeys = props.apiKeys
   val snsTopicArn = props.snsTopicArn
-  val decoder = props.cookieDecoder
 
   protected implicit val jsonFormats = JsonFormats.all
 
@@ -151,7 +167,7 @@ class AvatarServlet(
 
   getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     for {
-      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
       avatar <- store.getPersonal(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -159,7 +175,7 @@ class AvatarServlet(
 
   postWithErrors("/avatars", operation(postAvatar)) {
     for {
-      user <- userFromCookie(decoder, request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
       created <- uploadAvatar(request, user, fileParams)
       req = Req(apiUrl, request.getPathInfo)
     } yield {
@@ -205,7 +221,7 @@ class AvatarServlet(
           case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case UserDeletionFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
         }
-      logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status.code))
+      logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status))
 
       response
   }
@@ -252,7 +268,6 @@ class AvatarServlet(
 case class AvatarServletProperties(
   apiKeys: List[String],
   apiUrl: String,
-  cookieDecoder: GuUDecoder,
   pageSize: Int,
   snsTopicArn: String
 )

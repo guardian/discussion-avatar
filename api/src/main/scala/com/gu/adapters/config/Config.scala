@@ -5,16 +5,16 @@ import com.gu.adapters.http.AvatarServletProperties
 import com.gu.adapters.notifications.SnsProperties
 import com.gu.adapters.queue.SqsDeletionConsumerProps
 import com.gu.core.store.StoreProperties
-import com.gu.identity.cookie.{GuUDecoder, IdentityCookieDecoder, PreProductionKeys, ProductionKeys}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 
 case class ElkConfig(enabled: Boolean, streamName: String, region: String, stage: String)
 
 case class Config(
-    avatarServletProperties: AvatarServletProperties,
-    storeProperties: StoreProperties,
-    deletionEventsProps: SqsDeletionConsumerProps,
-    elkConfig: ElkConfig
+  avatarServletProperties: AvatarServletProperties,
+  storeProperties: StoreProperties,
+  deletionEventsProps: SqsDeletionConsumerProps,
+  elkConfig: ElkConfig,
+  identityConfig: IdentityConfig
 ) {
   val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
 }
@@ -34,11 +34,12 @@ object Config {
       avatarServletProperties(conf),
       storeProperties(conf),
       deletionEventsProps(conf),
-      elkConfig(conf)
+      elkConfig(conf),
+      IdentityConfig.fromTypesafeConfig(conf)
     )
 
   private def deletionEventsProps(conf: TypesafeConfig): SqsDeletionConsumerProps = {
-    SqsDeletionConsumerProps(conf.getString("aws.sqs.deleted.url"), conf.getString("aws.region") )
+    SqsDeletionConsumerProps(conf.getString("aws.sqs.deleted.url"), conf.getString("aws.region"))
   }
 
   protected def storeProperties(conf: TypesafeConfig): StoreProperties =
@@ -58,18 +59,9 @@ object Config {
     AvatarServletProperties(
       apiKeys = conf.getString("api.keys").split(',').toList,
       apiUrl = conf.getString("api.baseUrl") + "/v1",
-      cookieDecoder = cookieDecoder(conf),
       pageSize = pageSize,
       snsTopicArn = conf.getString("aws.sns.topic.arn")
     )
-
-  private def cookieDecoder(conf: TypesafeConfig): GuUDecoder = {
-    val keys = conf.getString("stage") match {
-      case "PROD" => new ProductionKeys
-      case _ => new PreProductionKeys
-    }
-    new IdentityCookieDecoder(keys)
-  }
 
   private def elkConfig(conf: TypesafeConfig): ElkConfig = {
     ElkConfig(
