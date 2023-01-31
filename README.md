@@ -79,6 +79,7 @@ assumed to be in the `platform` sub directory of the project. From inspection, i
 in TeamCity, the main branch of the discussion-platform will be used; the converse is also true. The freshness 
 of the main branch depends on the configured value for the _checking changes interval_ property.
 
+===========
 ### License
 ```
 Copyright 2015 Guardian News & Media Ltd
