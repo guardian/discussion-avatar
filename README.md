@@ -3,6 +3,9 @@
 The Avatar Service comprises of an API and various related tasks,
 which take the form of Lambda functions.
 
+https://avatar.code.dev-theguardian.com/v1
+https://avatar.theguardian.com/v1
+
 ## Architecture
 
 Metadata about avatars is stored in Dynamo. Image files are stored in
@@ -58,10 +61,12 @@ sbt
 run
 ```
 
+Note that the app will run on port 8080 by default (configurable by setting the PORT environment variable - not 8900 as is implied by the output when you start the service).
+
 ## Deploying the app
 
 The AWS infrastructure that this application runs on is defined (using cloudformation) in 
-[discussion-avatar](https://github.com/guardian/discussion-platform/tree/master/discussion-avatar) sub directory of the
+[discussion-avatar](https://github.com/guardian/discussion-platform/tree/main/discussion-avatar) sub directory of the
 discussion-platform repository. To build the application TeamCity constructs the following working directory:
 ```
 Github                                    TeamCity
@@ -71,10 +76,10 @@ discussion-platform/discussion-avatar/ => ./platform
 ```
 and then builds the project. In particular, this is why in `build.sbt` the RiffRaff and cloudformation files are
 assumed to be in the `platform` sub directory of the project. From inspection, if a branch of this repository is built 
-in TeamCity, the master branch of the discussion-platform will be used; the converse is also true. The freshness 
-of the master branch depends on the configured value for the _checking changes interval_ property.
+in TeamCity, the main branch of the discussion-platform will be used; the converse is also true. The freshness 
+of the main branch depends on the configured value for the _checking changes interval_ property.
 
-==========
+===========
 ### License
 ```
 Copyright 2015 Guardian News & Media Ltd
