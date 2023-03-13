@@ -14,15 +14,15 @@ version := "1.0"
 scalaVersion := "2.12.8"
 
 val ScalatraVersion = "2.6.3"
-val jettyVersion = "9.2.28.v20190418"
+val jettyVersion = "9.4.39.v20210325"
 val json4sVersion = "3.5.2"
 val logbackVersion = "1.2.0"
-val logstashEncoderVersion = "4.9"
+val logstashEncoderVersion = "7.3"
 val servletApiVersion = "3.1.0"
 val scalazVersion = "7.1.17"
-val identityVersion = "3.255"
+val identityVersion = "4.10"
 val typesafeConfigVersion = "1.2.1"
-val amazonawsVersion = "1.11.314"
+val amazonawsVersion = "1.12.412"
 val scalaLoggingVersion = "3.6.0"
 val apacheCommonsVersion = "3.4"
 
@@ -59,7 +59,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4",
+  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "5.0.0",
   "com.typesafe.akka" %% "akka-http" % "10.1.15", 
   "com.typesafe.akka" %% "akka-http-core" % "10.1.15",
   "com.gu" % "kinesis-logback-appender" % "1.4.2"
