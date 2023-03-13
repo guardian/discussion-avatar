@@ -7,7 +7,7 @@ import cats.implicits._
 import com.gu.adapters.config.IdentityConfig
 import com.gu.core.models.Errors._
 import com.gu.core.models.{Error, User}
-import com.gu.identity.auth.{IdentityAuthService, UserCredentials}
+import com.gu.identity.auth.{IdapiAuthConfig, IdapiAuthService, IdapiUserCredentials}
 import com.typesafe.scalalogging.LazyLogging
 import org.http4s.Uri
 import scalaz.Scalaz._
@@ -31,7 +31,7 @@ object TokenAuth {
   }
 }
 
-class AuthenticationService(identityAuthService: IdentityAuthService) {
+class AuthenticationService(idapiAuthService: IdapiAuthService) {
 
   def authenticateUser(scGuUCookie: Option[String]): Error \/ User = {
     // Attempt to authenticate user.
@@ -42,8 +42,8 @@ class AuthenticationService(identityAuthService: IdentityAuthService) {
           new Exception("No secure cookie in request")
         )
       )
-      credentials = UserCredentials.SCGUUCookie(value)
-      identityId <- identityAuthService.authenticateUser(credentials)
+      credentials = IdapiUserCredentials.SCGUUCookie(value)
+      identityId <- idapiAuthService.authenticateUser(credentials)
     } yield identityId
 
     // Convert authentication result to return type
@@ -94,10 +94,13 @@ object AuthenticationService extends LazyLogging {
     logger.info(s"initialising identity auth service - url: $uri, access token: $scrubbedAccessToken")
 
     implicit val ec: ExecutionContext = ExecutionContext.fromExecutorService(threadPool)
-    val identityAuthService = IdentityAuthService.unsafeInit(
+
+    val idapiAuthConfig = IdapiAuthConfig(
       identityApiUri = uri,
       accessToken = config.accessToken
     )
+
+    val identityAuthService = IdapiAuthService.unsafeInit(idapiAuthConfig)
 
     new AuthenticationService(identityAuthService)
   }
