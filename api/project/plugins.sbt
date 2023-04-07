@@ -6,6 +6,6 @@ resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositori
 
 addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.8.2")
 
-addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.1")
+addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.9.16")
 
 addSbtPlugin("com.gu" % "sbt-riffraff-artifact" % "1.0.0")
