@@ -98,7 +98,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
       s"fs:com-gu-avatar-incoming-dev/$bucketPath1"
     )
 
-    deleted.getOrElse(null).resources should contain only (expected:_*)
+    deleted.getOrElse(null).resources should contain only (expected: _*)
     fileStore.files.exists { case (path, _) => path.contains(bucketPath1) } shouldBe false
     fileStore.files.exists { case (path, _) => path.contains(bucketPath2) } shouldBe false
   }
@@ -126,7 +126,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
       s"fs:com-gu-avatar-incoming-dev/$bucketPath"
     )
 
-    cleaned.getOrElse(null).resources should contain only (expected:_*)
+    cleaned.getOrElse(null).resources should contain only (expected: _*)
     fileStore.files.exists { case (path, _) => path.contains(bucketPath) } shouldBe false
   }
 

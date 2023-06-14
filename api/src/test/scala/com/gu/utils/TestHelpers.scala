@@ -20,6 +20,18 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
 
   protected implicit val jsonFormats = JsonFormats.all
 
+  def getHeaders(
+    cookie: Option[String],
+    authorizationHeader: Option[String]
+  ): Map[String, String] = {
+    (cookie, authorizationHeader) match {
+      case (Some(cookie), None) => Map("Cookie" -> s"SC_GU_U=$cookie;")
+      case (None, Some(authorizationHeader)) => Map("Authorization" -> authorizationHeader)
+      case (Some(cookie), Some(authorizationHeader)) => Map("Authorization" -> authorizationHeader, "Cookie" -> s"SC_GU_U=$cookie;")
+      case (None, None) => Map()
+    }
+  }
+
   def checkGetOk(
     uri: String,
     p: ClientResponse => Boolean,
@@ -66,8 +78,13 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
 
   def checkGetAvatar(uri: String): Unit = checkGetAvatar(uri, _ => true)
 
-  def checkGetAvatar(uri: String, cookie: String, p: AvatarResponse => Boolean): Unit = {
-    checkGetAvatar(uri, p, Nil, Map("Cookie" -> s"SC_GU_U=$cookie;"))
+  def checkGetAvatar(uri: String, cookie: Option[String], authorizationHeader: Option[String], p: AvatarResponse => Boolean): Unit = {
+    get(uri, Nil, getHeaders(cookie, authorizationHeader)) {
+      status should equal(200)
+      val avatar = read[AvatarResponse](body)
+      avatar.uri should be(Some(apiUrl + "/avatars/" + avatar.data.id))
+      assert(p(avatar), "The avatar did not satisfy the supplied conditions. Avatar: " + avatar)
+    }
   }
 
   def checkGetError(
@@ -88,11 +105,11 @@ trait TestHelpers extends ScalatraSuite with FunSuiteLike {
     file: File,
     isSocial: String,
     userId: String,
-    cookie: String,
+    cookie: Option[String],
+    authorizationHeader: Option[String],
     p: AvatarResponse => Boolean
   ): Unit = {
-
-    post("/avatars", Map("isSocial" -> isSocial), List("file" -> file), Map("Cookie" -> s"SC_GU_U=$cookie;")) {
+    post("/avatars", Map("isSocial" -> isSocial), List("file" -> file), getHeaders(cookie, authorizationHeader)) {
       status should equal(201)
       val avatar = read[AvatarResponse](body)
       p(avatar) should be(true)

@@ -3,19 +3,19 @@ package com.gu.adapters.queue
 import java.net.URI
 
 import akka.stream.alpakka.sqs.MessageAction
-import akka.stream.alpakka.sqs.MessageAction.{ Delete, Ignore }
-import akka.stream.alpakka.sqs.scaladsl.{ SqsAckSink, SqsSource }
+import akka.stream.alpakka.sqs.MessageAction.{Delete, Ignore}
+import akka.stream.alpakka.sqs.scaladsl.{SqsAckSink, SqsSource}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.gu.auth.AWSCredentials
 import com.gu.core.akka.Akka
 import com.gu.core.akka.Akka._
-import com.gu.core.models.{ DeletionEvent, Error, InvalidUserId, User }
+import com.gu.core.models.{DeletionEvent, Error, InvalidUserId, User}
 import com.gu.core.store.AvatarStore
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.Message
