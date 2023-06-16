@@ -75,7 +75,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
       authenticationService.authenticateUser(
         None, Some(s"Bearer $token"),
         AccessScope.readSelf
-      ) shouldBe -\/(Errors.oauthTokenAuthorizationFailed(NonEmptyList("Token is invalid or expired"), "401"))
+      ) shouldBe -\/(Errors.oauthTokenAuthorizationFailed(NonEmptyList("Token is invalid or expired"), 401))
     }
   }
 }

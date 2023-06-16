@@ -19,7 +19,7 @@ case class UnableToReadAvatarRequest(message: String, errors: NonEmptyList[Strin
 case class InvalidMimeType(message: String, errors: NonEmptyList[String]) extends Error
 case class InvalidIsSocialFlag(message: String, errors: NonEmptyList[String]) extends Error
 case class UserDeletionFailed(message: String, errors: NonEmptyList[String]) extends Error
-case class OAuthTokenAuthorizationFailed(message: String, errors: NonEmptyList[String], statusCode: String) extends Error
+case class OAuthTokenAuthorizationFailed(message: String, errors: NonEmptyList[String], statusCode: Int) extends Error
 
 object Errors {
 
@@ -71,7 +71,7 @@ object Errors {
     UserDeletionFailed("Unable to delete one or more records for the user", errors)
   }
 
-  def oauthTokenAuthorizationFailed(errors: NonEmptyList[String], statusCode: String): OAuthTokenAuthorizationFailed = {
+  def oauthTokenAuthorizationFailed(errors: NonEmptyList[String], statusCode: Int): OAuthTokenAuthorizationFailed = {
     OAuthTokenAuthorizationFailed("OAuth Token Authorization Failed", errors, statusCode)
   }
 }

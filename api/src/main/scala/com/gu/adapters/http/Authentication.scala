@@ -94,34 +94,21 @@ class AuthenticationService(
     accessToken: Option[String],
     identityAccessScope: IdentityAccessScope
   ): Error \/ User = {
-    // Attempt to authenticate user.
+    // attempt to authenticate user with oauth tokens
     val result = for {
-      value <- IO.fromEither(
-        Either.fromOption(
-          accessToken,
-          new Exception("No oauth access token in request")
-        )
-      )
-      credentials = value.stripPrefix("Bearer ")
-      claims <- IO.fromEither(
-        oktaLocalValidator.parsedClaimsFromAccessToken(
-          credentials,
-          List(identityAccessScope),
-          DefaultAccessClaimsParser
-        ).leftMap(e => new Exception(e.message, new Exception(e.suggestedHttpResponseCode.toString)))
-      )
-      identityId = claims.identityId
-    } yield identityId
+      token <- accessToken.toRight(oauthTokenAuthorizationFailed(NonEmptyList("No oauth access token in request"), 400))
+      credentials = token.stripPrefix("Bearer ")
+      claims <- oktaLocalValidator
+        .parsedClaimsFromAccessToken(credentials, List(identityAccessScope), DefaultAccessClaimsParser)
+        .left
+        .map(e => oauthTokenAuthorizationFailed(NonEmptyList(e.message), e.suggestedHttpResponseCode))
+    } yield claims.identityId
 
-    // Convert authentication result to return type
-    // (identity-auth-core uses cats (Either); discussion-avatar uses scalaz (\/)).
-    result
-      .redeem(
-        err =>
-          -\/(oauthTokenAuthorizationFailed(NonEmptyList(err.getMessage), err.getCause.getMessage)),
-        identityId => \/-(User(identityId))
-      )
-      .unsafeRunSync()
+    // determine result
+    result match {
+      case Left(err) => -\/(err)
+      case Right(identityId) => \/-(User(identityId))
+    }
   }
 
   def authenticateUser(

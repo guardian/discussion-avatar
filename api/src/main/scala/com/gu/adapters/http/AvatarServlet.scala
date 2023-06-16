@@ -223,9 +223,9 @@ class AvatarServlet(
           case UserDeletionFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
           case OAuthTokenAuthorizationFailed(msg, errors, statusCode) => {
             statusCode match {
-              case "400" => BadRequest(ErrorResponse(msg, errors))
-              case "401" => Unauthorized(ErrorResponse(msg, errors))
-              case "403" => Forbidden(ErrorResponse(msg, errors))
+              case 400 => BadRequest(ErrorResponse(msg, errors))
+              case 401 => Unauthorized(ErrorResponse(msg, errors))
+              case 403 => Forbidden(ErrorResponse(msg, errors))
               case _ => InternalServerError(ErrorResponse(msg, errors))
             }
           }
