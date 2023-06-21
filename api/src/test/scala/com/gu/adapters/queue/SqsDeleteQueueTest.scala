@@ -1,17 +1,17 @@
 package com.gu.adapters.queue
 
 import akka.stream.alpakka.sqs.MessageAction
-import com.gu.core.models.{ User, UserDeleted, UserDeletionFailed }
+import com.gu.core.models.{User, UserDeleted, UserDeletionFailed}
 import com.gu.core.store.AvatarStore
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.{FlatSpec, Matchers}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
 
 import scala.language.postfixOps
 import scala.concurrent.duration._
-import scalaz.{ NonEmptyList, \/ }
+import scalaz.{NonEmptyList, \/}
 import software.amazon.awssdk.services.sqs.model.Message
 
 class SqsDeleteQueueTest extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {

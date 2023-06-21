@@ -2,6 +2,7 @@ package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.Image._
+import com.gu.adapters.http.AccessScope
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
@@ -167,7 +168,7 @@ class AvatarServlet(
 
   getWithErrors("/avatars/user/me/active", operation(getPersonalAvatarForUser)) {
     for {
-      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie), request.headers.get("Authorization"), AccessScope.readSelf)
       avatar <- store.getPersonal(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
@@ -175,7 +176,7 @@ class AvatarServlet(
 
   postWithErrors("/avatars", operation(postAvatar)) {
     for {
-      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie))
+      user <- authenticationService.authenticateUser(request.cookies.get(Config.secureCookie), request.headers.get("Authorization"), AccessScope.updateSelf)
       created <- uploadAvatar(request, user, fileParams)
       req = Req(apiUrl, request.getPathInfo)
     } yield {
@@ -220,6 +221,14 @@ class AvatarServlet(
           case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case UserDeletionFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
+          case OAuthTokenAuthorizationFailed(msg, errors, statusCode) => {
+            statusCode match {
+              case 400 => BadRequest(ErrorResponse(msg, errors))
+              case 401 => Unauthorized(ErrorResponse(msg, errors))
+              case 403 => Forbidden(ErrorResponse(msg, errors))
+              case _ => InternalServerError(ErrorResponse(msg, errors))
+            }
+          }
         }
       logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status))
 

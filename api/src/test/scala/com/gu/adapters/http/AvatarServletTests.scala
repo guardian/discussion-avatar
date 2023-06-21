@@ -1,9 +1,8 @@
 package com.gu.adapters.http
 
 import java.io.File
-
 import com.gu.adapters.config.Config
-import com.gu.adapters.http.TestCookie.testSecureCookie
+import com.gu.adapters.http.TestCookie.{testAccessToken, testSecureCookie}
 import com.gu.adapters.notifications.TestPublisher
 import com.gu.adapters.store.{TestFileStore, TestKVStore}
 import com.gu.core.models._
@@ -75,27 +74,56 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
     checkGetAvatar(s"/avatars/user/123456/active", a => a.data.id == "9f51970f-fc24-400a-9ceb-9b347d9b5e5e" && a.data.isActive)
   }
 
-  test("Get personal avatar by user ID") {
+  test("Get personal avatar by user ID using cookie") {
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.readSelf)).thenReturn(\/-(User(userId)))
     checkGetAvatar(
       s"/avatars/user/me/active",
-      cookie,
+      Some(cookie),
+      None,
       a => a.data.userId == userId && a.data.status == Inactive
     )
   }
 
-  test("Post avatar") {
+  test("Get personal avatar by user ID using oauth access token") {
+    val (userId, token) = testAccessToken
+    when(authenticationService.authenticateUser(None, Some(token), AccessScope.readSelf)).thenReturn(\/-(User(userId)))
+    checkGetAvatar(
+      s"/avatars/user/me/active",
+      None,
+      Some(token),
+      a => a.data.userId == userId && a.data.status == Inactive
+    )
+  }
+
+  test("Post avatar using cookie") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
 
     postAvatar(
       "/avatars",
       file,
       "false",
       userId,
-      cookie,
+      Some(cookie),
+      None,
+      a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive && !a.data.isSocial
+    )
+  }
+
+  test("Post avatar using oauth access token") {
+    val file = new File("src/test/resources/avatar.gif")
+    val (userId, token) = testAccessToken
+    when(authenticationService.authenticateUser(None, Some(token), AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
+
+    postAvatar(
+      "/avatars",
+      file,
+      "false",
+      userId,
+      None,
+      Some(token),
       a => a.data.userId == userId && a.data.status == Pending && !a.data.isActive && !a.data.isSocial
     )
   }
@@ -103,14 +131,15 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
   test("Social Avatar should default to Inactive status") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
 
     postAvatar(
       "/avatars",
       file,
       "true",
       userId,
-      cookie,
+      Some(cookie),
+      None,
       a => a.data.userId == userId && a.data.status == Inactive && !a.data.isActive && a.data.isSocial
     )
   }
@@ -118,7 +147,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
   test("Error response if bad isSocial parameter") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie))).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
 
     postError(
       "/avatars",
