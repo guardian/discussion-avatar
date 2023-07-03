@@ -60,22 +60,28 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "5.0.0",
-  "com.typesafe.akka" %% "akka-http" % "10.1.15",
-  "com.typesafe.akka" %% "akka-http-core" % "10.1.15",
+  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4",
   "com.gu" % "kinesis-logback-appender" % "1.4.2"
 )
 
-sourceDirectory in webappPrepare := (sourceDirectory in Compile).value / "resources/webapp"
+// Pin Akka versions to last available non-commercially licensed versions
+val akkaOverrides = Seq(
+  "com.typesafe.akka" %% "akka-stream" % "2.6.21",
+  "com.typesafe.akka" %% "akka-http" % "10.2.10"
+)
+
+dependencyOverrides ++= akkaOverrides
+
+webappPrepare / sourceDirectory := (Compile / sourceDirectory).value / "resources/webapp"
 
 containerPort := 8900
 
-mainClass in Compile := Some("com.gu.adapters.http.JettyLauncher")
+Compile / mainClass := Some("com.gu.adapters.http.JettyLauncher")
 
 // package stuff - note, assumes presence of cfn and rr files
-packageName in Universal := normalizedName.value
-riffRaffPackageType := (packageZipTarball in Universal).value
-mappings in Universal ++= directory("conf")
+Universal / packageName := normalizedName.value
+riffRaffPackageType := (Universal / packageZipTarball).value
+Universal / mappings ++= directory("conf")
 // See the README (## Deploying the app) to understand how the *.yaml files are provided at build time.
 riffRaffArtifactResources += (file(
   "platform/cloudformation/discussion-avatar-api.yaml"
