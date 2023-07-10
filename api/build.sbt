@@ -59,17 +59,14 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4",
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
   "com.gu" % "kinesis-logback-appender" % "1.4.2"
 )
 
-// Pin Akka versions to last available non-commercially licensed versions
-val akkaOverrides = Seq(
-  "com.typesafe.akka" %% "akka-stream" % "2.6.21",
-  "com.typesafe.akka" %% "akka-http" % "10.2.10"
-)
-
-dependencyOverrides ++= akkaOverrides
+// Exclude all transitive Akka dependencies
+libraryDependencies ~= { deps =>
+  deps.map(_.excludeAll(ExclusionRule(organization = "com.typesafe.akka")))
+}
 
 webappPrepare / sourceDirectory := (Compile / sourceDirectory).value / "resources/webapp"
 
