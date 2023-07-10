@@ -1,23 +1,22 @@
 package logstash
 
-import java.util.concurrent.ThreadPoolExecutor
-
-import akka.actor.ActorSystem
-import akka.dispatch.MessageDispatcher
-import akka.pattern.CircuitBreaker
 import ch.qos.logback.classic.spi.ILoggingEvent
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.retry.{PredefinedRetryPolicies, RetryPolicy}
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient
+import com.gu.core.pekko.Pekko.system
 import com.gu.logback.appender.kinesis.KinesisAppender
-import scala.concurrent.duration._
+import org.apache.pekko.dispatch.MessageDispatcher
+import org.apache.pekko.pattern.CircuitBreaker
+
+import java.util.concurrent.ThreadPoolExecutor
 import scala.concurrent.Future
-import com.gu.core.akka.Akka.system
+import scala.concurrent.duration._
 
 // LogbackOperationsPool must be wired as a singleton
 class LogbackOperationsPool() {
-  val logbackOperations: MessageDispatcher = system.dispatchers.lookup("akka.logback-operations")
+  val logbackOperations: MessageDispatcher = system.dispatchers.lookup("pekko.logback-operations")
 }
 
 // The KinesisAppender[ILoggingEvent] blocks logging operations on putMessage. This overrides the KinesisAppender api, executing putMessage in an

@@ -1,16 +1,16 @@
-import java.util.TimeZone
-
-import javax.servlet.ServletContext
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.{AuthenticationService, AvatarServlet, AvatarSwagger, ResourcesApp}
 import com.gu.adapters.notifications.SNS
 import com.gu.adapters.queue.SqsDeletionConsumer
 import com.gu.adapters.store.{Dynamo, DynamoProperties, S3}
-import com.gu.core.akka.Akka
+import com.gu.core.pekko.Pekko
 import com.gu.core.store.AvatarStore
 import com.gu.logstash.Logstash
 import logstash.LogbackOperationsPool
 import org.scalatra._
+
+import java.util.TimeZone
+import javax.servlet.ServletContext
 
 class ScalatraBootstrap extends LifeCycle {
 
@@ -35,6 +35,6 @@ class ScalatraBootstrap extends LifeCycle {
   }
 
   override def destroy(context: ServletContext) {
-    Akka.system.terminate()
+    Pekko.system.terminate()
   }
 }
