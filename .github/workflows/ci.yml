@@ -21,7 +21,7 @@ jobs:
               owner: 'guardian',
               repo: 'discussion-platform',
               workflow_id: 'discussion-avatar-ci.yml',
-              ref: 'mm/avatar-api-gha', // TODO - change to main when discussion-platform PR is merged
+              ref: 'main',
               inputs: {
                 "discussion-avatar-branch": "${{ github.head_ref || github.ref }}",
               }
