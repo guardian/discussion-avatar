@@ -1,0 +1,33 @@
+name: Discussion Avatar CI - See Discussion Platform Actions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger workflow in discussion-platform
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.PAT_ACTIONS_DISCUSSION_PLATFORM }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'guardian',
+              repo: 'discussion-platform',
+              workflow_id: 'discussion-avatar-ci.yml',
+              ref: 'main',
+              inputs: {
+                "discussion-avatar-branch": "${{ github.head_ref || github.ref }}",
+              }
+            })
+
+      - name: Please check discussion-platform for build status
+        run: |
+          echo "Please check discussion-platform for build status"
+          echo "https://github.com/guardian/discussion-platform/actions/workflows/discussion-avatar-ci.yml"

@@ -2,7 +2,6 @@ import com.typesafe.sbt.SbtNativePackager.autoImport.NativePackagerHelper._
 import scalariform.formatter.preferences._
 
 enablePlugins(
-  RiffRaffArtifact,
   UniversalPlugin,
   JavaAppPackaging,
   JettyPlugin
@@ -80,14 +79,7 @@ Compile / mainClass := Some("com.gu.adapters.http.JettyLauncher")
 
 // package stuff - note, assumes presence of cfn and rr files
 Universal / packageName := normalizedName.value
-riffRaffPackageType := (Universal / packageZipTarball).value
 Universal / mappings ++= directory("conf")
-// See the README (## Deploying the app) to understand how the *.yaml files are provided at build time.
-riffRaffArtifactResources += (file(
-  "platform/cloudformation/discussion-avatar-api.yaml"
-), "cfn/avatar-api.yaml")
-riffRaffArtifactResources += (file("platform/riff-raff.yaml"), "riff-raff.yaml")
-riffRaffArtifactResources += (riffRaffPackageType.value -> s"${name.value}/${name.value}.tgz")
 scalariformPreferences := scalariformPreferences.value
   .setPreference(DanglingCloseParenthesis, Preserve)
   .setPreference(SpacesAroundMultiImports, false)
