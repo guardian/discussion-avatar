@@ -2,7 +2,7 @@ package com.gu.adapters.http
 
 import cats.effect.IO
 import com.gu.core.models.{Errors, User}
-import com.gu.identity.auth.{DefaultAccessClaims, DefaultAccessClaimsParser, IdapiAuthService, IdapiUserCredentials, InvalidOrExpiredToken, OktaLocalValidator}
+import com.gu.identity.auth._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FunSuite, Matchers}
@@ -12,7 +12,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
 
   trait Mocks {
     val idapiAuthService: IdapiAuthService = mock[IdapiAuthService]
-    val oktaLocalValidator: OktaLocalValidator = mock[OktaLocalValidator]
+    val oktaLocalValidator: OktaLocalAccessTokenValidator = mock[OktaLocalAccessTokenValidator]
     val authenticationService = new AuthenticationService(idapiAuthService, oktaLocalValidator)
   }
 
@@ -55,11 +55,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
   test("Decode OAuth access token") {
     new Mocks {
       val token = "token"
-      when(oktaLocalValidator.parsedClaimsFromAccessToken(
-        token,
-        List(AccessScope.readSelf),
-        DefaultAccessClaimsParser
-      )).thenReturn(Right(DefaultAccessClaims("test@test.com", "123", None)))
+      when(oktaLocalValidator.parsedClaimsFromAccessToken(AccessToken(token), List(AccessScope.readSelf))).thenReturn(Right(DefaultAccessClaims("test@test.com", "123", None)))
       authenticationService.authenticateUser(None, Some(s"Bearer $token"), AccessScope.readSelf) shouldBe \/-(User("123"))
     }
   }
@@ -67,11 +63,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
   test("Reject invalid access token") {
     new Mocks {
       val token = "token"
-      when(oktaLocalValidator.parsedClaimsFromAccessToken(
-        token,
-        List(AccessScope.readSelf),
-        DefaultAccessClaimsParser
-      )).thenReturn(Left(InvalidOrExpiredToken))
+      when(oktaLocalValidator.parsedClaimsFromAccessToken(AccessToken(token), List(AccessScope.readSelf))).thenReturn(Left(InvalidOrExpiredToken))
       authenticationService.authenticateUser(
         None, Some(s"Bearer $token"),
         AccessScope.readSelf
