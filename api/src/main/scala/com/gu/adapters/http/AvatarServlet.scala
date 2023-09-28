@@ -8,7 +8,6 @@ import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.ErrorHandling.{attempt, logError}
 import com.typesafe.scalalogging.LazyLogging
-import org.json4s.Formats
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.Serialization.write
 import org.scalatra._
@@ -70,8 +69,7 @@ class AvatarServlet(
       MethodNotAllowed(ErrorResponse("Method not supported"))
   }
 
-  error {
-    case _ =>
+  error { case _: SizeConstraintExceededException =>
       RequestEntityTooLarge(
         body = write(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size")),
         headers = Map("Content-Type" -> "application/json; charset=UTF-8")
