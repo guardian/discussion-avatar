@@ -7,6 +7,12 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  # If this is a merge to main, ie. push event, then use 'main' as the target branch
+  # otherwise, use 'discussion-avatar-target'.
+  # The target branch must exist in the 'discussion-platform' repo!
+  TARGET_BRANCH: "${{ github.event_name == 'push' && 'main' || 'discussion-avatar-target' }}"
+
 jobs:
   CI:
     runs-on: ubuntu-latest
@@ -16,12 +22,14 @@ jobs:
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.PAT_ACTIONS_DISCUSSION_PLATFORM }}
+          # The 'ref' attribute in the following call is used in the target repo as the branch name for Riffraff deploys.
+          # For documentation of this call, see https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event
           script: |
             await github.rest.actions.createWorkflowDispatch({
               owner: 'guardian',
               repo: 'discussion-platform',
               workflow_id: 'discussion-avatar-ci.yml',
-              ref: 'main',
+              ref: '${{ env.TARGET_BRANCH }}',
               inputs: {
                 "discussion-avatar-branch": "${{ github.head_ref || github.ref }}",
               }
