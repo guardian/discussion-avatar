@@ -2,7 +2,6 @@ package com.gu.adapters.http
 
 import com.gu.adapters.config.Config
 import com.gu.adapters.http.Image._
-import com.gu.adapters.http.AccessScope
 import com.gu.adapters.notifications.{Notifications, Publisher}
 import com.gu.core.models.Errors._
 import com.gu.core.models._
@@ -70,8 +69,7 @@ class AvatarServlet(
       MethodNotAllowed(ErrorResponse("Method not supported"))
   }
 
-  error {
-    case e: SizeConstraintExceededException =>
+  error { case _: SizeConstraintExceededException =>
       RequestEntityTooLarge(
         body = write(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size")),
         headers = Map("Content-Type" -> "application/json; charset=UTF-8")
@@ -105,7 +103,7 @@ class AvatarServlet(
     NotImplemented(ErrorResponse("Endpoint needs to be specified"))
   }
 
-  apiDelete("/service/data/:userId", operation(deleteUserPermanently)) { auth =>
+  apiDelete("/service/data/:userId", operation(deleteUserPermanently)) { _ =>
     for {
       user <- User.userFromId(params("userId"))
       deleted <- store.deleteAll(user)
@@ -113,7 +111,7 @@ class AvatarServlet(
     } yield (deleted, req)
   }
 
-  apiPut("/avatars/user/:userId/cleanup", operation(cleanupUser)) { auth: String =>
+  apiPut("/avatars/user/:userId/cleanup", operation(cleanupUser)) { _ =>
     for {
       user <- User.userFromId(params("userId"))
       deleted <- store.cleanupInactive(user)
@@ -135,7 +133,7 @@ class AvatarServlet(
     )
   }
 
-  apiGet("/avatars", operation(getAvatars)) { auth: String =>
+  apiGet("/avatars", operation(getAvatars)) { _ =>
     for {
       filters <- Filter.fromParams(params)
       avatar <- store.get(filters)
@@ -143,14 +141,14 @@ class AvatarServlet(
     } yield (avatar, url)
   }
 
-  apiGet("/avatars/:id", operation(getAvatar)) { auth =>
+  apiGet("/avatars/:id", operation(getAvatar)) { _ =>
     for {
       avatar <- store.get(params("id"))
       req = Req(apiUrl, request.getPathInfo)
     } yield (avatar, req)
   }
 
-  apiGet("/avatars/user/:userId", operation(getAvatarsForUser)) { auth =>
+  apiGet("/avatars/user/:userId", operation(getAvatarsForUser)) { _ =>
     for {
       user <- User.userFromId(params("userId"))
       avatar <- store.get(user)
@@ -158,7 +156,7 @@ class AvatarServlet(
     } yield (avatar, req)
   }
 
-  apiGet("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) { auth =>
+  apiGet("/avatars/user/:userId/active", operation(getActiveAvatarForUser)) { _ =>
     for {
       user <- User.userFromId(params("userId"))
       active <- store.getActive(user)
@@ -185,7 +183,7 @@ class AvatarServlet(
     }
   }
 
-  apiPut("/avatars/:id/status", operation(putAvatarStatus)) { auth =>
+  apiPut("/avatars/:id/status", operation(putAvatarStatus)) { _ =>
     for {
       sr <- statusRequestFromBody(parsedBody)
       updated <- store.updateStatus(params("id"), sr.status)
@@ -221,14 +219,13 @@ class AvatarServlet(
           case InvalidIsSocialFlag(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case InvalidMimeType(msg, errors) => BadRequest(ErrorResponse(msg, errors))
           case UserDeletionFailed(msg, errors) => InternalServerError(ErrorResponse(msg, errors))
-          case OAuthTokenAuthorizationFailed(msg, errors, statusCode) => {
+          case OAuthTokenAuthorizationFailed(msg, errors, statusCode) =>
             statusCode match {
               case 400 => BadRequest(ErrorResponse(msg, errors))
               case 401 => Unauthorized(ErrorResponse(msg, errors))
               case 403 => Forbidden(ErrorResponse(msg, errors))
               case _ => InternalServerError(ErrorResponse(msg, errors))
             }
-          }
         }
       logError(msg = "Returning HTTP error", e = error, statusCode = Some(response.status))
 

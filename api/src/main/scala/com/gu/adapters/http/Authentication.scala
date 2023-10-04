@@ -1,26 +1,17 @@
 package com.gu.adapters.http
 
-import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 import cats.effect.IO
 import cats.implicits._
 import com.gu.adapters.config.IdentityConfig
 import com.gu.core.models.Errors._
 import com.gu.core.models.{Error, User}
-import com.gu.identity.auth.{
-  DefaultAccessClaimsParser,
-  IdapiAuthConfig,
-  IdapiAuthService,
-  IdapiUserCredentials,
-  OktaLocalValidator,
-  OktaTokenValidationConfig,
-  OktaValidationException,
-  AccessScope => IdentityAccessScope
-}
+import com.gu.identity.auth.{AccessToken, IdapiAuthConfig, IdapiAuthService, IdapiUserCredentials, OktaAudience, OktaIssuerUrl, OktaLocalAccessTokenValidator, OktaTokenValidationConfig, AccessScope => IdentityAccessScope}
 import com.typesafe.scalalogging.LazyLogging
 import org.http4s.Uri
 import scalaz.Scalaz._
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 
+import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 import scala.concurrent.ExecutionContext
 
 object TokenAuth {
@@ -37,7 +28,7 @@ object TokenAuth {
 
     val tokenOrError = token match {
       case Some(valid) if apiKeys.contains(valid) => valid.right
-      case Some(invalid) => "Invalid access token provided".left
+      case Some(_) => "Invalid access token provided".left
       case None => "No access token in request".left
     }
     tokenOrError.leftMap(error => tokenAuthorizationFailed(NonEmptyList(error)))
@@ -45,6 +36,7 @@ object TokenAuth {
 }
 
 object AccessScope {
+
   /**
    * Allows the client to read the user's saved for later articles
    */
@@ -62,7 +54,7 @@ object AccessScope {
 
 class AuthenticationService(
   idapiAuthService: IdapiAuthService,
-  oktaLocalValidator: OktaLocalValidator
+  oktaLocalValidator: OktaLocalAccessTokenValidator
 ) {
   private def authenticateUserWithIdapi(
     scGuUCookie: Option[String]
@@ -96,12 +88,22 @@ class AuthenticationService(
   ): Error \/ User = {
     // attempt to authenticate user with oauth tokens
     val result = for {
-      token <- accessToken.toRight(oauthTokenAuthorizationFailed(NonEmptyList("No oauth access token in request"), 400))
-      credentials = token.stripPrefix("Bearer ")
+      token <- accessToken.toRight(
+        oauthTokenAuthorizationFailed(
+          NonEmptyList("No oauth access token in request"),
+          400
+        )
+      )
+      credentials = AccessToken(token.stripPrefix("Bearer "))
       claims <- oktaLocalValidator
-        .parsedClaimsFromAccessToken(credentials, List(identityAccessScope), DefaultAccessClaimsParser)
+        .parsedClaimsFromAccessToken(credentials, List(identityAccessScope))
         .left
-        .map(e => oauthTokenAuthorizationFailed(NonEmptyList(e.message), e.suggestedHttpResponseCode))
+        .map(e =>
+          oauthTokenAuthorizationFailed(
+            NonEmptyList(e.message),
+            e.suggestedHttpResponseCode
+          )
+        )
     } yield claims.identityId
 
     // determine result
@@ -188,13 +190,16 @@ object AuthenticationService extends LazyLogging {
     )
 
     val oktaLocalConfig = OktaTokenValidationConfig(
-      config.oktaIssuer,
-      config.oktaAudience
+      OktaIssuerUrl(config.oktaIssuer),
+      Some(OktaAudience(config.oktaAudience)),
+      clientId = None
     )
 
     val identityAuthService = IdapiAuthService.unsafeInit(idapiAuthConfig)
 
-    val oktaLocalValidator = OktaLocalValidator.fromConfig(oktaLocalConfig)
+    val oktaLocalValidator = OktaLocalAccessTokenValidator
+      .fromConfig(oktaLocalConfig)
+      .getOrElse(throw new NoSuchElementException("Cannot configure validator"))
 
     new AuthenticationService(identityAuthService, oktaLocalValidator)
   }
