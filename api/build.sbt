@@ -60,7 +60,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
   "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
-  "com.gu" % "kinesis-logback-appender" % "1.4.2"
 )
 
 // Exclude all transitive Akka dependencies
