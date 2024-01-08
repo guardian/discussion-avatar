@@ -5,8 +5,6 @@ import com.gu.adapters.queue.SqsDeletionConsumer
 import com.gu.adapters.store.{Dynamo, DynamoProperties, S3}
 import com.gu.core.pekko.Pekko
 import com.gu.core.store.AvatarStore
-import com.gu.logstash.Logstash
-import logstash.LogbackOperationsPool
 import org.scalatra._
 
 import java.util.TimeZone
@@ -31,7 +29,6 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(avatarServlet, "/v1", "v1")
     context.mount(new ResourcesApp, "/api-docs")
     new SqsDeletionConsumer(config.deletionEventsProps, avatarStore).listen()
-    new Logstash(new LogbackOperationsPool()).init(config)
   }
 
   override def destroy(context: ServletContext) {

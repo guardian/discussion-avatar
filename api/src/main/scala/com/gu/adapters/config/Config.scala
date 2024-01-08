@@ -7,13 +7,10 @@ import com.gu.adapters.queue.SqsDeletionConsumerProps
 import com.gu.core.store.StoreProperties
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 
-case class ElkConfig(enabled: Boolean, streamName: String, region: String, stage: String)
-
 case class Config(
   avatarServletProperties: AvatarServletProperties,
   storeProperties: StoreProperties,
   deletionEventsProps: SqsDeletionConsumerProps,
-  elkConfig: ElkConfig,
   identityConfig: IdentityConfig
 ) {
   val snsProperties = SnsProperties(storeProperties.awsRegion, avatarServletProperties.snsTopicArn)
@@ -34,7 +31,6 @@ object Config {
       avatarServletProperties(conf),
       storeProperties(conf),
       deletionEventsProps(conf),
-      elkConfig(conf),
       IdentityConfig.fromTypesafeConfig(conf)
     )
 
@@ -62,13 +58,4 @@ object Config {
       pageSize = pageSize,
       snsTopicArn = conf.getString("aws.sns.topic.arn")
     )
-
-  private def elkConfig(conf: TypesafeConfig): ElkConfig = {
-    ElkConfig(
-      conf.getString("elk.logging.enabled").toBoolean,
-      conf.getString("elk.logging.stream"),
-      conf.getString("aws.region"),
-      conf.getString("stage")
-    )
-  }
 }

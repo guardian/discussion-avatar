@@ -1,24 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-<appender name="LOGFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>logs/avatar-api-access.log</file>
+    <appender name="LOGFILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/avatar-api-access.log</file>
 
-    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-        <fileNamePattern>logs/avatar-api-access.%i.log.gz</fileNamePattern>
-        <minIndex>1</minIndex>
-        <maxIndex>3</maxIndex>
-    </rollingPolicy>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>logs/avatar-api-access.%i.log.gz</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>3</maxIndex>
+        </rollingPolicy>
 
-    <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
-        <maxFileSize>100MB</maxFileSize>
-    </triggeringPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>100MB</maxFileSize>
+        </triggeringPolicy>
 
-    <encoder class="net.logstash.logback.encoder.LogstashAccessEncoder" />
-</appender>
+        <encoder class="net.logstash.logback.encoder.LogstashAccessEncoder"/>
+    </appender>
 
-<appender name="ASYNC-LOGFILE" class="net.logstash.logback.appender.AccessEventAsyncDisruptorAppender">
-    <appender-ref ref="LOGFILE" />
-</appender>
+    <appender name="ASYNC-LOGFILE" class="net.logstash.logback.appender.AccessEventAsyncDisruptorAppender">
+        <appender-ref ref="LOGFILE"/>
+    </appender>
 
-<appender-ref ref="ASYNC-LOGFILE" />
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashAccessEncoder"/>
+    </appender>
+
+    <appender name="ASYNCSTDOUT" class="net.logstash.logback.appender.AccessEventAsyncDisruptorAppender">
+        <appender-ref ref="STDOUT"/>
+    </appender>
+
+    <appender-ref ref="ASYNC-LOGFILE"/>
+    <appender-ref ref="ASYNCSTDOUT" />
 </configuration>

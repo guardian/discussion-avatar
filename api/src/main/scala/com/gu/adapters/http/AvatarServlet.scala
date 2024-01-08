@@ -69,7 +69,8 @@ class AvatarServlet(
       MethodNotAllowed(ErrorResponse("Method not supported"))
   }
 
-  error { case _: SizeConstraintExceededException =>
+  error {
+    case _: SizeConstraintExceededException =>
       RequestEntityTooLarge(
         body = write(ErrorResponse("File exceeds size limit: images must be no more than 1mb in size")),
         headers = Map("Content-Type" -> "application/json; charset=UTF-8")
