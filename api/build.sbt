@@ -10,20 +10,20 @@ enablePlugins(
 organization := "com.gu"
 name := "avatar-api"
 version := "1.0"
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.19"
 
-val ScalatraVersion = "2.6.3"
-val jettyVersion = "9.4.53.v20231009"
-val json4sVersion = "3.5.2"
-val logbackVersion = "1.2.13"
-val logstashEncoderVersion = "7.3"
-val servletApiVersion = "3.1.0"
-val scalazVersion = "7.1.17"
-val identityVersion = "4.13"
-val typesafeConfigVersion = "1.2.1"
+val ScalatraVersion = "2.6.5"
+val jettyVersion = "9.4.54.v20240208"
+val json4sVersion = "3.5.5"
+val logbackVersion = "1.4.14"
+val logstashEncoderVersion = "7.4"
+val servletApiVersion = "4.0.1"
+val scalazVersion = "7.3.8"
+val identityVersion = "4.21"
+val typesafeConfigVersion = "1.4.3"
 val amazonawsVersion = "1.12.668"
-val scalaLoggingVersion = "3.6.0"
-val apacheCommonsVersion = "3.4"
+val scalaLoggingVersion = "3.9.5"
+val apacheCommonsVersion = "3.14.0"
 
 val guardianReleases =
   "Guardian releases" at "https://guardian.github.io/maven/repo-releases"
@@ -48,7 +48,7 @@ libraryDependencies ++= Seq(
   "org.scalatra" %% "scalatra-json" % ScalatraVersion,
   "org.scalaz" %% "scalaz-core" % scalazVersion,
   "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % Test,
-  "org.mockito" % "mockito-core" % "3.1.0" % Test,
+  "org.mockito" % "mockito-core" % "3.12.4" % Test,
   "org.scalatra" %% "scalatra-swagger" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
@@ -59,7 +59,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.2"
 )
 
 // Exclude all transitive Akka dependencies
