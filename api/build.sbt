@@ -21,7 +21,7 @@ val servletApiVersion = "3.1.0"
 val scalazVersion = "7.1.17"
 val identityVersion = "4.13"
 val typesafeConfigVersion = "1.2.1"
-val amazonawsVersion = "1.12.642"
+val amazonawsVersion = "1.12.668"
 val scalaLoggingVersion = "3.6.0"
 val apacheCommonsVersion = "3.4"
 
@@ -59,7 +59,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
 )
 
 // Exclude all transitive Akka dependencies
