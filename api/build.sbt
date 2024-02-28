@@ -23,7 +23,7 @@ val identityVersion = "4.21"
 val typesafeConfigVersion = "1.4.3"
 val amazonawsVersion = "1.12.668"
 val scalaLoggingVersion = "3.9.5"
-val apacheCommonsVersion = "3.4"
+val apacheCommonsVersion = "3.14.0"
 
 val guardianReleases =
   "Guardian releases" at "https://guardian.github.io/maven/repo-releases"
