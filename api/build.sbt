@@ -59,7 +59,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.2"
 )
 
 // Exclude all transitive Akka dependencies
