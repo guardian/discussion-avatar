@@ -22,7 +22,7 @@ val scalazVersion = "7.1.17"
 val identityVersion = "4.21"
 val typesafeConfigVersion = "1.4.3"
 val amazonawsVersion = "1.12.668"
-val scalaLoggingVersion = "3.6.0"
+val scalaLoggingVersion = "3.9.5"
 val apacheCommonsVersion = "3.4"
 
 val guardianReleases =
