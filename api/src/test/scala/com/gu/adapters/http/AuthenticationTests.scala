@@ -55,7 +55,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
   test("Decode OAuth access token") {
     new Mocks {
       val token = "token"
-      when(oktaLocalValidator.parsedClaimsFromAccessToken(AccessToken(token), List(AccessScope.readSelf))).thenReturn(Right(DefaultAccessClaims("test@test.com", "123", None)))
+      when(oktaLocalValidator.parsedClaimsFromAccessToken(AccessToken(token), List(AccessScope.readSelf))).thenReturn(Right(DefaultAccessClaims("oktaId", "test@test.com", "123", None)))
       authenticationService.authenticateUser(None, Some(s"Bearer $token"), AccessScope.readSelf) shouldBe \/-(User("123"))
     }
   }
