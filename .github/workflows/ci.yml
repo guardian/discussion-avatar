@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Trigger workflow in discussion-platform
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PAT_ACTIONS_DISCUSSION_PLATFORM }}
           # The 'ref' attribute in the following call is used in the target repo as the branch name for Riffraff deploys.
