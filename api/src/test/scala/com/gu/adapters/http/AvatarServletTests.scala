@@ -10,7 +10,6 @@ import com.gu.core.store.AvatarStore
 import com.gu.utils.TestHelpers
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import scalaz.\/-
 
 class AvatarServletTests extends TestHelpers with MockitoSugar {
 
@@ -76,7 +75,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
 
   test("Get personal avatar by user ID using cookie") {
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.readSelf)).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.readSelf)).thenReturn(Right(User(userId)))
     checkGetAvatar(
       s"/avatars/user/me/active",
       Some(cookie),
@@ -87,7 +86,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
 
   test("Get personal avatar by user ID using oauth access token") {
     val (userId, token) = testAccessToken
-    when(authenticationService.authenticateUser(None, Some(token), AccessScope.readSelf)).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(None, Some(token), AccessScope.readSelf)).thenReturn(Right(User(userId)))
     checkGetAvatar(
       s"/avatars/user/me/active",
       None,
@@ -99,7 +98,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
   test("Post avatar using cookie") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(Right(User(userId)))
 
     postAvatar(
       "/avatars",
@@ -115,7 +114,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
   test("Post avatar using oauth access token") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, token) = testAccessToken
-    when(authenticationService.authenticateUser(None, Some(token), AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(None, Some(token), AccessScope.updateSelf)).thenReturn(Right(User(userId)))
 
     postAvatar(
       "/avatars",
@@ -131,7 +130,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
   test("Social Avatar should default to Inactive status") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(Right(User(userId)))
 
     postAvatar(
       "/avatars",
@@ -147,7 +146,7 @@ class AvatarServletTests extends TestHelpers with MockitoSugar {
   test("Error response if bad isSocial parameter") {
     val file = new File("src/test/resources/avatar.gif")
     val (userId, cookie) = testSecureCookie
-    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(\/-(User(userId)))
+    when(authenticationService.authenticateUser(Some(cookie), None, AccessScope.updateSelf)).thenReturn(Right(User(userId)))
 
     postError(
       "/avatars",

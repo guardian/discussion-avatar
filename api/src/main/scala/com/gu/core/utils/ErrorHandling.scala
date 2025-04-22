@@ -5,36 +5,33 @@ import com.gu.core.models.Errors._
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
 
 object ErrorHandling extends LazyLogging {
 
   implicit class TryOps[A](val t: Try[A]) extends AnyVal {
-    def toDisjunction: \/[Throwable, A] = t match {
-      case Success(s) => \/.right(s)
-      case Failure(e) => \/.left(e)
-    }
-
     def eventually[Ignore](effect: => Ignore): Try[A] = {
       val ignoring = (_: Any) => { effect; t }
       t transform (ignoring, ignoring)
     }
   }
 
-  def attempt[A](action: => A): Throwable \/ A = {
-    val result = Try(action).toDisjunction
-    result leftMap { e =>
-      logger.error("Attempt failed", e)
+  def attempt[A](action: => A): Try[A] = {
+    Try(action) match {
+      case Success(v) => Success(v)
+      case Failure(e) =>
+        logger.error("Attempt failed", e)
+        Failure(e)
     }
-    result
   }
 
-  def handleIoErrors[A](action: => A): Error \/ A = {
-    attempt(action) leftMap ioError
+  def handleIoErrors[A](action: => A): Either[Error, A] = {
+    attempt(action) match {
+      case Success(v) => Right(v)
+      case Failure(e) => Left(ioError(e))
+    }
   }
 
-  def ioError(e: Throwable): Error = ioFailed(NonEmptyList(e.getMessage))
+  def ioError(e: Throwable): Error = ioFailed(List(e.getMessage))
 
   def logError(msg: String, e: Error, statusCode: Option[Int] = None): Error = {
     val errors = e.message + " " + e.errors.toList.mkString("(", ", ", ")")
@@ -45,8 +42,8 @@ object ErrorHandling extends LazyLogging {
     e
   }
 
-  def logIfError[A](msg: String, result: Error \/ A): Error \/ A = {
-    result.bimap(e => logError(msg = msg, e = e), identity)
+  def logIfError[A](msg: String, result: Either[Error, A]): Either[Error, A] = {
+    result.left.foreach(e => logError(msg = msg, e = e))
+    result
   }
-
 }

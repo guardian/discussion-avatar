@@ -8,8 +8,6 @@ import com.gu.core.models.{Error, User}
 import com.gu.identity.auth.{AccessToken, IdapiAuthConfig, IdapiAuthService, IdapiUserCredentials, OktaAudience, OktaIssuerUrl, OktaLocalAccessTokenValidator, OktaTokenValidationConfig, AccessScope => IdentityAccessScope}
 import com.typesafe.scalalogging.LazyLogging
 import org.http4s.Uri
-import scalaz.Scalaz._
-import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 import scala.concurrent.ExecutionContext
@@ -19,7 +17,7 @@ object TokenAuth {
   def isValidKey(
     authHeader: Option[String],
     apiKeys: List[String]
-  ): Error \/ String = {
+  ): Either[Error, String] = {
 
     val tokenHeader = "Bearer token="
     val token = authHeader
@@ -27,11 +25,11 @@ object TokenAuth {
       .map(_.stripPrefix(tokenHeader))
 
     val tokenOrError = token match {
-      case Some(valid) if apiKeys.contains(valid) => valid.right
-      case Some(_) => "Invalid access token provided".left
-      case None => "No access token in request".left
+      case Some(valid) if apiKeys.contains(valid) => Right(valid)
+      case Some(_) => Left("Invalid access token provided")
+      case None => Left("No access token in request")
     }
-    tokenOrError.leftMap(error => tokenAuthorizationFailed(NonEmptyList(error)))
+    tokenOrError.leftMap(error => tokenAuthorizationFailed(List(error)))
   }
 }
 
@@ -58,7 +56,7 @@ class AuthenticationService(
 ) {
   private def authenticateUserWithIdapi(
     scGuUCookie: Option[String]
-  ): Error \/ User = {
+  ): Either[Error, User] = {
     // Attempt to authenticate user.
     val result = for {
       value <- IO.fromEither(
@@ -71,13 +69,11 @@ class AuthenticationService(
       identityId <- idapiAuthService.authenticateUser(credentials)
     } yield identityId
 
-    // Convert authentication result to return type
-    // (identity-auth-core uses cats (Either); discussion-avatar uses scalaz (\/)).
     result
       .redeem(
         err =>
-          -\/(userAuthorizationFailed(NonEmptyList(err.getMessage)): Error),
-        identityId => \/-(User(identityId))
+          Left(userAuthorizationFailed(List(err.getMessage)): Error),
+        identityId => Right(User(identityId))
       )
       .unsafeRunSync()
   }
@@ -85,12 +81,12 @@ class AuthenticationService(
   private def authenticateUserWithOkta(
     accessToken: Option[String],
     identityAccessScope: IdentityAccessScope
-  ): Error \/ User = {
+  ): Either[Error, User] = {
     // attempt to authenticate user with oauth tokens
     val result = for {
       token <- accessToken.toRight(
         oauthTokenAuthorizationFailed(
-          NonEmptyList("No oauth access token in request"),
+          List("No oauth access token in request"),
           400
         )
       )
@@ -100,7 +96,7 @@ class AuthenticationService(
         .left
         .map(e =>
           oauthTokenAuthorizationFailed(
-            NonEmptyList(e.message),
+            List(e.message),
             e.suggestedHttpResponseCode
           )
         )
@@ -108,8 +104,8 @@ class AuthenticationService(
 
     // determine result
     result match {
-      case Left(err) => -\/(err)
-      case Right(identityId) => \/-(User(identityId))
+      case Left(err) => Left(err)
+      case Right(identityId) => Right(User(identityId))
     }
   }
 
@@ -117,7 +113,7 @@ class AuthenticationService(
     scGuUCookie: Option[String],
     accessToken: Option[String] = None,
     identityAccessScope: IdentityAccessScope
-  ): Error \/ User = {
+  ): Either[Error, User] = {
     // check if scGuUCookie or accessToken is present and determine correct method to uuse
     if (accessToken.isDefined) {
       // if access token present, use okta to authenticate
@@ -127,9 +123,9 @@ class AuthenticationService(
       authenticateUserWithIdapi(scGuUCookie)
     } else {
       // if neither are present, return error
-      userAuthorizationFailed(
-        NonEmptyList("No secure cookie or access token in request")
-      ).left
+      Left(userAuthorizationFailed(
+        List("No secure cookie or access token in request")
+      ))
     }
   }
 }

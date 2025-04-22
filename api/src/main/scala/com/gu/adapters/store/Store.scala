@@ -19,8 +19,6 @@ import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
-import scalaz.{-\/, NonEmptyList, \/, \/-}
 import com.gu.auth.AWSCredentials
 
 case class DynamoProperties(
@@ -39,7 +37,7 @@ object DynamoProperties {
 
 case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends KVStore {
 
-  def asAvatar(item: Item): Error \/ Avatar = {
+  def asAvatar(item: Item): Either[Error, Avatar] = {
     val avatarId = item.getString("AvatarId")
     val location = KVLocationFromID(avatarId)
 
@@ -62,9 +60,9 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     }
   }
 
-  def get(table: String, id: String): Error \/ Avatar = {
+  def get(table: String, id: String): Either[Error, Avatar] = {
     handleIoErrors(db.getTable(table).getItem("AvatarId", id))
-      .ensure(avatarNotFound(NonEmptyList(s"avatar with ID: $id not found")))(_ != null) // getItem can return null alas
+      .filterOrElse(_ != null, avatarNotFound(List(s"avatar with ID: $id not found"))) // getItem can return null alas
       .map(item => asAvatar(item).toOption.get)
   }
 
@@ -76,7 +74,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     since: Option[DateTime] = None,
     until: Option[DateTime] = None,
     order: Option[OrderBy] = Some(Descending)
-  ): Error \/ QueryResponse = {
+  ): Either[Error, QueryResponse] = {
 
     val spec = new QuerySpec()
       .withHashKey(key, value)
@@ -112,15 +110,15 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     }
   }
 
-  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse = {
+  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Either[Error, QueryResponse] = {
     query(table, index, "UserId", userId.toInt, since, until)
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse = {
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Either[Error, QueryResponse] = {
     query(table, index, "Status", status.asString, since, until, order)
   }
 
-  def put(table: String, avatar: Avatar): Error \/ Avatar = {
+  def put(table: String, avatar: Avatar): Either[Error, Avatar] = {
     val item = new Item()
       .withPrimaryKey("AvatarId", avatar.id)
       .withNumber("UserId", avatar.userId.toInt)
@@ -134,7 +132,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     handleIoErrors(db.getTable(table).putItem(item)) map (_ => avatar)
   }
 
-  def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar = {
+  def update(table: String, id: String, status: Status, isActive: Boolean = false): Either[Error, Avatar] = {
     val now = DateTime.now(DateTimeZone.UTC)
     val spec = new UpdateItemSpec()
       .withPrimaryKey("AvatarId", id)
@@ -150,8 +148,8 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     } yield avatar
   }
 
-  def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
-    def check(r: BatchWriteItemResult): Error \/ BatchWriteItemResult = {
+  def delete(table: String, ids: List[String]): Either[Error, DeleteResponse] = {
+    def check(r: BatchWriteItemResult): Either[Error, BatchWriteItemResult] = {
       val errors: List[String] = r
         .getUnprocessedItems
         .asScala
@@ -162,9 +160,9 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
         .toList
 
       if (errors.nonEmpty) {
-        deletionFailed(errors.toNel.getOrElse(NonEmptyList("Unable to list IDs"))).left
+        Left(deletionFailed(errors))
       } else {
-        r.right
+        Right(r)
       }
     }
     def delete() = {
@@ -176,7 +174,7 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
     }
 
     ids match {
-      case Nil => DeleteResponse(ids).right
+      case Nil => Right(DeleteResponse(ids))
       case _ => delete()
     }
   }
@@ -192,9 +190,9 @@ object Dynamo {
 
 case class S3(client: AmazonS3Client) extends FileStore {
 
-  def getMetadata(bucket: String, key: String): Error \/ ObjectMetadata = {
+  def getMetadata(bucket: String, key: String): Either[Error, ObjectMetadata] = {
     val request = new GetObjectMetadataRequest(bucket, key)
-    client.getObjectMetadata(request).right
+    Right(client.getObjectMetadata(request))
   }
 
   def copy(
@@ -202,7 +200,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     fromKey: String,
     toBucket: String,
     toKey: String
-  ): Error \/ Unit = {
+  ): Either[Error, Unit] = {
 
     val request = new CopyObjectRequest(fromBucket, fromKey, toBucket, toKey)
     handleIoErrors(client.copyObject(request))
@@ -213,7 +211,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     key: String,
     file: Array[Byte],
     metadata: ObjectMetadata
-  ): Error \/ Unit = {
+  ): Either[Error, Unit] = {
 
     val inputStream = new ByteArrayInputStream(file)
     metadata.setContentLength(file.length)
@@ -221,7 +219,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     handleIoErrors(client.putObject(request))
   }
 
-  def delete(bucket: String, keys: String*): Error \/ Unit = {
+  def delete(bucket: String, keys: String*): Either[Error, Unit] = {
     if (keys.nonEmpty) {
       val request = new DeleteObjectsRequest(bucket).withKeys(keys: _*)
       val resp = Try(client.deleteObjects(request))
@@ -229,19 +227,19 @@ case class S3(client: AmazonS3Client) extends FileStore {
       // We need to unpack MultiObjectDeleteExceptions to ensure errors
       // returned/logged are useful
       val withErrors = resp match {
-        case Success(_) => ().right
+        case Success(_) => Right(())
         case Failure(ex: MultiObjectDeleteException) =>
           val errors = ex.getErrors.asScala.toList
             .map(ex => s"Unable to delete object '${ex.getKey}' from bucket '$bucket', reason: ${ex.getMessage}")
             .mkString(", ")
-          Errors.ioFailed(errors.wrapNel).left
-        case Failure(err) => ioError(err).left
+          Left(Errors.ioFailed(List(errors)))
+        case Failure(err) => Left(ioError(err))
       }
 
-      withErrors.leftMap(e => logError("Multi-delete failed", e))
+      withErrors.left.map(e => logError("Multi-delete failed", e))
       withErrors
     } else {
-      ().right
+      Right(())
     }
   }
 
@@ -249,7 +247,7 @@ case class S3(client: AmazonS3Client) extends FileStore {
     bucket: String,
     key: String,
     expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
-  ): Error \/ URL = {
+  ): Either[Error, URL] = {
     val request = new GeneratePresignedUrlRequest(bucket, key)
     request.setExpiration(expiration.toDate)
     handleIoErrors(client.generatePresignedUrl(request))

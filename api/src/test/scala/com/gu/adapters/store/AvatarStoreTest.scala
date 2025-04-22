@@ -8,7 +8,6 @@ import com.gu.core.utils.KVLocationFromID
 import org.joda.time.DateTime
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
-import scalaz.\/-
 
 class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
 
@@ -30,7 +29,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
 
   "after uploading an avatar it" should "become active and public on approve" in new WithStore {
     val avatar = uploadAvatar("orig")
-    avatarStore.updateStatus(avatar.id, Approved) shouldBe \/-(UpdatedAvatar(avatar.copy(isActive = true, status = Approved)))
+    avatarStore.updateStatus(avatar.id, Approved) shouldBe Right(UpdatedAvatar(avatar.copy(isActive = true, status = Approved)))
     kvStore.getKey(storeProps.kvTable, avatar.id).get.isActive shouldBe true
     fileStore.get(storeProps.fsPublicBucket, s"user/$userId").get shouldBe "orig"
   }
@@ -40,7 +39,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
     avatarStore.updateStatus(originalAvatar.id, Approved)
 
     val avatar = uploadAvatar("new")
-    avatarStore.updateStatus(avatar.id, Approved) shouldBe \/-(UpdatedAvatar(avatar.copy(isActive = true, status = Approved)))
+    avatarStore.updateStatus(avatar.id, Approved) shouldBe Right(UpdatedAvatar(avatar.copy(isActive = true, status = Approved)))
 
     kvStore.getKey(storeProps.kvTable, avatar.id).get.isActive shouldBe true
     fileStore.get(storeProps.fsPublicBucket, s"user/$userId").get shouldBe "new"
@@ -55,7 +54,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
   "rejecting an avatar" should "delete the public avatar and set active to false but not delete the file" in new WithStore {
     val avatar = uploadAvatar("orig")
     avatarStore.updateStatus(avatar.id, Approved)
-    avatarStore.updateStatus(avatar.id, Rejected) shouldBe \/-(UpdatedAvatar(avatar.copy(isActive = false, status = Rejected)))
+    avatarStore.updateStatus(avatar.id, Rejected) shouldBe Right(UpdatedAvatar(avatar.copy(isActive = false, status = Rejected)))
 
     fileStore.exists(storeProps.fsRawBucket, KVLocationFromID(avatar.id)) shouldBe true
     fileStore.exists(storeProps.fsRawBucket, KVLocationFromID(avatar.id)) shouldBe true
@@ -68,7 +67,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
     avatarStore.updateStatus(original.id, Approved)
 
     val avatar = uploadAvatar("new")
-    avatarStore.updateStatus(avatar.id, Rejected) shouldBe \/-(UpdatedAvatar(avatar.copy(isActive = false, status = Rejected)))
+    avatarStore.updateStatus(avatar.id, Rejected) shouldBe Right(UpdatedAvatar(avatar.copy(isActive = false, status = Rejected)))
 
     fileStore.exists(storeProps.fsPublicBucket, s"user/$userId") shouldBe true
   }
@@ -76,7 +75,7 @@ class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
   "receiving Inactive on an active avatar" should "make the avatar inactive but not delete the public image" in new WithStore {
     val original = uploadAvatar("orig")
     avatarStore.updateStatus(original.id, Approved)
-    avatarStore.updateStatus(original.id, Pending) shouldBe \/-(UpdatedAvatar(original.copy(isActive = false, status = Pending)))
+    avatarStore.updateStatus(original.id, Pending) shouldBe Right(UpdatedAvatar(original.copy(isActive = false, status = Pending)))
     fileStore.exists(storeProps.fsPublicBucket, s"user/$userId") shouldBe true
     kvStore.getKey(storeProps.kvTable, original.id).get.isActive shouldBe false
   }

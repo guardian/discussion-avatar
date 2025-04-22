@@ -3,13 +3,12 @@ package com.gu.core.models
 import com.gu.core.utils.ErrorHandling._
 import com.gu.core.models.Errors._
 
-import scalaz.{NonEmptyList, \/}
-
 case class User(id: String)
 
 object User {
-  def userFromId(userId: String): Error \/ User = {
+  def userFromId(userId: String): Either[Error, User] = {
     attempt(User(userId))
-      .leftMap(_ => invalidUserId(NonEmptyList("Expected userId, found: " + userId)))
+      .toEither
+      .left.map(_ => invalidUserId(List("Expected userId, found: " + userId)))
   }
 }
