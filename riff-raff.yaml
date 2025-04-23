@@ -1,0 +1,63 @@
+stacks:
+  - discussion
+
+regions:
+  - eu-west-1
+
+deployments:
+  avatar-api:
+    type: autoscaling
+    parameters:
+      bucketSsmLookup: true
+    dependencies:
+      - cfn
+  cfn:
+    type: cloud-formation
+    parameters:
+      cloudFormationStackName: avatar-api
+      templatePath: cloudformation.yaml
+      cloudFormationStackByTags: false
+      templateStageParameters:
+        CODE:
+          AvatarDeletionQueue:    /CODE/discussion/avatar-api/deletion-queue
+          AvatarDeletionQueueUrl: /CODE/discussion/avatar-api/deletion-queue-url
+          AvatarEventsTopic:      /CODE/discussion/avatar-api/events-topic
+          DynamoTable:            /CODE/discussion/avatar-api/dynamo-table
+          IdentityAccessToken:    /CODE/discussion/avatar-api/identity-access-token
+          IncomingBucket:         /CODE/discussion/avatar-api/incoming-bucket
+          OriginBucket:           /CODE/discussion/avatar-api/origin-bucket
+          ProcessedBucket:        /CODE/discussion/avatar-api/processed-bucket
+          RawBucket:              /CODE/discussion/avatar-api/raw-bucket
+          SSLCert:                /CODE/discussion/avatar-api/ssl-cert
+          TopicSendEmail:         /CODE/discussion/avatar-api/topic-send-email
+          # TODO: Remove this after first deployment
+          VpcId: /account/vpc/primary/id
+          PrivateVpcSubnets: /account/vpc/primary/subnets/private
+          PublicVpcSubnets: /account/vpc/primary/subnets/public
+          FileBucket: /account/services/artifact.bucket
+          PrivateBucket: /account/services/private.config.bucket
+        PROD:
+          AvatarDeletionQueue:    /PROD/discussion/avatar-api/deletion-queue
+          AvatarDeletionQueueUrl: /PROD/discussion/avatar-api/deletion-queue-url
+          AvatarEventsTopic:      /PROD/discussion/avatar-api/events-topic
+          DynamoTable:            /PROD/discussion/avatar-api/dynamo-table
+          IdentityAccessToken:    /PROD/discussion/avatar-api/identity-access-token
+          IncomingBucket:         /PROD/discussion/avatar-api/incoming-bucket
+          OriginBucket:           /PROD/discussion/avatar-api/origin-bucket
+          ProcessedBucket:        /PROD/discussion/avatar-api/processed-bucket
+          RawBucket:              /PROD/discussion/avatar-api/raw-bucket
+          SSLCert:                /PROD/discussion/avatar-api/ssl-cert
+          TopicSendEmail:         /PROD/discussion/avatar-api/topic-send-email
+          # TODO: Remove this after first deployment
+          VpcId: /account/vpc/primary/id
+          PrivateVpcSubnets: /account/vpc/primary/subnets/private
+          PublicVpcSubnets: /account/vpc/primary/subnets/public
+          FileBucket: /account/services/artifact.bucket
+          PrivateBucket: /account/services/private.config.bucket
+      amiParametersToTags:
+        AMI:
+          Recipe: arm-ubuntu-jammy-discussion-java11-cdk-base
+          BuiltBy: amigo
+          AmigoStage: PROD
+      amiEncrypted: true
+      manageStackPolicy: false

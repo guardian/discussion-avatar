@@ -1,0 +1,575 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Avatar API
+Parameters:
+  Stage:
+    Description: Environment name. Must be CAPITALISED, e.g. 'PROD', or 'CODE'.
+    Type: String
+  Stack:
+    Description: Stack name
+    Type: String
+    Default: discussion
+  App:
+    Description: App name
+    Type: String
+    Default: avatar-api
+  GithubTeamName:
+    Description:
+      Github team name to give ssh access (must have been registered first
+      with the keys lambda)
+    Type: String
+    Default: Discussion
+  VpcId:
+    Description: ID of the VPC onto which to launch the application eg. vpc-1234abcd
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::VPC::Id>
+    Default: /account/vpc/primary/id
+  PrivateVpcSubnets:
+    Description: Subnets to use in VPC for public internet-facing ELB eg. subnet-abcd1234
+    Type: AWS::SSM::Parameter::Value<List<AWS::EC2::Subnet::Id>>
+    Default: /account/vpc/primary/subnets/private
+  PublicVpcSubnets:
+    Description: Subnets to use in VPC for public internet-facing ELB eg. subnet-abcd1234
+    Type: AWS::SSM::Parameter::Value<List<AWS::EC2::Subnet::Id>>
+    Default: /account/vpc/primary/subnets/public
+  TopicSendEmail:
+    Description: ARN for an SNS topic, used to send Cloudwatch alerts to discussion dev team
+    Type: AWS::SSM::Parameter::Value<String>
+  AvatarEventsTopic:
+    Description: ARN of an SNS topic used to publish Avatar events
+    Type: AWS::SSM::Parameter::Value<String>
+  AvatarDeletionQueue:
+    Description: ARN of the SQS queue for user deleted events
+    Type: AWS::SSM::Parameter::Value<String>
+  AvatarDeletionQueueUrl:
+    Description: URL of the SQS queue for user deleted events
+    Type: AWS::SSM::Parameter::Value<String>
+  DynamoTable:
+    Description: ARN of an Dynamo table containing Avatar data
+    Type: AWS::SSM::Parameter::Value<String>
+  IncomingBucket:
+    Description: Name of S3 bucket for incoming Avatars
+    Type: AWS::SSM::Parameter::Value<String>
+  RawBucket:
+    Description: Name of S3 bucket for raw Avatars
+    Type: AWS::SSM::Parameter::Value<String>
+  ProcessedBucket:
+    Description: Name of S3 bucket for processed Avatars
+    Type: AWS::SSM::Parameter::Value<String>
+  OriginBucket:
+    Description: Name of S3 bucket for origin Avatars
+    Type: AWS::SSM::Parameter::Value<String>
+  PrivateBucket:
+    Description: Name of S3 bucket containing private credentials
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /account/services/private.config.bucket
+  FileBucket:
+    Description: Name of S3 bucket containing dist files
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /account/services/artifact.bucket
+  LoggingStream:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: SSM parameter containing the Kinesis logging stream ARN
+    Default: /account/services/logging.stream
+  LoggingStreamName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: SSM parameter containing the name of the Kinesis logging stream
+    Default: /account/services/logging.stream.name
+  AMI:
+    Description: AMI to use for instances
+    Type: AWS::EC2::Image::Id
+    Default: ami-e9b3858f
+  IdentityAccessToken:
+    Description: Access token used to authenticate requests to identity API
+    Type: AWS::SSM::Parameter::Value<String>
+  SSLCert:
+    Description: ARN of the SSL certificate to use for the ELB
+    Type: AWS::SSM::Parameter::Value<String>
+Mappings:
+  Stage:
+    CODE:
+      StageLower: code
+      ApiUrl: https://avatar.code.dev-theguardian.com
+      HostedZone: avatar-aws.code.dev-guardianapis.com
+
+      InstanceType: t4g.micro
+      MinSize: "1"
+      MaxSize: "3"
+
+      IdentityApiUrl: https://idapi.code.dev-theguardian.com
+      IdentityOktaIssuer: https://profile.code.dev-theguardian.com/oauth2/aus3v9gla95Toj0EE0x7
+      IdentityOktaAudience: https://profile.code.dev-theguardian.com/
+    PROD:
+      StageLower: prod
+      ApiUrl: https://avatar.theguardian.com
+      HostedZone: avatar-aws.guardianapis.com
+
+      InstanceType: t4g.small
+      MinSize: "2"
+      MaxSize: "8"
+
+      IdentityApiUrl: https://idapi.theguardian.com
+      IdentityOktaIssuer: https://profile.theguardian.com/oauth2/aus3xgj525jYQRowl417
+      IdentityOktaAudience: https://profile.theguardian.com/
+
+Conditions:
+  IsProd: !Equals
+    - !Ref "Stage"
+    - PROD
+Resources:
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref "Role"
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+      Path: /
+      Policies:
+        - PolicyName: AvatarPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                Resource:
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "PrivateBucket"
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "PrivateBucket"
+                      - /
+                      - !Ref "Stage"
+                      - /*
+              - Resource:
+                  - !Ref "DynamoTable"
+                  - !Join
+                    - ""
+                    - - !Ref "DynamoTable"
+                      - /index/*
+                Action:
+                  - dynamodb:*
+                Effect: Allow
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeTags
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "RawBucket"
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "ProcessedBucket"
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "OriginBucket"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "RawBucket"
+                      - /*
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "ProcessedBucket"
+                      - /*
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "OriginBucket"
+                      - /*
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "IncomingBucket"
+                      - /*
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref "AvatarEventsTopic"
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage*
+                  - sqs:DeleteMessage*
+                  - sqs:SendMessage*
+                Resource: !Ref "AvatarDeletionQueue"
+        - PolicyName: GetArtifactPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref "FileBucket"
+                      - /*
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Join
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - !Ref "FileBucket"
+        - PolicyName: ELKKinesisPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kinesis:PutRecord
+                  - kinesis:PutRecords
+                  - kinesis:DescribeStream
+                Resource: !Ref LoggingStream
+        - PolicyName: describe-ec2-policy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Resource: "*"
+                Action:
+                  - ec2:DescribeTags
+                  - ec2:DescribeInstances
+                  - autoscaling:DescribeAutoScalingGroups
+                  - autoscaling:DescribeAutoScalingInstances
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      CrossZone: true
+      Policies:
+        - PolicyName: ELBSecurityPolicy
+          Attributes:
+            - Name: Reference-Security-Policy
+              Value: ELBSecurityPolicy-TLS-1-2-2017-01
+          PolicyType: SSLNegotiationPolicyType
+      Listeners:
+        - Protocol: HTTPS
+          PolicyNames: [ELBSecurityPolicy]
+          LoadBalancerPort: "443"
+          InstancePort: "8080"
+          SSLCertificateId: !Ref "SSLCert"
+      HealthCheck:
+        Target: HTTP:8080/v1/service/healthcheck
+        Timeout: "10"
+        Interval: "20"
+        UnhealthyThreshold: "10"
+        HealthyThreshold: "2"
+      Subnets: !Ref "PublicVpcSubnets"
+      SecurityGroups:
+        - !Ref "ElasticLoadBalancerSecurityGroup"
+      Tags:
+        - Key: App
+          Value: !Ref "App"
+  AppServerGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones: !GetAZs ""
+      VPCZoneIdentifier: !Ref "PrivateVpcSubnets"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref "LaunchTemplate"
+        Version: !GetAtt "LaunchTemplate.LatestVersionNumber"
+      MinSize: !FindInMap
+        - Stage
+        - !Ref "Stage"
+        - MinSize
+      MaxSize: !FindInMap
+        - Stage
+        - !Ref "Stage"
+        - MaxSize
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      LoadBalancerNames:
+        - !Ref "ElasticLoadBalancer"
+      Tags:
+        - Key: Stage
+          Value: !Ref "Stage"
+          PropagateAtLaunch: "true"
+        - Key: Stack
+          Value: !Ref "Stack"
+          PropagateAtLaunch: "true"
+        - Key: App
+          Value: !Ref "App"
+          PropagateAtLaunch: "true"
+        - Key: Name
+          Value: !Join
+            - ":"
+            - - !Ref "Stage"
+              - avatar-api
+          PropagateAtLaunch: "true"
+        - Key: LogKinesisStreamName
+          Value: !Ref LoggingStreamName
+          PropagateAtLaunch: true
+        - Key: SystemdUnit
+          Value: avatar-api.service
+          PropagateAtLaunch: true
+  DnsRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Join
+        - ""
+        - - !FindInMap [ Stage, !Ref Stage, HostedZone ]
+          - .
+      Comment: Alias to avatar api ELB
+      RecordSets:
+        - Name: !Join
+            - .
+            - - avatar
+              - !FindInMap [ Stage, !Ref Stage, HostedZone ]
+          Type: CNAME
+          TTL: "300"
+          ResourceRecords:
+            - !GetAtt "ElasticLoadBalancer.DNSName"
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub "${Stage}-${Stack}-avatar-api"
+      LaunchTemplateData:
+        ImageId: !Ref "AMI"
+        SecurityGroupIds:
+          - !Ref "AppSecurityGroup"
+        InstanceType: !FindInMap
+          - Stage
+          - !Ref "Stage"
+          - InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt "InstanceProfile.Arn"
+        KeyName: aws-discussion
+        MetadataOptions:
+          HttpTokens: required
+        UserData: !Base64
+          Fn::Join:
+            - "\n"
+            - - "#!/bin/bash"
+              - |
+                # Configure disk monitoring
+                cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<__END__
+                {
+                  "metrics": {
+                    "append_dimensions": {
+                      "AutoScalingGroupName": "\${aws:AutoScalingGroupName}",
+                      "ImageId": "\${aws:ImageId}",
+                      "InstanceId": "\${aws:InstanceId}",
+                      "InstanceType": "\${aws:InstanceType}"
+                    },
+                    "aggregation_dimensions": [
+                      ["AutoScalingGroupName"]
+                    ],
+                    "metrics_collected": {
+                      "disk": {
+                        "resources": [
+                          "/"
+                        ],
+                        "measurement": [
+                          "disk_used_percent"
+                        ]
+                      }
+                    }
+                  }
+                }
+                __END__
+                amazon-cloudwatch-agent-ctl -s -a append-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+              - !Join
+                - ""
+                - - aws s3 cp s3://
+                  - !Ref "FileBucket"
+                  - /
+                  - !Ref "Stack"
+                  - /
+                  - !Ref "Stage"
+                  - /
+                  - !Ref "App"
+                  - /avatar-api.tgz
+                  - " avatar-api.tar.gz"
+              - mkdir /opt
+              - mv avatar-api.tar.gz /opt/
+              - cd /opt
+              - tar vxzf avatar-api.tar.gz
+              - cd avatar-api/
+              - !Join
+                - ""
+                - - aws s3 cp s3://
+                  - !Ref "PrivateBucket"
+                  - /
+                  - !Ref "Stage"
+                  - /avatar-api-keys-echo.sh .
+              - cat >/etc/default/avatar-api << EOF
+              - !Join
+                - ""
+                - - API_URL=
+                  - !FindInMap [ Stage, !Ref Stage, ApiUrl ]
+              - !Join
+                - ""
+                - - STAGE=
+                  - !Ref "Stage"
+              - !Join
+                - ""
+                - - STAGE_LOWER=
+                  - !FindInMap [ Stage, !Ref Stage, StageLower ]
+              - !Join
+                - ""
+                - - SNS_TOPIC_ARN=
+                  - !Ref "AvatarEventsTopic"
+              - !Join
+                - ""
+                - - SQS_DELETED_URL=
+                  - !Ref "AvatarDeletionQueueUrl"
+              - !Join
+                - ""
+                - - IDENTITY_API_URL=
+                  - !FindInMap
+                    - Stage
+                    - !Ref Stage
+                    - IdentityApiUrl
+              - !Join
+                - ""
+                - - IDENTITY_ACCESS_TOKEN=
+                  - !Ref IdentityAccessToken
+              - !Join
+                - ""
+                - - IDENTITY_OKTA_ISSUER=
+                  - !FindInMap
+                    - Stage
+                    - !Ref Stage
+                    - IdentityOktaIssuer
+              - !Join
+                - ""
+                - - IDENTITY_OKTA_AUDIENCE=
+                  - !FindInMap
+                    - Stage
+                    - !Ref Stage
+                    - IdentityOktaAudience
+              - $(source avatar-api-keys-echo.sh)
+              - EOF
+              - rm avatar-api-keys-echo.sh
+              - adduser --disabled-password avatar-api
+              - chown -R avatar-api /opt/avatar-api
+              - mv /opt/avatar-api/conf/avatar-api.service /etc/systemd/system/avatar-api.service
+              - systemctl enable avatar-api && systemctl start avatar-api
+  ElasticLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow public access over HTTP(S)
+      VpcId: !Ref "VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: "0.0.0.0/0"
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: "8080"
+          ToPort: "8080"
+          CidrIp: "0.0.0.0/0"
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSH and HTTP
+      VpcId: !Ref "VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "8080"
+          ToPort: "8080"
+          SourceSecurityGroupId: !Ref "ElasticLoadBalancerSecurityGroup"
+  HighLatencyAlarmAlert:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "discussion-avatar-api-${Stage} high load balancer latency"
+      AlarmDescription: Load balancer latency is at least three seconds for the last three minutes
+      Namespace: AWS/ELB
+      Dimensions:
+        - Name: LoadBalancerName
+          Value: !Ref "ElasticLoadBalancer"
+      MetricName: Latency
+      Statistic: Average
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: "3"
+      Period: "60"
+      EvaluationPeriods: "3"
+      AlarmActions: !If
+        - IsProd
+        - - !Ref "TopicSendEmail"
+        - !Ref "AWS::NoValue"
+  HighDiskSpaceUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "discussion-avatar-api-${Stage} low disk space"
+      AlarmDescription: Disk space utilization is more than 70% for the last minute
+      Namespace: CWAgent
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref "AppServerGroup"
+      MetricName: disk_used_percent
+      Statistic: Maximum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: "70"
+      Period: "300"
+      EvaluationPeriods: "1"
+      AlarmActions: !If
+        - IsProd
+        - - !Ref "TopicSendEmail"
+        - !Ref "AWS::NoValue"
+      InsufficientDataActions: !If
+        - IsProd
+        - - !Ref "TopicSendEmail"
+        - !Ref "AWS::NoValue"
+  High5xxAlarmAlert:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "discussion-avatar-api-${Stage} high 5XX errors"
+      AlarmDescription: Avatar API returned at least 100 5XX errors in the last minute
+      Namespace: AWS/ELB
+      Dimensions:
+        - Name: LoadBalancerName
+          Value: !Ref "ElasticLoadBalancer"
+      MetricName: HTTPCode_Backend_5XX
+      Statistic: Sum
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: "100"
+      Period: "60"
+      EvaluationPeriods: "1"
+      AlarmActions: !If
+        - IsProd
+        - - !Ref "TopicSendEmail"
+        - !Ref "AWS::NoValue"
+Outputs:
+  DnsRecord:
+    Value: !Ref "DnsRecord"
+  DNSName:
+    Value: !GetAtt "ElasticLoadBalancer.DNSName"
