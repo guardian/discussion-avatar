@@ -10,19 +10,16 @@ import com.gu.core.models.Errors.invalidMimeType
 import com.gu.core.utils.ErrorHandling.attempt
 import org.scalatra.servlet.FileItem
 
-import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
-
 object Image {
 
-  def getImageFromUrl(url: String): Error \/ (Array[Byte], String) = {
+  def getImageFromUrl(url: String): Either[Error, (Array[Byte], String)] = {
     for {
       bytes <- readBytesFromUrl(url)
       mimeType <- validate(bytes)
     } yield (bytes, mimeType)
   }
 
-  def getImageFromFile(fileParams: Map[String, FileItem]): Error \/ (Array[Byte], String, String) = {
+  def getImageFromFile(fileParams: Map[String, FileItem]): Either[Error, (Array[Byte], String, String)] = {
     for {
       nameAndBytes <- readBytesFromFile(fileParams)
       (fname, bytes) = nameAndBytes
@@ -37,16 +34,17 @@ object Image {
     reader.getNumImages(true) == 1
   }
 
-  def validate(image: Array[Byte]): Error \/ String = {
+  def validate(image: Array[Byte]): Either[Error, String] = {
     // guessContentTypeFromStream only works with streams than support mark and reset
     val is = new ByteArrayInputStream(image)
     val mimeType = attempt(URLConnection.guessContentTypeFromStream(is))
-      .leftMap(_ => invalidMimeType(NonEmptyList("Unable to verify mime type of file")))
+      .toEither
+      .left.map(_ => invalidMimeType(List("Unable to verify mime type of file")))
 
-    mimeType flatMap {
-      case i @ ("image/png" | "image/jpeg") => i.right
-      case "image/gif" if notAnimated(is) => "image/gif".right
-      case _ => invalidMimeType(NonEmptyList("Uploaded images must be of type png, jpeg, or gif (non-animated)")).left
+    mimeType match {
+      case i @ (Right("image/png") | Right("image/jpeg")) => i
+      case i @ Right("image/gif") if notAnimated(is) => i
+      case _ => Left(invalidMimeType(List("Uploaded images must be of type png, jpeg, or gif (non-animated)")))
     }
   }
 }

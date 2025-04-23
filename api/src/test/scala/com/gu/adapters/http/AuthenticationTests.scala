@@ -6,7 +6,6 @@ import com.gu.identity.auth._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FunSuite, Matchers}
-import scalaz.{-\/, NonEmptyList, \/-}
 
 class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
 
@@ -25,7 +24,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
         Some(scGuUCookie),
         None,
         AccessScope.readSelf
-      ) shouldBe \/-(User("identity-id"))
+      ) shouldBe Right(User("identity-id"))
     }
   }
 
@@ -38,7 +37,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
         Some(scGuUCookie),
         None,
         AccessScope.readSelf
-      ) shouldBe -\/(Errors.userAuthorizationFailed(NonEmptyList("invalid cookie")))
+      ) shouldBe Left(Errors.userAuthorizationFailed(List("invalid cookie")))
     }
   }
 
@@ -48,7 +47,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
         None,
         None,
         AccessScope.readSelf
-      ) shouldBe -\/(Errors.userAuthorizationFailed(NonEmptyList("No secure cookie or access token in request")))
+      ) shouldBe Left(Errors.userAuthorizationFailed(List("No secure cookie or access token in request")))
     }
   }
 
@@ -56,7 +55,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
     new Mocks {
       val token = "token"
       when(oktaLocalValidator.parsedClaimsFromAccessToken(AccessToken(token), List(AccessScope.readSelf))).thenReturn(Right(DefaultAccessClaims("oktaId", "test@test.com", "123", None)))
-      authenticationService.authenticateUser(None, Some(s"Bearer $token"), AccessScope.readSelf) shouldBe \/-(User("123"))
+      authenticationService.authenticateUser(None, Some(s"Bearer $token"), AccessScope.readSelf) shouldBe Right(User("123"))
     }
   }
 
@@ -67,7 +66,7 @@ class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
       authenticationService.authenticateUser(
         None, Some(s"Bearer $token"),
         AccessScope.readSelf
-      ) shouldBe -\/(Errors.oauthTokenAuthorizationFailed(NonEmptyList("Token is invalid or expired"), 401))
+      ) shouldBe Left(Errors.oauthTokenAuthorizationFailed(List("Token is invalid or expired"), 401))
     }
   }
 }

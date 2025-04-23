@@ -12,9 +12,6 @@ import com.gu.core.utils.KVLocationFromID
 import Errors.avatarNotFound
 import org.joda.time.{DateTime, DateTimeZone}
 
-import scalaz.Scalaz._
-import scalaz.{NonEmptyList, \/}
-
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
 }
@@ -39,13 +36,13 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     fromKey: String,
     toBucket: String,
     toKey: String
-  ): models.Error \/ Unit = {
+  ): Either[models.Error, Unit] = {
 
     val oldPath = path(fromBucket, fromKey)
     val newPath = path(toBucket, toKey)
     val file = files(oldPath)
     files += newPath -> file
-    ().right
+    Right(())
   }
 
   def put(
@@ -53,26 +50,26 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     key: String,
     file: Array[Byte],
     metadata: ObjectMetadata
-  ): models.Error \/ Unit = {
+  ): Either[models.Error, Unit] = {
 
     files += path(bucket, key) -> file.map(_.toChar).mkString
-    ().right
+    Right(())
   }
 
   def presignedUrl(
     bucket: String,
     key: String,
     expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
-  ): models.Error \/ URL = {
-    new URL("http://some-url/").right
+  ): Either[models.Error, URL] = {
+    Right(new URL("http://some-url/"))
   }
 
-  def delete(bucket: String, keys: String*): models.Error \/ Unit = {
+  def delete(bucket: String, keys: String*): Either[models.Error, Unit] = {
     val paths = keys.map(key => path(bucket, key))
 
     files = files.filterKeys(key => !paths.contains(key))
 
-    ().right
+    Right(())
   }
 }
 
@@ -129,28 +126,28 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     )
   )
 
-  def get(table: String, id: String): models.Error \/ Avatar = {
-    docs.get(path(table, id)).toRightDisjunction(avatarNotFound(NonEmptyList(s"avatar with ID '$id' does not exist")))
+  def get(table: String, id: String): Either[models.Error, Avatar] = {
+    docs.get(path(table, id)).toRight(avatarNotFound(List(s"avatar with ID '$id' does not exist")))
   }
 
   def getKey(table: String, id: String): Option[Avatar] = docs.get(path(table, id))
 
-  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): models.Error \/ QueryResponse = {
-    QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false).right
+  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Either[models.Error, QueryResponse] = {
+    Right(QueryResponse(docs.values.filter(_.userId == userId).toList, hasMore = false))
   }
 
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): models.Error \/ QueryResponse = {
-    QueryResponse(docs.values.filter(_.status == status).toList, hasMore = false).right
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Either[models.Error, QueryResponse] = {
+    Right(QueryResponse(docs.values.filter(_.status == status).toList, hasMore = false))
   }
 
-  def put(table: String, avatar: Avatar): models.Error \/ Avatar = {
+  def put(table: String, avatar: Avatar): Either[models.Error, Avatar] = {
     docs += path(table, avatar.id) -> avatar
-    avatar.right
+    Right(avatar)
   }
 
-  def update(table: String, id: String, status: Status, isActive: Boolean): models.Error \/ Avatar = {
+  def update(table: String, id: String, status: Status, isActive: Boolean): Either[models.Error, Avatar] = {
     val p = path(table, id)
-    val old = docs.get(p).toRightDisjunction(avatarNotFound(NonEmptyList(s"$id missing")))
+    val old = docs.get(p).toRight(avatarNotFound(List(s"$id missing")))
     old map { a =>
       val updated = a.copy(status = status, isActive = isActive)
       docs += p -> updated
@@ -158,8 +155,8 @@ class TestKVStore(dynamoTable: String) extends KVStore {
     }
   }
 
-  def delete(table: String, ids: List[String]): Error \/ DeleteResponse = {
+  def delete(table: String, ids: List[String]): Either[Error, DeleteResponse] = {
     docs = docs.filterKeys(id => !ids.map(k => s"$dynamoTable/${k}").contains(id))
-    DeleteResponse(ids).right
+    Right(DeleteResponse(ids))
   }
 }

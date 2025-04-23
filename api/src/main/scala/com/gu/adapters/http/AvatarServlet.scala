@@ -14,7 +14,6 @@ import org.scalatra._
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet._
 import org.scalatra.swagger.{Swagger, SwaggerSupport}
-import scalaz.{Success => _, _}
 
 class AvatarServlet(
   store: AvatarStore,
@@ -192,8 +191,8 @@ class AvatarServlet(
     } yield (updated, req)
   }
 
-  def handleSuccess: PartialFunction[Error \/ (Success, Req), ActionResult] = {
-    case \/-((success, url)) => success match {
+  def handleSuccess: PartialFunction[Either[Error, (Success, Req)], ActionResult] = {
+    case Right((success, url)) => success match {
       case CreatedAvatar(avatar) => Created(AvatarResponse(avatar, url))
       case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
       case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, pageSize))
@@ -203,8 +202,8 @@ class AvatarServlet(
     }
   }
 
-  def handleError[A]: PartialFunction[\/[Error, A], ActionResult] = {
-    case -\/(error) =>
+  def handleError[A]: PartialFunction[Either[Error, A], ActionResult] = {
+    case Left(error) =>
       val response: ActionResult =
         error match {
           case InvalidContentType(msg, errors) => UnsupportedMediaType(ErrorResponse(msg, errors))
@@ -233,11 +232,12 @@ class AvatarServlet(
       response
   }
 
-  def getIsSocial(param: Option[String]): Error \/ Boolean = {
-    attempt(param.exists(_.toBoolean)).leftMap(_ => invalidIsSocialFlag(NonEmptyList(s"'${param.get}' is not a valid isSocial flag")))
+  def getIsSocial(param: Option[String]): Either[Error, Boolean] = {
+    attempt(param.exists(_.toBoolean)).toEither
+      .left.map(_ => invalidIsSocialFlag(List(s"'${param.get}' is not a valid isSocial flag")))
   }
 
-  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Error \/ CreatedAvatar = {
+  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Either[Error, CreatedAvatar] = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
@@ -254,20 +254,22 @@ class AvatarServlet(
           upload <- store.userUpload(user, bytes, mimeType, fname, isSocial)
         } yield upload
       case Some(invalid) =>
-        -\/(invalidContentType(NonEmptyList(s"'$invalid' is not a valid content type.")))
+        Left(invalidContentType(List(s"'$invalid' is not a valid content type.")))
       case None =>
-        -\/(invalidContentType(NonEmptyList("No content type specified.")))
+        Left(invalidContentType(List("No content type specified.")))
     }
   }
 
-  def avatarRequestFromBody(body: String): Error \/ AvatarRequest = {
+  def avatarRequestFromBody(body: String): Either[Error, AvatarRequest] = {
     attempt(parse(body).extract[AvatarRequest])
-      .leftMap(_ => unableToReadAvatarRequest(NonEmptyList("Could not parse request body")))
+      .toEither
+      .left.map(_ => unableToReadAvatarRequest(List("Could not parse request body")))
   }
 
-  def statusRequestFromBody(parsedBody: JValue): Error \/ StatusRequest = {
+  def statusRequestFromBody(parsedBody: JValue): Either[Error, StatusRequest] = {
     attempt(parsedBody.extract[StatusRequest])
-      .leftMap(_ => unableToReadStatusRequest(NonEmptyList("Could not parse request body")))
+      .toEither
+      .left.map(_ => unableToReadStatusRequest(List("Could not parse request body")))
   }
 
 }

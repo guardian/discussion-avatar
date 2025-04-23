@@ -3,8 +3,6 @@ package com.gu.adapters.http
 import com.gu.adapters.http.Links._
 import com.gu.core.models.{Avatar, UserCleaned, UserDeleted}
 
-import scalaz.NonEmptyList
-
 case class Link(rel: String, href: String)
 
 sealed trait Argo
@@ -43,7 +41,7 @@ object ErrorResponse {
     ErrorResponse(None, msg, Nil)
   }
 
-  def apply(msg: String, errors: NonEmptyList[String]): ErrorResponse = {
-    ErrorResponse(None, msg, errors.list)
+  def apply(msg: String, errors: List[String]): ErrorResponse = {
+    ErrorResponse(None, msg, errors)
   }
 }

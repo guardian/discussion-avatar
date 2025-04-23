@@ -13,8 +13,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.util.Try
-import scalaz.Scalaz._
-import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 case class QueryResponse(
   avatars: List[Avatar],
@@ -26,12 +24,12 @@ case class DeleteResponse(
 )
 
 trait KVStore {
-  def get(table: String, id: String): Error \/ Avatar
-  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Error \/ QueryResponse
-  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Error \/ QueryResponse
-  def put(table: String, avatar: Avatar): Error \/ Avatar
-  def update(table: String, id: String, status: Status, isActive: Boolean = false): Error \/ Avatar
-  def delete(table: String, ids: List[String]): Error \/ DeleteResponse
+  def get(table: String, id: String): Either[Error, Avatar]
+  def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Either[Error, QueryResponse]
+  def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Either[Error, QueryResponse]
+  def put(table: String, avatar: Avatar): Either[Error, Avatar]
+  def update(table: String, id: String, status: Status, isActive: Boolean = false): Either[Error, Avatar]
+  def delete(table: String, ids: List[String]): Either[Error, DeleteResponse]
 }
 
 trait FileStore {
@@ -40,22 +38,22 @@ trait FileStore {
     fromKey: String,
     toBucket: String,
     toKey: String
-  ): Error \/ Unit
+  ): Either[Error, Unit]
 
   def put(
     bucket: String,
     key: String,
     file: Array[Byte],
     metadata: ObjectMetadata
-  ): Error \/ Unit
+  ): Either[Error, Unit]
 
-  def delete(bucket: String, keys: String*): Error \/ Unit
+  def delete(bucket: String, keys: String*): Either[Error, Unit]
 
   def presignedUrl(
     bucket: String,
     key: String,
     expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
-  ): Error \/ URL
+  ): Either[Error, URL]
 }
 
 case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) extends LazyLogging {
@@ -68,17 +66,17 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
   val statusIndex = props.kvStatusIndex
   val userIndex = props.kvUserIndex
 
-  def get(filters: Filters): \/[Error, FoundAvatars] = {
+  def get(filters: Filters): Either[Error, FoundAvatars] = {
     for {
       qr <- kvs.query(dynamoTable, statusIndex, filters.status, filters.since, filters.until, filters.order)
     } yield FoundAvatars(qr.avatars, qr.hasMore)
   }
 
-  def get(avatarId: String): Error \/ FoundAvatar = {
+  def get(avatarId: String): Either[Error, FoundAvatar] = {
     kvs.get(dynamoTable, avatarId) map FoundAvatar
   }
 
-  def get(user: User): \/[Error, FoundAvatars] = {
+  def get(user: User): Either[Error, FoundAvatars] = {
     for {
       qr <- kvs.query(
         dynamoTable,
@@ -92,8 +90,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
   }
 
   // Beware - everything about this function assumes small n
-  def getAll(user: User): Error \/ FoundAvatars = {
-    def loop(acc: List[Avatar], since: Option[DateTime]): Error \/ FoundAvatars = {
+  def getAll(user: User): Either[Error, FoundAvatars] = {
+    def loop(acc: List[Avatar], since: Option[DateTime]): Either[Error, FoundAvatars] = {
       val resp = kvs.query(
         dynamoTable,
         userIndex,
@@ -103,41 +101,42 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       )
 
       resp match {
-        case \/-(found) if found.hasMore => loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
-        case \/-(last) => FoundAvatars(body = acc ::: last.avatars, hasMore = false).right
-        case -\/(error) => error.left
+        case Right(found) if found.hasMore => loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
+        case Right(last) => Right(FoundAvatars(body = acc ::: last.avatars, hasMore = false))
+        case Left(error) => Left(error)
       }
     }
 
     loop(Nil, None)
   }
 
-  def getActive(user: User): Error \/ FoundAvatar = {
+  def getActive(user: User): Either[Error, FoundAvatar] = {
     for {
       found <- get(user)
-      avatar <- found.body.find(_.isActive)
-        .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
+      avatar <- found.body.find(_.isActive).toRight(
+        avatarNotFound(List(s"No active avatar found for user: ${user.id}."))
+      )
     } yield FoundAvatar(avatar)
   }
 
-  def getPersonal(user: User): Error \/ FoundAvatar = {
+  def getPersonal(user: User): Either[Error, FoundAvatar] = {
     for {
       found <- get(user)
       avatar <- found.body.find(a => a.isActive || a.status == Inactive)
-        .toRightDisjunction(avatarNotFound(NonEmptyList(s"No active avatar found for user: ${user.id}.")))
+        .toRight(avatarNotFound(List(s"No active avatar found for user: ${user.id}.")))
     } yield FoundAvatar(avatar)
   }
 
-  def updateStatus(id: String, status: Status): Error \/ UpdatedAvatar = {
-    def demoteActive(user: User): Error \/ Unit = {
-      def recoverNotFound(e: Error): Error \/ Unit = e match {
-        case AvatarNotFound(_, _) => ().right
-        case err => err.left
+  def updateStatus(id: String, status: Status): Either[Error, UpdatedAvatar] = {
+    def demoteActive(user: User): Either[Error, Unit] = {
+      def recoverNotFound(e: Error): Either[Error, Unit] = e match {
+        case AvatarNotFound(_, _) => Right(())
+        case err => Left(err)
       }
 
       getActive(user)
         .flatMap(active => updateKv(active.body.id, active.body.status, isActive = false))
-        .fold(recoverNotFound, _ => ().right)
+        .fold(recoverNotFound, _ => Right(()))
     }
 
     def handleApproved(user: User, avatar: Avatar) = {
@@ -152,7 +151,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     def handleRejected(user: User, avatar: Avatar) = {
       for {
         updated <- updateKv(avatar.id, Rejected, isActive = false)
-        _ <- if (avatar.isActive) deletePublicAvatarFile(updated.userId).map(_ => ()) else ().right
+        _ <- Right(if (avatar.isActive) deletePublicAvatarFile(updated.userId).map(_ => ()) else ())
       } yield updated
     }
 
@@ -160,7 +159,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       avatar <- get(id).map(_.body)
       user = User(avatar.userId)
       updated <- status match {
-        case noChange if avatar.status == status => avatar.right
+        case noChange if avatar.status == status => Right(avatar)
         case Approved => handleApproved(user, avatar)
         case Rejected => handleRejected(user, avatar)
         case otherStatus => updateKv(id, otherStatus, isActive = false)
@@ -176,7 +175,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     mimeType: String,
     originalFilename: String,
     isSocial: Boolean = false
-  ): Error \/ CreatedAvatar = {
+  ): Either[Error, CreatedAvatar] = {
 
     val avatarId = UUID.randomUUID
     val now = DateTime.now(DateTimeZone.UTC)
@@ -204,10 +203,10 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
       _ <- fs.put(incomingBucket, location, file, objectMetadata(avatarId, user, originalFilename, mimeType))
     } yield CreatedAvatar(avatar)
 
-    logIfError(s"Unable to create Avatar with ID: $id. Avatar may be left in an inconsistent state.", created)
+    logIfError(s"Unable to create Avatar with ID: $avatarId. Avatar may be left in an inconsistent state.", created)
   }
 
-  def copyToPublic(avatar: Avatar): Error \/ Avatar = {
+  def copyToPublic(avatar: Avatar): Either[Error, Avatar] = {
     val location = KVLocationFromID(avatar.id)
     fs.copy(
       processedBucket,
@@ -217,7 +216,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     ) map (_ => avatar)
   }
 
-  def cleanupInactive(user: User): Error \/ UserCleaned = {
+  def cleanupInactive(user: User): Either[Error, UserCleaned] = {
     val avatars = for {
       resp <- getAll(user)
     } yield resp.body
@@ -237,7 +236,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
         resources <- deleteAvatars(buckets, inactiveIDs)
       } yield UserCleaned(user, resources)
     } else {
-      UserCleaned(user, Nil).right // no-op
+      Right(UserCleaned(user, Nil)) // no-op
     }
   }
 
@@ -245,12 +244,11 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     ids.map(id => s"kv:$id") ::: locations.map(l => s"fs:$l")
   }
 
-  def deleteAll(user: User): Error \/ UserDeleted = {
+  def deleteAll(user: User): Either[Error, UserDeleted] = {
     for {
       avatars <- get(user)
       ids = avatars.body.map(_.id)
       buckets = List(incomingBucket, rawBucket, processedBucket)
-
       _ <- deletePublicAvatarFile(user.id)
       resources <- deleteAvatars(buckets, ids)
     } yield UserDeleted(user, resources)
@@ -266,18 +264,18 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     metadata
   }
 
-  private[this] def deletePublicAvatarFile(userId: String): \/[Error, String] = {
+  private[this] def deletePublicAvatarFile(userId: String): Either[Error, String] = {
     val location = s"user/$userId"
     fs.delete(publicBucket, s"user/$userId").map(_ => location)
   }
 
-  private[this] def deletePrivateAvatarFiles(buckets: Seq[String], avatarIds: List[String]): \/[Error, List[String]] = {
+  private[this] def deletePrivateAvatarFiles(buckets: Seq[String], avatarIds: List[String]): Either[Error, List[String]] = {
     val paths = avatarIds.map(KVLocationFromID.apply)
 
-    val zero = List[String]().right[Error]
+    val zero: Either[Error, List[String]] = Right(List())
     buckets.foldLeft(zero) { (acc, bucket) =>
       acc match {
-        case \/-(locAcc) => {
+        case Right(locAcc) => {
           val locations = paths.map(path => s"$bucket/$path")
           val res = fs.delete(bucket, paths: _*).map(_ => locations)
           res.map(_ ::: locAcc)
@@ -287,8 +285,8 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     }
   }
 
-  private[this] def deleteAvatars(buckets: Seq[String], ids: List[String]): Error \/ List[String] = {
-    def delete(ids: List[String]): Error \/ List[String] = {
+  private[this] def deleteAvatars(buckets: Seq[String], ids: List[String]): Either[Error, List[String]] = {
+    def delete(ids: List[String]): Either[Error, List[String]] = {
       for {
         locations <- deletePrivateAvatarFiles(buckets, ids)
         _ <- deleteAvatarKvEntries(ids)
@@ -299,7 +297,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     val groups = ids.sliding(awsBatchLimit)
 
     // batch as AWS apis can only handle up to 25 items at a time
-    val zero = List.empty[String].right[Error]
+    val zero: Either[Error, List[String]] = Right(List.empty)
     val rs = groups.foldLeft(zero) {
       case (acc, ids) =>
         acc.flatMap(locations => delete(ids).map(_ ::: locations))
@@ -308,9 +306,9 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     rs
   }
 
-  private[this] def deleteAvatarKvEntries(avatarIds: List[String]): \/[Error, DeleteResponse] = kvs.delete(dynamoTable, avatarIds)
+  private[this] def deleteAvatarKvEntries(avatarIds: List[String]): Either[Error, DeleteResponse] = kvs.delete(dynamoTable, avatarIds)
 
-  private[this] def deleteActiveAvatar(userId: String): \/[Error, DeleteResult] = {
+  private[this] def deleteActiveAvatar(userId: String): Either[Error, DeleteResult] = {
     def delete(avatar: Avatar) = {
       val buckets = List(incomingBucket, rawBucket, processedBucket)
       for {
@@ -322,13 +320,13 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     }
 
     getActive(User(userId)).map(_.body) match {
-      case \/-(avatar) => delete(avatar)
-      case -\/(AvatarNotFound(_, _)) => AvatarNotDeleted(userId).right
-      case e: -\/[Error] => e
+      case Right(avatar) => delete(avatar)
+      case Left(AvatarNotFound(_, _)) => Right(AvatarNotDeleted(userId))
+      case Left(e: Error) => Left(e)
     }
   }
 
-  private[this] def updateKv(avatarId: String, status: Status, isActive: Boolean): \/[Error, Avatar] = {
+  private[this] def updateKv(avatarId: String, status: Status, isActive: Boolean): Either[Error, Avatar] = {
     kvs.update(dynamoTable, avatarId, status, isActive = isActive)
   }
 
