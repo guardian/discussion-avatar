@@ -2,10 +2,12 @@ addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 
 addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "4.0.1")
 
-resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases/"
+addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.8.3")
+// sbt-scalariform has not updated to scala-xml 2.0.0 yet.
+// Tell SBT to ignore the version conflict. This is fairly accepted practice for scala-xml: https://github.com/sbt/sbt/issues/6997
+// Long term fix is that we should switch to sbt-scalafmt
+libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 
-addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.8.2")
-
-addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.3.1")
+addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.11.1")
 
 addDependencyTreePlugin
