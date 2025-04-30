@@ -9,6 +9,7 @@ import com.gu.core.models.Error
 import com.gu.core.models.Errors.invalidMimeType
 import com.gu.core.utils.ErrorHandling.attempt
 import org.scalatra.servlet.FileItem
+import org.scalatra.servlet.FileSingleParams
 
 object Image {
 
@@ -19,7 +20,7 @@ object Image {
     } yield (bytes, mimeType)
   }
 
-  def getImageFromFile(fileParams: Map[String, FileItem]): Either[Error, (Array[Byte], String, String)] = {
+  def getImageFromFile(fileParams: FileSingleParams): Either[Error, (Array[Byte], String, String)] = {
     for {
       nameAndBytes <- readBytesFromFile(fileParams)
       (fname, bytes) = nameAndBytes

@@ -43,7 +43,7 @@ class AvatarServlet(
   // but as a stop gap, simulate the behaviour of 2.3.
   override protected def augmentSimpleRequest(): Unit = {
     super.augmentSimpleRequest()
-    if (response.headers.get(AccessControlAllowOriginHeader).isEmpty) {
+    if (response.getHeader(AccessControlAllowOriginHeader).isEmpty) {
       response.setHeader(AccessControlAllowOriginHeader, request.headers.getOrElse(OriginHeader, ""))
     }
   }
@@ -237,7 +237,7 @@ class AvatarServlet(
       .left.map(_ => invalidIsSocialFlag(List(s"'${param.get}' is not a valid isSocial flag")))
   }
 
-  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Either[Error, CreatedAvatar] = {
+  def uploadAvatar(request: RichRequest, user: User, fileParams: FileSingleParams): Either[Error, CreatedAvatar] = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
