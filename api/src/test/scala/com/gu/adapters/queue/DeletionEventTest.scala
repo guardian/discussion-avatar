@@ -1,9 +1,10 @@
 package com.gu.adapters.queue
 
 import com.gu.core.models.DeletionEvent
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
 
-class DeletionEventTest extends FlatSpec with Matchers {
+class DeletionEventTest extends AnyFlatSpec with Matchers {
 
   "DeletionEvent" should "deserialise deletion event correctly" in {
     val eventData =

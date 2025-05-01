@@ -7,11 +7,11 @@ import com.gu.core.models.Status
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.native.Serialization._
-import org.scalatest.FunSuiteLike
 import org.scalatra.test.ClientResponse
 import org.scalatra.test.scalatest.ScalatraSuite
+import org.scalatest.funsuite.AnyFunSuiteLike
 
-trait TestHelpers extends ScalatraSuite with FunSuiteLike {
+trait TestHelpers extends ScalatraSuite with AnyFunSuiteLike {
 
   protected def apiKey: String
   protected def apiUrl: String

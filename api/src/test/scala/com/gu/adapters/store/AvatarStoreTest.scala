@@ -6,10 +6,11 @@ import com.gu.core.models._
 import com.gu.core.store.AvatarStore
 import com.gu.core.utils.KVLocationFromID
 import org.joda.time.DateTime
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.mockito.MockitoSugar
 
-class AvatarStoreTest extends FlatSpec with Matchers with MockitoSugar {
+class AvatarStoreTest extends AnyFlatSpec with Matchers with MockitoSugar {
 
   trait WithStore {
     val config = Config()

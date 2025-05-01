@@ -1,9 +1,10 @@
 package com.gu.core.utils
 
 import com.gu.core.utils
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class KVLocationFromId extends FunSuite with Matchers {
+class KVLocationFromId extends AnyFunSuite with Matchers {
 
   test("Make key-value store location from ID") {
     val avatarId = "20364a44-a914-4edd-a7de-4aeb621a2ab5"
@@ -11,7 +12,7 @@ class KVLocationFromId extends FunSuite with Matchers {
   }
 }
 
-class UnicodeEscapedFromFilename extends FunSuite with Matchers {
+class UnicodeEscapedFromFilename extends AnyFunSuite with Matchers {
 
   test("Make Unicode escaped version from filename") {
     val originalFilename = "üe.JPG"

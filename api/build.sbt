@@ -48,6 +48,7 @@ libraryDependencies ++= Seq(
   "org.scalatra" %% "scalatra-json-javax" % ScalatraVersion,
   "org.scalatra" %% "scalatra-scalatest-javax" % ScalatraVersion % Test,
   "org.mockito" % "mockito-core" % "3.1.0" % Test,
+  "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
   "org.scalatra" %% "scalatra-swagger-javax" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
