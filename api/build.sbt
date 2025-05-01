@@ -10,7 +10,7 @@ enablePlugins(
 organization := "com.gu"
 name := "avatar-api"
 version := "1.0"
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.18"
 
 val ScalatraVersion = "2.6.3"
 val jettyVersion = "9.4.56.v20240826"
@@ -64,6 +64,11 @@ libraryDependencies ++= Seq(
 libraryDependencies ~= { deps =>
   deps.map(_.excludeAll(ExclusionRule(organization = "com.typesafe.akka")))
 }
+
+// Scalatra has not updated to scala-xml 2.0.0 yet.
+// Tell SBT to ignore the version conflict. This is fairly accepted practice for scala-xml: https://github.com/sbt/sbt/issues/6997
+// Long term fix is that we should upgrade to Scalatra 3.x
+ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 
 webappPrepare / sourceDirectory := (Compile / sourceDirectory).value / "resources/webapp"
 

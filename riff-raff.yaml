@@ -56,7 +56,7 @@ deployments:
           PrivateBucket: /account/services/private.config.bucket
       amiParametersToTags:
         AMI:
-          Recipe: arm-ubuntu-jammy-discussion-java11-cdk-base
+          Recipe: arm-ubuntu-jammy-discussion-java21-cdk-base
           BuiltBy: amigo
           AmigoStage: PROD
       amiEncrypted: true
