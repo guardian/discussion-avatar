@@ -20,7 +20,7 @@ val logstashEncoderVersion = "7.3"
 val servletApiVersion = "3.1.0"
 val identityVersion = "4.31"
 val typesafeConfigVersion = "1.2.1"
-val amazonawsVersion = "1.12.668"
+val amazonawsVersion = "1.12.670"
 val scalaLoggingVersion = "3.6.0"
 val apacheCommonsVersion = "3.4"
 
