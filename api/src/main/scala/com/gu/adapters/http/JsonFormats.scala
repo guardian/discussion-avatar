@@ -6,8 +6,6 @@ import org.json4s.ext.JodaTimeSerializers
 import org.json4s.{CustomSerializer, DefaultFormats, FieldSerializer}
 
 object JsonFormats {
-  val links = FieldSerializer[Argo]({ case ("links", Nil) => None })
-
   val status = new CustomSerializer[Status](format => (
     {
       case JString(Inactive.asString) => Inactive
@@ -25,7 +23,6 @@ object JsonFormats {
 
   val all =
     DefaultFormats +
-      links +
       status ++
       JodaTimeSerializers.all
 }

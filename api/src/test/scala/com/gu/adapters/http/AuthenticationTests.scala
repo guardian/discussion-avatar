@@ -4,10 +4,11 @@ import cats.effect.IO
 import com.gu.core.models.{Errors, User}
 import com.gu.identity.auth._
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
-class AuthenticationTests extends FunSuite with Matchers with MockitoSugar {
+class AuthenticationTests extends AnyFunSuite with Matchers with MockitoSugar {
 
   trait Mocks {
     val idapiAuthService: IdapiAuthService = mock[IdapiAuthService]

@@ -6,15 +6,16 @@ import org.apache.pekko.stream.connectors.sqs.MessageAction
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FlatSpec, Matchers}
 
 import software.amazon.awssdk.services.sqs.model.Message
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
-class SqsDeleteQueueTest extends FlatSpec with Matchers with MockitoSugar with ScalaFutures {
+class SqsDeleteQueueTest extends AnyFlatSpec with Matchers with MockitoSugar with ScalaFutures {
 
   trait DeletionEventHandlerScope {
     val eventHandlerProps = SqsDeletionConsumerProps("queueUrl", "region")

@@ -12,9 +12,9 @@ name := "avatar-api"
 version := "1.0"
 scalaVersion := "2.12.18"
 
-val ScalatraVersion = "2.6.3"
+val ScalatraVersion = "3.1.1"
 val jettyVersion = "9.4.56.v20240826"
-val json4sVersion = "3.5.2"
+val json4sVersion = "4.0.7"
 val logbackVersion = "1.2.13"
 val logstashEncoderVersion = "7.3"
 val servletApiVersion = "3.1.0"
@@ -35,7 +35,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatra" %% "scalatra" % ScalatraVersion,
+  "org.scalatra" %% "scalatra-javax" % ScalatraVersion,
   "ch.qos.logback" % "logback-classic" % logbackVersion,
   "ch.qos.logback" % "logback-access" % logbackVersion,
   "net.logstash.logback" % "logstash-logback-encoder" % logstashEncoderVersion,
@@ -44,10 +44,12 @@ libraryDependencies ++= Seq(
   "javax.servlet" % "javax.servlet-api" % servletApiVersion,
   "org.json4s" %% "json4s-native" % json4sVersion,
   "org.json4s" %% "json4s-jackson" % json4sVersion,
-  "org.scalatra" %% "scalatra-json" % ScalatraVersion,
-  "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % Test,
+  "org.json4s" %% "json4s-ext" % json4sVersion,
+  "org.scalatra" %% "scalatra-json-javax" % ScalatraVersion,
+  "org.scalatra" %% "scalatra-scalatest-javax" % ScalatraVersion % Test,
   "org.mockito" % "mockito-core" % "3.1.0" % Test,
-  "org.scalatra" %% "scalatra-swagger" % ScalatraVersion,
+  "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
+  "org.scalatra" %% "scalatra-swagger-javax" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
   "com.amazonaws" % "aws-java-sdk-ses" % amazonawsVersion,
@@ -65,9 +67,9 @@ libraryDependencies ~= { deps =>
   deps.map(_.excludeAll(ExclusionRule(organization = "com.typesafe.akka")))
 }
 
-// Scalatra has not updated to scala-xml 2.0.0 yet.
+// identity-auth-core relies on `lift-json` which has not been updated to scala-xml 2.0.0
 // Tell SBT to ignore the version conflict. This is fairly accepted practice for scala-xml: https://github.com/sbt/sbt/issues/6997
-// Long term fix is that we should upgrade to Scalatra 3.x
+// Long term fix is that we release a new version of identity-auth-core that uses Json4s instead of lift-json
 ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 
 webappPrepare / sourceDirectory := (Compile / sourceDirectory).value / "resources/webapp"

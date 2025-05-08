@@ -8,6 +8,7 @@ import com.gu.core.utils.ErrorHandling._
 import org.scalatra.servlet.FileItem
 
 import scala.util.Try
+import org.scalatra.servlet.FileSingleParams
 
 object IOUtils {
   def readBytesAndCloseInputStream(is: InputStream): Either[Error, Array[Byte]] = {
@@ -25,7 +26,7 @@ object IOUtils {
       .left.map(_ => unableToReadAvatarRequest(List("Unable to load image from url: " + url)))
   }
 
-  def readBytesFromFile(fileParams: Map[String, FileItem]): Either[Error, (String, Array[Byte])] = {
+  def readBytesFromFile(fileParams: FileSingleParams): Either[Error, (String, Array[Byte])] = {
     for {
       file <- attempt(fileParams("file")).toEither
         .left.map(_ => unableToReadAvatarRequest(List("Could not parse request body")))

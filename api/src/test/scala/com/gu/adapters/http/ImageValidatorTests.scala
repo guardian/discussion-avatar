@@ -3,9 +3,10 @@ package com.gu.adapters.http
 import java.io.{File, FileInputStream}
 
 import com.gu.adapters.http.IOUtils.readBytesAndCloseInputStream
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class ImageValidatorTests extends FunSuite with Matchers {
+class ImageValidatorTests extends AnyFunSuite with Matchers {
 
   def test(path: String, isValid: Boolean): Unit = {
     val file = new File(path)

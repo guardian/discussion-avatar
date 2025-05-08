@@ -43,7 +43,8 @@ class AvatarServlet(
   // but as a stop gap, simulate the behaviour of 2.3.
   override protected def augmentSimpleRequest(): Unit = {
     super.augmentSimpleRequest()
-    if (response.headers.get(AccessControlAllowOriginHeader).isEmpty) {
+    val accessControlAllowOriginHeader = response.getHeader(AccessControlAllowOriginHeader);
+    if (response.getHeader(AccessControlAllowOriginHeader) == null) {
       response.setHeader(AccessControlAllowOriginHeader, request.headers.getOrElse(OriginHeader, ""))
     }
   }
@@ -185,7 +186,7 @@ class AvatarServlet(
 
   apiPut("/avatars/:id/status", operation(putAvatarStatus)) { _ =>
     for {
-      sr <- statusRequestFromBody(parsedBody)
+      sr <- statusRequestFromBody(request.body)
       updated <- store.updateStatus(params("id"), sr.status)
       req = Req(apiUrl, request.getPathInfo)
     } yield (updated, req)
@@ -237,7 +238,7 @@ class AvatarServlet(
       .left.map(_ => invalidIsSocialFlag(List(s"'${param.get}' is not a valid isSocial flag")))
   }
 
-  def uploadAvatar(request: RichRequest, user: User, fileParams: Map[String, FileItem]): Either[Error, CreatedAvatar] = {
+  def uploadAvatar(request: RichRequest, user: User, fileParams: FileSingleParams): Either[Error, CreatedAvatar] = {
     request.contentType match {
       case Some("application/json") | Some("text/json") =>
         for {
@@ -266,8 +267,8 @@ class AvatarServlet(
       .left.map(_ => unableToReadAvatarRequest(List("Could not parse request body")))
   }
 
-  def statusRequestFromBody(parsedBody: JValue): Either[Error, StatusRequest] = {
-    attempt(parsedBody.extract[StatusRequest])
+  def statusRequestFromBody(body: String): Either[Error, StatusRequest] = {
+    attempt(parse(body).extract[StatusRequest])
       .toEither
       .left.map(_ => unableToReadStatusRequest(List("Could not parse request body")))
   }
