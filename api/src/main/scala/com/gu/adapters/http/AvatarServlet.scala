@@ -185,7 +185,7 @@ class AvatarServlet(
 
   apiPut("/avatars/:id/status", operation(putAvatarStatus)) { _ =>
     for {
-      sr <- statusRequestFromBody(parsedBody)
+      sr <- statusRequestFromBody(request.body)
       updated <- store.updateStatus(params("id"), sr.status)
       req = Req(apiUrl, request.getPathInfo)
     } yield (updated, req)
@@ -266,8 +266,8 @@ class AvatarServlet(
       .left.map(_ => unableToReadAvatarRequest(List("Could not parse request body")))
   }
 
-  def statusRequestFromBody(parsedBody: JValue): Either[Error, StatusRequest] = {
-    attempt(parsedBody.extract[StatusRequest])
+  def statusRequestFromBody(body: String): Either[Error, StatusRequest] = {
+    attempt(parse(body).extract[StatusRequest])
       .toEither
       .left.map(_ => unableToReadStatusRequest(List("Could not parse request body")))
   }
