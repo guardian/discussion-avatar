@@ -8,7 +8,7 @@ import com.gu.core.store.AvatarStore
 import org.scalatra._
 
 import java.util.TimeZone
-import javax.servlet.ServletContext
+import jakarta.servlet.ServletContext
 
 class ScalatraBootstrap extends LifeCycle {
 
