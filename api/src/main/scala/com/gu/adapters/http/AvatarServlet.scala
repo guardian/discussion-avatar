@@ -43,7 +43,8 @@ class AvatarServlet(
   // but as a stop gap, simulate the behaviour of 2.3.
   override protected def augmentSimpleRequest(): Unit = {
     super.augmentSimpleRequest()
-    if (response.getHeader(AccessControlAllowOriginHeader).isEmpty) {
+    val accessControlAllowOriginHeader = response.getHeader(AccessControlAllowOriginHeader);
+    if (response.getHeader(AccessControlAllowOriginHeader) == null) {
       response.setHeader(AccessControlAllowOriginHeader, request.headers.getOrElse(OriginHeader, ""))
     }
   }
