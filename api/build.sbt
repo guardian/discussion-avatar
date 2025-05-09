@@ -3,8 +3,7 @@ import scalariform.formatter.preferences._
 
 enablePlugins(
   UniversalPlugin,
-  JavaAppPackaging,
-  JettyPlugin
+  JavaAppPackaging
 )
 
 organization := "com.gu"
@@ -13,11 +12,12 @@ version := "1.0"
 scalaVersion := "2.12.18"
 
 val ScalatraVersion = "3.1.1"
-val jettyVersion = "9.4.56.v20240826"
+val jettyVersion = "12.0.20"
 val json4sVersion = "4.0.7"
-val logbackVersion = "1.2.13"
-val logstashEncoderVersion = "7.3"
-val servletApiVersion = "3.1.0"
+val logbackVersion = "1.5.18"
+val logbackAccessVersion = "2.0.6"
+val logstashEncoderVersion = "8.1"
+val servletApiVersion = "6.0.0"
 val identityVersion = "4.31"
 val typesafeConfigVersion = "1.2.1"
 val amazonawsVersion = "1.12.668"
@@ -35,21 +35,21 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.scalatra" %% "scalatra-javax" % ScalatraVersion,
+  "org.scalatra" %% "scalatra-jakarta" % ScalatraVersion,
   "ch.qos.logback" % "logback-classic" % logbackVersion,
-  "ch.qos.logback" % "logback-access" % logbackVersion,
+  "ch.qos.logback.access" % "logback-access-jetty12" % logbackAccessVersion,
   "net.logstash.logback" % "logstash-logback-encoder" % logstashEncoderVersion,
-  "org.eclipse.jetty" % "jetty-webapp" % jettyVersion % "container;compile",
-  "org.eclipse.jetty" % "jetty-plus" % jettyVersion % "container",
-  "javax.servlet" % "javax.servlet-api" % servletApiVersion,
+  "org.eclipse.jetty.ee10" % "jetty-ee10-servlet" % jettyVersion,
+  "org.eclipse.jetty" % "jetty-plus" % jettyVersion,
+  "jakarta.servlet" % "jakarta.servlet-api" % servletApiVersion,
   "org.json4s" %% "json4s-native" % json4sVersion,
   "org.json4s" %% "json4s-jackson" % json4sVersion,
   "org.json4s" %% "json4s-ext" % json4sVersion,
-  "org.scalatra" %% "scalatra-json-javax" % ScalatraVersion,
-  "org.scalatra" %% "scalatra-scalatest-javax" % ScalatraVersion % Test,
+  "org.scalatra" %% "scalatra-json-jakarta" % ScalatraVersion,
+  "org.scalatra" %% "scalatra-scalatest-jakarta" % ScalatraVersion % Test,
   "org.mockito" % "mockito-core" % "3.1.0" % Test,
   "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
-  "org.scalatra" %% "scalatra-swagger-javax" % ScalatraVersion,
+  "org.scalatra" %% "scalatra-swagger-jakarta" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
   "com.amazonaws" % "aws-java-sdk-ses" % amazonawsVersion,
@@ -62,6 +62,13 @@ libraryDependencies ++= Seq(
   "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
 )
 
+// Transient Dependency Overrides
+dependencyOverrides ++= Seq(
+  // identity-auth-core depends on jackson-module-scala 2.15 which forces Jackson 2.15
+  // Should be fairly safe to override to 2.18.3
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.3"
+)
+
 // Exclude all transitive Akka dependencies
 libraryDependencies ~= { deps =>
   deps.map(_.excludeAll(ExclusionRule(organization = "com.typesafe.akka")))
@@ -71,10 +78,6 @@ libraryDependencies ~= { deps =>
 // Tell SBT to ignore the version conflict. This is fairly accepted practice for scala-xml: https://github.com/sbt/sbt/issues/6997
 // Long term fix is that we release a new version of identity-auth-core that uses Json4s instead of lift-json
 ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
-
-webappPrepare / sourceDirectory := (Compile / sourceDirectory).value / "resources/webapp"
-
-containerPort := 8900
 
 Compile / mainClass := Some("com.gu.adapters.http.JettyLauncher")
 
