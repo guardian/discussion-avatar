@@ -67,7 +67,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
   def delete(bucket: String, keys: String*): Either[models.Error, Unit] = {
     val paths = keys.map(key => path(bucket, key))
 
-    files = files.filterKeys(key => !paths.contains(key))
+    files = files.filterKeys(key => !paths.contains(key)).toMap
 
     Right(())
   }
@@ -156,7 +156,7 @@ class TestKVStore(dynamoTable: String) extends KVStore {
   }
 
   def delete(table: String, ids: List[String]): Either[Error, DeleteResponse] = {
-    docs = docs.filterKeys(id => !ids.map(k => s"$dynamoTable/${k}").contains(id))
+    docs = docs.filterKeys(id => !ids.map(k => s"$dynamoTable/${k}").contains(id)).toMap
     Right(DeleteResponse(ids))
   }
 }
