@@ -25,7 +25,7 @@ case class SqsDeletionConsumerProps(queueUrl: String, region: String)
 class SqsDeletionConsumer(props: SqsDeletionConsumerProps, avatarStore: AvatarStore) extends LazyLogging {
   private lazy val client = SqsAsyncClient
     .builder()
-    .credentialsProvider(AWSCredentials.awsCredentialsV2)
+    .credentialsProvider(AWSCredentials.awsCredentials)
     .region(Region.of(props.region))
     .httpClient(PekkoHttpClient.builder().withActorSystem(system).build())
     .endpointOverride(new URI(props.queueUrl))

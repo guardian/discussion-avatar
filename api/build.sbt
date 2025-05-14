@@ -20,7 +20,7 @@ val logstashEncoderVersion = "8.1"
 val servletApiVersion = "6.0.0"
 val identityVersion = "4.31"
 val typesafeConfigVersion = "1.4.3"
-val amazonawsVersion = "1.12.668"
+val amazonawsVersion = "2.31.41"
 val scalaLoggingVersion = "3.9.5"
 val apacheCommonsVersion = "3.17.0"
 
@@ -52,11 +52,11 @@ libraryDependencies ++= Seq(
   "org.scalatra" %% "scalatra-swagger-jakarta" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
   "com.typesafe" % "config" % typesafeConfigVersion,
-  "com.amazonaws" % "aws-java-sdk-ses" % amazonawsVersion,
-  "com.amazonaws" % "aws-java-sdk-sqs" % amazonawsVersion,
-  "com.amazonaws" % "aws-java-sdk-s3" % amazonawsVersion,
-  "com.amazonaws" % "aws-java-sdk-sns" % amazonawsVersion,
-  "com.amazonaws" % "aws-java-sdk-dynamodb" % amazonawsVersion,
+  "software.amazon.awssdk" % "ses" % amazonawsVersion,
+  "software.amazon.awssdk" % "sqs" % amazonawsVersion,
+  "software.amazon.awssdk" % "s3" % amazonawsVersion,
+  "software.amazon.awssdk" % "sns" % amazonawsVersion,
+  "software.amazon.awssdk" % "dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
   "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
