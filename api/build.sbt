@@ -19,10 +19,10 @@ val logbackAccessVersion = "2.0.6"
 val logstashEncoderVersion = "8.1"
 val servletApiVersion = "6.0.0"
 val identityVersion = "4.31"
-val typesafeConfigVersion = "1.2.1"
+val typesafeConfigVersion = "1.4.3"
 val amazonawsVersion = "1.12.668"
 val scalaLoggingVersion = "3.9.5"
-val apacheCommonsVersion = "3.4"
+val apacheCommonsVersion = "3.17.0"
 
 val guardianReleases =
   "Guardian releases" at "https://guardian.github.io/maven/repo-releases"
@@ -47,7 +47,7 @@ libraryDependencies ++= Seq(
   "org.json4s" %% "json4s-ext" % json4sVersion,
   "org.scalatra" %% "scalatra-json-jakarta" % ScalatraVersion,
   "org.scalatra" %% "scalatra-scalatest-jakarta" % ScalatraVersion % Test,
-  "org.mockito" % "mockito-core" % "3.1.0" % Test,
+  "org.mockito" % "mockito-core" % "5.17.0" % Test,
   "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
   "org.scalatra" %% "scalatra-swagger-jakarta" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
