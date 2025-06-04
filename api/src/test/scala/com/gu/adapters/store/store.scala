@@ -2,7 +2,6 @@ package com.gu.adapters.store
 
 import java.net.URL
 
-import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.http.TestCookie
 import com.gu.adapters.store.TestStoreHelpers.path
 import com.gu.core.models._
@@ -11,6 +10,7 @@ import com.gu.core._
 import com.gu.core.utils.KVLocationFromID
 import Errors.avatarNotFound
 import org.joda.time.{DateTime, DateTimeZone}
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
 
 object TestStoreHelpers {
   def path(a: String, b: String): String = a + "/" + b
@@ -49,7 +49,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
     bucket: String,
     key: String,
     file: Array[Byte],
-    metadata: ObjectMetadata
+    metadata: PutObjectRequest.Builder
   ): Either[models.Error, Unit] = {
 
     files += path(bucket, key) -> file.map(_.toChar).mkString
@@ -58,8 +58,7 @@ class TestFileStore(s3ProcessedBucket: String) extends FileStore {
 
   def presignedUrl(
     bucket: String,
-    key: String,
-    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
+    key: String
   ): Either[models.Error, URL] = {
     Right(new URL("http://some-url/"))
   }

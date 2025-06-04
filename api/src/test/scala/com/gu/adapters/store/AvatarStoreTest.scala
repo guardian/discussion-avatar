@@ -1,6 +1,5 @@
 package com.gu.adapters.store
 
-import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.adapters.config.Config
 import com.gu.core.models._
 import com.gu.core.store.AvatarStore
@@ -9,6 +8,7 @@ import org.joda.time.DateTime
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.mockito.MockitoSugar
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
 
 class AvatarStoreTest extends AnyFlatSpec with Matchers with MockitoSugar {
 
@@ -22,8 +22,8 @@ class AvatarStoreTest extends AnyFlatSpec with Matchers with MockitoSugar {
 
     def uploadAvatar(data: String): Avatar = {
       val avatar = avatarStore.userUpload(User(userId), data.getBytes, "image/png", "test.png").getOrElse(throw new RuntimeException).body
-      fileStore.put(storeProps.fsRawBucket, KVLocationFromID(avatar.id), data.getBytes, new ObjectMetadata())
-      fileStore.put(storeProps.fsProcessedBucket, KVLocationFromID(avatar.id), data.getBytes, new ObjectMetadata())
+      fileStore.put(storeProps.fsRawBucket, KVLocationFromID(avatar.id), data.getBytes, PutObjectRequest.builder())
+      fileStore.put(storeProps.fsProcessedBucket, KVLocationFromID(avatar.id), data.getBytes, PutObjectRequest.builder())
       avatar
     }
   }
@@ -112,9 +112,9 @@ class AvatarStoreTest extends AnyFlatSpec with Matchers with MockitoSugar {
     val bytes = "myimage".getBytes
     val avatar2 = avatar1.copy(id = "foobar", status = Approved, isActive = false)
     kvStore.put(storeProps.kvTable, avatar2)
-    fileStore.put(storeProps.fsRawBucket, KVLocationFromID(avatar2.id), bytes, new ObjectMetadata())
-    fileStore.put(storeProps.fsIncomingBucket, KVLocationFromID(avatar2.id), bytes, new ObjectMetadata())
-    fileStore.put(storeProps.fsProcessedBucket, KVLocationFromID(avatar2.id), bytes, new ObjectMetadata())
+    fileStore.put(storeProps.fsRawBucket, KVLocationFromID(avatar2.id), bytes, PutObjectRequest.builder())
+    fileStore.put(storeProps.fsIncomingBucket, KVLocationFromID(avatar2.id), bytes, PutObjectRequest.builder())
+    fileStore.put(storeProps.fsProcessedBucket, KVLocationFromID(avatar2.id), bytes, PutObjectRequest.builder())
 
     val bucketPath = KVLocationFromID(avatar2.id)
 

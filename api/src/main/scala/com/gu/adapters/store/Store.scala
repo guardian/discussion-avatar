@@ -3,23 +3,44 @@ package com.gu.adapters.store
 import java.io.ByteArrayInputStream
 import java.net.URL
 
-import com.amazonaws.regions.Region
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
-import com.amazonaws.services.dynamodbv2.document._
-import com.amazonaws.services.dynamodbv2.document.spec.{QuerySpec, UpdateItemSpec}
-import com.amazonaws.services.dynamodbv2.model._
-import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model._
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.s3.S3Client
 import com.gu.core.models.Errors._
 import com.gu.core.models.{Ascending, Avatar, Descending, Error, Errors, IOFailed, OrderBy, Status}
 import com.gu.core.store._
 import com.gu.core.utils.ErrorHandling._
 import com.gu.core.utils.{ISODateFormatter, KVLocationFromID}
 import org.joda.time.{DateTime, DateTimeZone}
-
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 import com.gu.auth.AWSCredentials
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
+import software.amazon.awssdk.services.s3.model.Delete
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier
+import software.amazon.awssdk.services.s3.model.S3Exception
+import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+import scala.concurrent.duration._
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse
+import software.amazon.awssdk.services.sns.model.InvalidStateException
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest
+import software.amazon.awssdk.services.dynamodb.model.AttributeValueUpdate
+import software.amazon.awssdk.services.dynamodb.model.AttributeAction
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest
+import software.amazon.awssdk.services.dynamodb.model.WriteRequest
+import software.amazon.awssdk.services.dynamodb.model.DeleteRequest
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse
 
 case class DynamoProperties(
   pageSize: Int,
@@ -35,128 +56,162 @@ object DynamoProperties {
   )
 }
 
-case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends KVStore {
+case class Dynamo(client: DynamoDbClient, fs: FileStore, props: DynamoProperties) extends KVStore {
 
-  def asAvatar(item: Item): Either[Error, Avatar] = {
-    val avatarId = item.getString("AvatarId")
-    val location = KVLocationFromID(avatarId)
-
+  def asAvatar(item: Map[String, AttributeValue]): Either[Error, Avatar] = {
     for {
+      avatarId <- item.get("AvatarId").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: AvatarId")))
+      userId <- item.get("UserId").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: UserId")))
+      originalFilename <- item.get("OriginalFilename").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: OriginalFilename")))
+      status <- item.get("Status").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: Status")))
+      createdAt <- item.get("CreatedAt").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: CreatedAt")))
+      lastModified <- item.get("LastModified").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: LastModified")))
+      isSocial <- item.get("IsSocial").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: IsSocial")))
+      isActive <- item.get("IsActive").toRight(Errors.dynamoRequestFailed(List("Dynamo response missing: IsActive")))
+
+      location = KVLocationFromID(avatarId.s())
       secureUrl <- fs.presignedUrl(props.processedBucket, location)
       secureRawUrl <- fs.presignedUrl(props.rawBucket, location)
     } yield {
       Avatar(
-        id = avatarId,
+        id = avatarId.s(),
         avatarUrl = secureUrl.toString,
-        userId = item.getString("UserId"),
-        originalFilename = item.getString("OriginalFilename"),
+        userId = userId.n(),
+        originalFilename = originalFilename.s(),
         rawUrl = secureRawUrl.toString,
-        status = Status(item.getString("Status")),
-        createdAt = ISODateFormatter.parse(item.getString("CreatedAt")),
-        lastModified = ISODateFormatter.parse(item.getString("LastModified")),
-        isSocial = item.getString("IsSocial").toBoolean,
-        isActive = item.getString("IsActive").toBoolean
+        status = Status(status.s()),
+        createdAt = ISODateFormatter.parse(createdAt.s()),
+        lastModified = ISODateFormatter.parse(lastModified.s()),
+        isSocial = isSocial.bool(),
+        isActive = isActive.bool()
       )
     }
   }
 
   def get(table: String, id: String): Either[Error, Avatar] = {
-    handleIoErrors(db.getTable(table).getItem("AvatarId", id))
+    val request = GetItemRequest.builder()
+      .tableName(table)
+      .key(Map("AvatarId" -> AttributeValue.builder().s(id).build()).asJava)
+      .build()
+
+    handleIoErrors(client.getItem(request))
       .filterOrElse(_ != null, avatarNotFound(List(s"avatar with ID: $id not found"))) // getItem can return null alas
-      .map(item => asAvatar(item).toOption.get)
+      .map(item => asAvatar(item.item().asScala.toMap).toOption.get)
   }
 
   def query[A](
     table: String,
     index: String,
     key: String,
-    value: A,
+    value: AttributeValue,
     since: Option[DateTime] = None,
     until: Option[DateTime] = None,
     order: Option[OrderBy] = Some(Descending)
   ): Either[Error, QueryResponse] = {
-
-    val spec = new QuerySpec()
-      .withHashKey(key, value)
-      .withMaxResultSize(props.pageSize)
-
-    val hasBefore = until.isDefined
     val oldestFirst = order.contains(Ascending)
+    val hasBefore = until.isDefined
 
-    if (hasBefore && oldestFirst) {
-      until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-      spec.withScanIndexForward(false)
-    } else if (!hasBefore && oldestFirst) {
-      since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
-      spec.withScanIndexForward(true)
-    } else if (hasBefore) {
-      until.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").gt(ISODateFormatter.print(t))))
-      spec.withScanIndexForward(true)
-    } else if (!hasBefore) {
-      since.foreach(t => spec.withRangeKeyCondition(new RangeKeyCondition("LastModified").lt(ISODateFormatter.print(t))))
-      spec.withScanIndexForward(false)
+    val querySpec = (hasBefore, oldestFirst) match {
+      case (true, true) =>   (until.map(t => (s"AND LastModified < :until", Map(":until" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), false)
+      case (false, true) =>  (since.map(t => (s"AND LastModified > :since", Map(":since" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), true)
+      case (true, false) =>  (until.map(t => (s"AND LastModified > :until", Map(":until" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), true)
+      case (false, false) => (since.map(t => (s"AND LastModified < :since", Map(":since" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), false)
     }
 
-    val result = handleIoErrors(db.getTable(table).getIndex(index).query(spec))
+    val keyConditionExpressionAndValue = querySpec._1.getOrElse(
+      (
+        "",
+        Map.empty[String, AttributeValue]
+      )
+    )
+
+    val query = QueryRequest.builder()
+      .tableName(table)
+      .indexName(index)
+      .keyConditionExpression(s"#key = :value ${keyConditionExpressionAndValue._1}")
+      .expressionAttributeNames(Map(
+        "#key" -> key
+      ).asJava)
+      .expressionAttributeValues(
+        (Map(":value" -> value) ++ keyConditionExpressionAndValue._2).asJava
+      )
+      .scanIndexForward(querySpec._2)
+      .limit(props.pageSize)
+
+    val result = handleIoErrors(client.query(query.build()))
 
     for {
-      pages <- result.map(_.pages.asScala.toList)
-      qr <- result.map(_.getLastLowLevelResult.getQueryResult)
-      items = pages.flatMap(_.asScala)
-      avatars = items.map(item => asAvatar(item)).flatMap(_.toOption)
+      qr <- result.map(_.lastEvaluatedKey())
+      items <- result.map(_.items().asScala)
+      avatars = items.map(item => asAvatar(item.asScala.toMap)).flatMap(_.toOption)
     } yield {
-      val orderedAvatars = until.map(_ => avatars.reverse).getOrElse(avatars)
-      QueryResponse(orderedAvatars, qr.getLastEvaluatedKey != null)
+      val orderedAvatars = until.map(_ => avatars.reverse).getOrElse(avatars).toList
+      QueryResponse(orderedAvatars, true)
     }
   }
 
   def query(table: String, index: String, userId: String, since: Option[DateTime], until: Option[DateTime]): Either[Error, QueryResponse] = {
-    query(table, index, "UserId", userId.toInt, since, until)
+    query(table, index, "UserId", AttributeValue.fromN(userId), since, until)
   }
 
   def query(table: String, index: String, status: Status, since: Option[DateTime], until: Option[DateTime], order: Option[OrderBy]): Either[Error, QueryResponse] = {
-    query(table, index, "Status", status.asString, since, until, order)
+    query(table, index, "Status", AttributeValue.fromS(status.asString), since, until, order)
   }
 
   def put(table: String, avatar: Avatar): Either[Error, Avatar] = {
-    val item = new Item()
-      .withPrimaryKey("AvatarId", avatar.id)
-      .withNumber("UserId", avatar.userId.toInt)
-      .withString("OriginalFilename", avatar.originalFilename)
-      .withString("Status", avatar.status.asString)
-      .withString("CreatedAt", ISODateFormatter.print(avatar.createdAt))
-      .withString("LastModified", ISODateFormatter.print(avatar.lastModified))
-      .withBoolean("IsSocial", avatar.isSocial)
-      .withBoolean("IsActive", avatar.isActive)
+    val request = PutItemRequest.builder()
+      .tableName(table)
+      .item(Map(
+        "AvatarId" -> AttributeValue.builder().s(avatar.id).build,
+        "UserId" -> AttributeValue.builder().n(avatar.userId.toInt.toString).build,
+        "OriginalFilename" -> AttributeValue.builder().s(avatar.originalFilename).build,
+        "Status" -> AttributeValue.builder().s(avatar.status.asString).build,
+        "CreatedAt" -> AttributeValue.builder().s(ISODateFormatter.print(avatar.createdAt)).build,
+        "LastModified" -> AttributeValue.builder().s(ISODateFormatter.print(avatar.lastModified)).build,
+        "IsSocial" -> AttributeValue.builder().bool(avatar.isSocial).build,
+        "IsActive" -> AttributeValue.builder().bool(avatar.isActive).build
+      ).asJava)
+      .build()
 
-    handleIoErrors(db.getTable(table).putItem(item)) map (_ => avatar)
+    handleIoErrors(client.putItem(request)) map (_ => avatar)
   }
 
   def update(table: String, id: String, status: Status, isActive: Boolean = false): Either[Error, Avatar] = {
     val now = DateTime.now(DateTimeZone.UTC)
-    val spec = new UpdateItemSpec()
-      .withPrimaryKey("AvatarId", id)
-      .withAttributeUpdate(
-        new AttributeUpdate("Status").put(status.asString),
-        new AttributeUpdate("IsActive").put(isActive),
-        new AttributeUpdate("LastModified").put(ISODateFormatter.print(now))
-      )
-      .withReturnValues(ReturnValue.ALL_NEW)
+    val request = UpdateItemRequest.builder()
+      .tableName(table)
+      .key(Map("AvatarId" -> AttributeValue.builder().s(id).build).asJava)
+      .attributeUpdates(Map(
+        "Status" -> AttributeValueUpdate.builder()
+          .action(AttributeAction.PUT)
+          .value(AttributeValue.builder().s(status.asString).build())
+          .build(),
+        "IsActive" -> AttributeValueUpdate.builder()
+          .action(AttributeAction.PUT)
+          .value(AttributeValue.builder().bool(isActive).build())
+          .build(),
+        "LastModified" -> AttributeValueUpdate.builder()
+          .action(AttributeAction.PUT)
+          .value(AttributeValue.builder().s(ISODateFormatter.print(now)).build())
+          .build()
+      ).asJava)
+      .returnValues(ReturnValue.ALL_NEW)
+      .build()
     for {
-      item <- handleIoErrors(db.getTable(table).updateItem(spec)).map(_.getItem)
+      item <- handleIoErrors(client.updateItem(request)).map(_.attributes().asScala.toMap)
       avatar <- asAvatar(item)
     } yield avatar
   }
 
   def delete(table: String, ids: List[String]): Either[Error, DeleteResponse] = {
-    def check(r: BatchWriteItemResult): Either[Error, BatchWriteItemResult] = {
+    def check(r: BatchWriteItemResponse): Either[Error, BatchWriteItemResponse] = {
       val errors: List[String] = r
-        .getUnprocessedItems
+        .unprocessedItems()
         .asScala
         .get(table)
         .toSeq
         .flatMap(_.iterator().asScala)
-        .map(_.getDeleteRequest.getKey.get("AvatarId").getS)
+        .map(_.deleteRequest().key().get("AvatarId").s())
         .toList
 
       if (errors.nonEmpty) {
@@ -166,9 +221,18 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
       }
     }
     def delete() = {
-      val deleteRequest = new TableWriteItems(table).addHashOnlyPrimaryKeysToDelete("AvatarId", ids: _*)
+      val deleteRequests = ids.map(id => WriteRequest.builder().deleteRequest(
+        DeleteRequest.builder()
+          .key(Map("AvatarId" -> AttributeValue.builder().s(id).build()).asJava)
+          .build()
+      ).build()).asJava;
+
+      val request = BatchWriteItemRequest.builder()
+        .requestItems(Map(table -> deleteRequests).asJava)
+        .build()
+
       for {
-        response <- handleIoErrors(db.batchWriteItem(deleteRequest)).map(_.getBatchWriteItemResult)
+        response <- handleIoErrors(client.batchWriteItem(request))
         _ <- check(response)
       } yield DeleteResponse(ids)
     }
@@ -182,17 +246,22 @@ case class Dynamo(db: DynamoDB, fs: FileStore, props: DynamoProperties) extends 
 
 object Dynamo {
   def apply(awsRegion: Region, props: DynamoProperties): Dynamo = {
-    val client = new AmazonDynamoDBClient(AWSCredentials.awsCredentials)
-    client.setRegion(awsRegion)
-    Dynamo(new DynamoDB(client), S3(awsRegion), props)
+    val client = DynamoDbClient.builder()
+      .credentialsProvider(AWSCredentials.awsCredentials)
+      .region(awsRegion).build()
+    Dynamo(client, S3(awsRegion), props)
   }
 }
 
-case class S3(client: AmazonS3Client) extends FileStore {
+case class S3(client: S3Client, presignerClient: S3Presigner) extends FileStore {
 
-  def getMetadata(bucket: String, key: String): Either[Error, ObjectMetadata] = {
-    val request = new GetObjectMetadataRequest(bucket, key)
-    Right(client.getObjectMetadata(request))
+  def getMetadata(bucket: String, key: String): Either[Error, Map[String, String]] = {
+    val request = HeadObjectRequest.builder()
+      .bucket(bucket)
+      .key(key)
+      .build()
+
+    Right(client.headObject(request).metadata().asScala.toMap)
   }
 
   def copy(
@@ -202,7 +271,13 @@ case class S3(client: AmazonS3Client) extends FileStore {
     toKey: String
   ): Either[Error, Unit] = {
 
-    val request = new CopyObjectRequest(fromBucket, fromKey, toBucket, toKey)
+    val request = CopyObjectRequest.builder()
+      .sourceBucket(fromBucket)
+      .sourceKey(fromKey)
+      .destinationBucket(toBucket)
+      .destinationKey(toKey)
+      .build()
+
     handleIoErrors(client.copyObject(request))
   }
 
@@ -210,29 +285,30 @@ case class S3(client: AmazonS3Client) extends FileStore {
     bucket: String,
     key: String,
     file: Array[Byte],
-    metadata: ObjectMetadata
+    metadata: PutObjectRequest.Builder
   ): Either[Error, Unit] = {
+    val request = metadata
+      .bucket(bucket)
+      .key(key)
+      .contentLength(file.length)
+      .build()
 
-    val inputStream = new ByteArrayInputStream(file)
-    metadata.setContentLength(file.length)
-    val request = new PutObjectRequest(bucket, key, inputStream, metadata)
-    handleIoErrors(client.putObject(request))
+    handleIoErrors(client.putObject(request, RequestBody.fromBytes(file)))
   }
 
   def delete(bucket: String, keys: String*): Either[Error, Unit] = {
     if (keys.nonEmpty) {
-      val request = new DeleteObjectsRequest(bucket).withKeys(keys: _*)
+      val toDelete = Delete.builder()
+        .objects(keys.map(ObjectIdentifier.builder().key(_).build()).asJava)
+        .build()
+      val request = DeleteObjectsRequest.builder()
+        .bucket(bucket).delete(toDelete).build()
       val resp = Try(client.deleteObjects(request))
 
       // We need to unpack MultiObjectDeleteExceptions to ensure errors
       // returned/logged are useful
       val withErrors = resp match {
         case Success(_) => Right(())
-        case Failure(ex: MultiObjectDeleteException) =>
-          val errors = ex.getErrors.asScala.toList
-            .map(ex => s"Unable to delete object '${ex.getKey}' from bucket '$bucket', reason: ${ex.getMessage}")
-            .mkString(", ")
-          Left(Errors.ioFailed(List(errors)))
         case Failure(err) => Left(ioError(err))
       }
 
@@ -245,19 +321,34 @@ case class S3(client: AmazonS3Client) extends FileStore {
 
   def presignedUrl(
     bucket: String,
-    key: String,
-    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
+    key: String
   ): Either[Error, URL] = {
-    val request = new GeneratePresignedUrlRequest(bucket, key)
-    request.setExpiration(expiration.toDate)
-    handleIoErrors(client.generatePresignedUrl(request))
+    val request = GetObjectPresignRequest.builder()
+      .getObjectRequest(
+        GetObjectRequest.builder()
+          .bucket(bucket)
+          .key(key)
+          .build()
+      )
+      .signatureDuration(java.time.Duration.ofMinutes(20))
+      .build()
+
+    handleIoErrors(presignerClient.presignGetObject(request).url())
   }
 }
 
 object S3 {
   def apply(awsRegion: Region): S3 = {
-    val client = new AmazonS3Client(AWSCredentials.awsCredentials)
-    client.setRegion(awsRegion)
-    S3(client)
+    val client = S3Client.builder()
+      .credentialsProvider(AWSCredentials.awsCredentials)
+      .region(awsRegion)
+      .build()
+
+    val presignerClient = S3Presigner.builder()
+      .credentialsProvider(AWSCredentials.awsCredentials)
+      .region(awsRegion)
+      .build()
+
+    S3(client, presignerClient)
   }
 }

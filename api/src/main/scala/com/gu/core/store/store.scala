@@ -3,8 +3,6 @@ package com.gu.core.store
 import java.net.URL
 import java.util.UUID
 
-import com.amazonaws.regions.Region
-import com.amazonaws.services.s3.model.ObjectMetadata
 import com.gu.core.models.Errors._
 import com.gu.core.models._
 import com.gu.core.utils.ErrorHandling.logIfError
@@ -13,6 +11,10 @@ import com.typesafe.scalalogging.LazyLogging
 import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.util.Try
+import scala.jdk.CollectionConverters._
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.regions.Region
 
 case class QueryResponse(
   avatars: List[Avatar],
@@ -44,15 +46,14 @@ trait FileStore {
     bucket: String,
     key: String,
     file: Array[Byte],
-    metadata: ObjectMetadata
+    metadata: PutObjectRequest.Builder
   ): Either[Error, Unit]
 
   def delete(bucket: String, keys: String*): Either[Error, Unit]
 
   def presignedUrl(
     bucket: String,
-    key: String,
-    expiration: DateTime = DateTime.now(DateTimeZone.UTC).plusMinutes(20)
+    key: String
   ): Either[Error, URL]
 }
 
@@ -254,14 +255,17 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
     } yield UserDeleted(user, resources)
   }
 
-  private[this] def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): ObjectMetadata = {
-    val metadata = new ObjectMetadata()
-    metadata.addUserMetadata("avatar-id", avatarId.toString)
-    metadata.addUserMetadata("user-id", user.toString)
-    metadata.addUserMetadata("original-filename", EscapedUnicode(originalFilename))
-    metadata.setCacheControl("max-age=3600")
-    metadata.setContentType(mimeType)
-    metadata
+  private[this] def objectMetadata(avatarId: UUID, user: User, originalFilename: String, mimeType: String): PutObjectRequest.Builder = {
+    PutObjectRequest.builder()
+      .metadata(Map(
+        "avatar-id" -> avatarId.toString,
+        "user-id" -> user.id.toString,
+        "original-filename" -> EscapedUnicode(originalFilename)
+      ).asJava)
+      .cacheControl("max-age=3600")
+      .contentType(mimeType)
+      .bucket(incomingBucket)
+      .key(KVLocationFromID(avatarId.toString))
   }
 
   private[this] def deletePublicAvatarFile(userId: String): Either[Error, String] = {

@@ -1,11 +1,11 @@
 package com.gu.adapters.config
 
-import com.amazonaws.regions.{Region, Regions}
 import com.gu.adapters.http.AvatarServletProperties
 import com.gu.adapters.notifications.SnsProperties
 import com.gu.adapters.queue.SqsDeletionConsumerProps
 import com.gu.core.store.StoreProperties
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import software.amazon.awssdk.regions.Region
 
 case class Config(
   avatarServletProperties: AvatarServletProperties,
@@ -40,7 +40,7 @@ object Config {
 
   protected def storeProperties(conf: TypesafeConfig): StoreProperties =
     StoreProperties(
-      awsRegion = Region.getRegion(Regions.fromName(conf.getString("aws.region"))),
+      awsRegion = Region.of(conf.getString("aws.region")),
       kvTable = conf.getString("aws.dynamodb.table"),
       fsIncomingBucket = conf.getString("aws.s3.incoming"),
       pageSize = pageSize,

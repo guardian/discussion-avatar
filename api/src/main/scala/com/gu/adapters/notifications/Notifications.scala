@@ -2,11 +2,6 @@ package com.gu.adapters.notifications
 
 import java.util.concurrent.Executors
 
-import com.amazonaws.ClientConfiguration
-import com.amazonaws.handlers.AsyncHandler
-import com.amazonaws.regions.Region
-import com.amazonaws.services.sns.AmazonSNSAsyncClient
-import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.gu.auth.AWSCredentials
 import com.gu.core.models.{Avatar, CreatedAvatar}
 import com.typesafe.scalalogging.LazyLogging
@@ -14,32 +9,44 @@ import org.json4s.native.{compactJson, renderJValue}
 import org.json4s.{DefaultFormats, Extraction}
 
 import scala.concurrent.{Future, Promise}
+import software.amazon.awssdk.services.sns.SnsAsyncClient
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.core.client.config.ClientAsyncConfiguration
+import software.amazon.awssdk.services.sns.model.PublishRequest
+import software.amazon.awssdk.services.sns.SnsClient
+import scala.concurrent.ExecutionContext
+import scala.util.Try
+import scala.util.Failure
 
 trait Publisher {
-  def publish(arn: String, msg: String, subject: String): Future[String]
+  def publish(arn: String, msg: String, subject: String): Future[Unit]
 }
 
 case class SnsProperties(awsRegion: Region, snsTopicArn: String)
 
 class SNS(props: SnsProperties) extends Publisher with LazyLogging {
-  val snsClient = new AmazonSNSAsyncClient(AWSCredentials.awsCredentials, new ClientConfiguration(), Executors.newCachedThreadPool())
-  snsClient.setRegion(props.awsRegion)
+  val snsClient = SnsClient.builder()
+    .credentialsProvider(AWSCredentials.awsCredentials)
+    .region(props.awsRegion)
+    .build()
 
-  def publish(arn: String, msg: String, subject: String): Future[String] = {
-    val request = new PublishRequest(props.snsTopicArn, msg, subject)
-    val p = Promise[String]()
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
 
-    snsClient.publishAsync(request, new AsyncHandler[PublishRequest, PublishResult]() {
-      override def onError(e: Exception) = {
-        logger.error(s"message to $arn has not been sent: $msg", e)
-        p.failure(e)
-      }
-      override def onSuccess(request: PublishRequest, result: PublishResult) {
-        p.success(result.getMessageId)
-      }
-    })
+  def publish(arn: String, msg: String, subject: String): Future[Unit] = {
+    val request = PublishRequest.builder()
+      .topicArn(props.snsTopicArn)
+      .message(msg)
+      .subject(subject)
+      .build()
 
-    p.future
+    Future {
+      snsClient.publish(request)
+      ()
+    }.recover {
+      case e: Throwable =>
+        logger.error(s"Message to $arn has not been sent: $msg", e)
+        throw e
+    }
   }
 }
 
@@ -50,7 +57,7 @@ object Notifications {
     compactJson(renderJValue(Extraction.decompose(avatar)))
   }
 
-  def publishAvatar(publisher: Publisher, snsTopicArn: String, eventType: String, avatar: CreatedAvatar): Future[String] = {
+  def publishAvatar(publisher: Publisher, snsTopicArn: String, eventType: String, avatar: CreatedAvatar): Future[Unit] = {
     val subject = eventType
     val msg: String = createAvatarMessage(avatar.body)
     publisher.publish(snsTopicArn, msg, subject)
