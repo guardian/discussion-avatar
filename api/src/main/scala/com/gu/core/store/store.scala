@@ -101,10 +101,16 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
         since,
         None
       )
-      logger.info(s"still looping for ${user.id}")
       resp match {
-        case Right(found) if found.hasMore => loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
-        case Right(last) => Right(FoundAvatars(body = acc ::: last.avatars, hasMore = false))
+        case Right(found) if found.hasMore => {
+          logger.info(s"still has more: user ${user.id}, avatars ${found.avatars.map(_.avatarUrl)}")
+          loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
+        }
+        case Right(last) => {
+          logger.info(s"last one: user ${user.id}, avatars ${last.avatars.map(_.avatarUrl)}")
+
+          Right(FoundAvatars(body = acc ::: last.avatars, hasMore = false))
+        }
         case Left(error) => Left(error)
       }
     }
