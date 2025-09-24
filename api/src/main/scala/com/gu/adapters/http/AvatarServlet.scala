@@ -113,11 +113,14 @@ class AvatarServlet(
   }
 
   apiPut("/avatars/user/:userId/cleanup", operation(cleanupUser)) { _ =>
-    for {
+    logger.info("running cleanup")
+    val a = for {
       user <- User.userFromId(params("userId"))
       deleted <- store.cleanupInactive(user)
       req = Req(apiUrl, request.getPathInfo)
     } yield (deleted, req)
+    logger.info("cleanup done with result $a")
+    a
   }
 
   get("/") {

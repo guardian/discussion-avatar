@@ -92,6 +92,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
 
   // Beware - everything about this function assumes small n
   def getAll(user: User): Either[Error, FoundAvatars] = {
+    logger.info(s"getting all for $user")
     def loop(acc: List[Avatar], since: Option[DateTime]): Either[Error, FoundAvatars] = {
       val resp = kvs.query(
         dynamoTable,
@@ -100,7 +101,7 @@ case class AvatarStore(fs: FileStore, kvs: KVStore, props: StoreProperties) exte
         since,
         None
       )
-
+      logger.info(s"looping for resp: $resp")
       resp match {
         case Right(found) if found.hasMore => loop(acc ::: found.avatars, found.avatars.lastOption.map(_.lastModified))
         case Right(last) => Right(FoundAvatars(body = acc ::: last.avatars, hasMore = false))
