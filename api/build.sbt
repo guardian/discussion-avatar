@@ -21,7 +21,7 @@ val servletApiVersion = "6.0.0"
 val identityVersion = "4.31"
 val typesafeConfigVersion = "1.4.5"
 val amazonawsVersion = "2.34.5"
-val scalaLoggingVersion = "3.9.5"
+val scalaLoggingVersion = "3.9.6"
 val apacheCommonsVersion = "3.17.0"
 
 val guardianReleases =
