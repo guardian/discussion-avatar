@@ -11,18 +11,18 @@ name := "avatar-api"
 version := "1.0"
 scalaVersion := "2.13.16"
 
-val ScalatraVersion = "3.1.1"
-val jettyVersion = "12.0.20"
+val ScalatraVersion = "3.1.2"
+val jettyVersion = "12.0.27"
 val json4sVersion = "4.0.7"
 val logbackVersion = "1.5.18"
 val logbackAccessVersion = "2.0.6"
 val logstashEncoderVersion = "8.1"
-val servletApiVersion = "6.0.0"
+val servletApiVersion = "6.1.0"
 val identityVersion = "4.31"
-val typesafeConfigVersion = "1.4.3"
+val typesafeConfigVersion = "1.4.5"
 val amazonawsVersion = "2.34.5"
-val scalaLoggingVersion = "3.9.5"
-val apacheCommonsVersion = "3.17.0"
+val scalaLoggingVersion = "3.9.6"
+val apacheCommonsVersion = "3.19.0"
 
 val guardianReleases =
   "Guardian releases" at "https://guardian.github.io/maven/repo-releases"
@@ -47,7 +47,7 @@ libraryDependencies ++= Seq(
   "org.json4s" %% "json4s-ext" % json4sVersion,
   "org.scalatra" %% "scalatra-json-jakarta" % ScalatraVersion,
   "org.scalatra" %% "scalatra-scalatest-jakarta" % ScalatraVersion % Test,
-  "org.mockito" % "mockito-core" % "5.17.0" % Test,
+  "org.mockito" % "mockito-core" % "5.20.0" % Test,
   "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
   "org.scalatra" %% "scalatra-swagger-jakarta" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
@@ -59,14 +59,14 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.2"
 )
 
 // Transient Dependency Overrides
 dependencyOverrides ++= Seq(
   // identity-auth-core depends on jackson-module-scala 2.15 which forces Jackson 2.15
   // Should be fairly safe to override to 2.18.3
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.3"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.4"
 )
 
 // Exclude all transitive Akka dependencies
