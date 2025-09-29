@@ -12,7 +12,7 @@ version := "1.0"
 scalaVersion := "2.13.16"
 
 val ScalatraVersion = "3.1.1"
-val jettyVersion = "12.0.20"
+val jettyVersion = "12.0.27"
 val json4sVersion = "4.0.7"
 val logbackVersion = "1.5.18"
 val logbackAccessVersion = "2.0.6"
