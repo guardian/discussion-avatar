@@ -66,7 +66,7 @@ libraryDependencies ++= Seq(
 dependencyOverrides ++= Seq(
   // identity-auth-core depends on jackson-module-scala 2.15 which forces Jackson 2.15
   // Should be fairly safe to override to 2.18.3
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.3"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.4"
 )
 
 // Exclude all transitive Akka dependencies
