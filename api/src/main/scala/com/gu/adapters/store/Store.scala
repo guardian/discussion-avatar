@@ -142,11 +142,12 @@ case class Dynamo(client: DynamoDbClient, fs: FileStore, props: DynamoProperties
 
     for {
       qr <- result.map(_.lastEvaluatedKey())
+      hasMore = !qr.isEmpty
       items <- result.map(_.items().asScala)
       avatars = items.map(item => asAvatar(item.asScala.toMap)).flatMap(_.toOption)
     } yield {
       val orderedAvatars = until.map(_ => avatars.reverse).getOrElse(avatars).toList
-      QueryResponse(orderedAvatars, true)
+      QueryResponse(orderedAvatars, hasMore)
     }
   }
 
