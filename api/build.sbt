@@ -47,7 +47,7 @@ libraryDependencies ++= Seq(
   "org.json4s" %% "json4s-ext" % json4sVersion,
   "org.scalatra" %% "scalatra-json-jakarta" % ScalatraVersion,
   "org.scalatra" %% "scalatra-scalatest-jakarta" % ScalatraVersion % Test,
-  "org.mockito" % "mockito-core" % "5.17.0" % Test,
+  "org.mockito" % "mockito-core" % "5.20.0" % Test,
   "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
   "org.scalatra" %% "scalatra-swagger-jakarta" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
