@@ -13,7 +13,7 @@ scalaVersion := "2.13.16"
 
 val ScalatraVersion = "3.1.1"
 val jettyVersion = "12.0.20"
-val json4sVersion = "4.0.7"
+val json4sVersion = "4.1.0"
 val logbackVersion = "1.5.18"
 val logbackAccessVersion = "2.0.6"
 val logstashEncoderVersion = "8.1"
@@ -42,9 +42,9 @@ libraryDependencies ++= Seq(
   "org.eclipse.jetty.ee10" % "jetty-ee10-servlet" % jettyVersion,
   "org.eclipse.jetty" % "jetty-plus" % jettyVersion,
   "jakarta.servlet" % "jakarta.servlet-api" % servletApiVersion,
-  "org.json4s" %% "json4s-native" % json4sVersion,
-  "org.json4s" %% "json4s-jackson" % json4sVersion,
-  "org.json4s" %% "json4s-ext" % json4sVersion,
+  "io.github.json4s" %% "json4s-native" % json4sVersion,
+  "io.github.json4s" %% "json4s-jackson" % json4sVersion,
+  "io.github.json4s" %% "json4s-ext" % json4sVersion,
   "org.scalatra" %% "scalatra-json-jakarta" % ScalatraVersion,
   "org.scalatra" %% "scalatra-scalatest-jakarta" % ScalatraVersion % Test,
   "org.mockito" % "mockito-core" % "5.17.0" % Test,
