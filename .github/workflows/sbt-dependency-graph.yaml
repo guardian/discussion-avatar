@@ -16,7 +16,7 @@ jobs:
         uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
           distribution: corretto
-          java-version: 17
+          java-version: 21
       - name: Install sbt
         id: sbt
         uses: sbt/setup-sbt@17575ea4e18dd928fe5968dbe32294b97923d65b # v1.1.13
