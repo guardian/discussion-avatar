@@ -11,7 +11,7 @@ name := "avatar-api"
 version := "1.0"
 scalaVersion := "2.13.16"
 
-val ScalatraVersion = "3.1.1"
+val ScalatraVersion = "3.1.2"
 val jettyVersion = "12.0.20"
 val json4sVersion = "4.0.7"
 val logbackVersion = "1.5.18"
