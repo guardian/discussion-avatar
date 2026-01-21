@@ -22,7 +22,7 @@ jobs:
         uses: sbt/setup-sbt@a627500d27445f8c5021755a439829b6e78e3358 # v1.1.15
       - name: Submit dependencies
         id: submit
-        uses: scalacenter/sbt-dependency-submission@768f9b6dc79b0f5f2d103a706681fa6e206b86bc # v3.2.0
+        uses: scalacenter/sbt-dependency-submission@f43202114d7522a4b233e052f82c2eea8d658134 # v3.2.1
         with:
           working-directory: ./api
       - name: Log snapshot for user validation
