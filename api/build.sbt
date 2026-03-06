@@ -12,7 +12,7 @@ version := "1.0"
 scalaVersion := "2.13.16"
 
 val ScalatraVersion = "3.1.1"
-val jettyVersion = "12.0.20"
+val jettyVersion = "12.0.32"
 val json4sVersion = "4.0.7"
 val logbackVersion = "1.5.18"
 val logbackAccessVersion = "2.0.6"
@@ -65,8 +65,8 @@ libraryDependencies ++= Seq(
 // Transient Dependency Overrides
 dependencyOverrides ++= Seq(
   // identity-auth-core depends on jackson-module-scala 2.15 which forces Jackson 2.15
-  // Should be fairly safe to override to 2.18.3
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.3"
+  // Should be fairly safe to override to 2.18.6
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
 )
 
 // Exclude all transitive Akka dependencies
