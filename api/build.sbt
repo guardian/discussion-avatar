@@ -59,14 +59,9 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0"
-)
-
-// Transient Dependency Overrides
-dependencyOverrides ++= Seq(
-  // identity-auth-core depends on jackson-module-scala 2.15 which forces Jackson 2.15
-  // Should be fairly safe to override to 2.18.6
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
+  // brough it directly to ensure minimum jackson version
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.4"
 )
 
 // Exclude all transitive Akka dependencies
