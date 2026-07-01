@@ -2,6 +2,7 @@ package com.gu.adapters.http
 
 import cats.effect.IO
 import com.gu.core.models.{Errors, User}
+import com.gu.identity.auth.IdentityClient.AuthResponse
 import com.gu.identity.auth._
 import org.mockito.Mockito._
 import org.scalatest.funsuite.AnyFunSuite
@@ -11,7 +12,7 @@ import org.scalatestplus.mockito.MockitoSugar
 class AuthenticationTests extends AnyFunSuite with Matchers with MockitoSugar {
 
   trait Mocks {
-    val idapiAuthService: IdapiAuthService = mock[IdapiAuthService]
+    val idapiAuthService: IdapiAuthService[IO] = mock[IdapiAuthService[IO]]
     val oktaLocalValidator: OktaLocalAccessTokenValidator = mock[OktaLocalAccessTokenValidator]
     val authenticationService = new AuthenticationService(idapiAuthService, oktaLocalValidator)
   }
@@ -20,7 +21,7 @@ class AuthenticationTests extends AnyFunSuite with Matchers with MockitoSugar {
     new Mocks {
       val scGuUCookie = "sc-gu-u-cookie"
       val credentials = IdapiUserCredentials.SCGUUCookie(scGuUCookie)
-      when(idapiAuthService.authenticateUser(credentials)).thenReturn(IO("identity-id"))
+      when(idapiAuthService.authenticateUser(credentials)).thenReturn(IO(Right(AuthResponse("identity-id"))))
       authenticationService.authenticateUser(
         Some(scGuUCookie),
         None,

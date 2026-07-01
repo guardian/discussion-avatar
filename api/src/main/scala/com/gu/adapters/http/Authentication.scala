@@ -1,13 +1,17 @@
 package com.gu.adapters.http
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import com.gu.adapters.config.IdentityConfig
 import com.gu.core.models.Errors._
 import com.gu.core.models.{Error, User}
-import com.gu.identity.auth.{AccessToken, IdapiAuthConfig, IdapiAuthService, IdapiUserCredentials, OktaAudience, OktaIssuerUrl, OktaLocalAccessTokenValidator, OktaTokenValidationConfig, AccessScope => IdentityAccessScope}
+import com.gu.identity.auth.{AccessToken, CatsUtils, IdapiAuthConfig, IdapiAuthService, IdapiUserCredentials, OktaAudience, OktaIssuerUrl, OktaLocalAccessTokenValidator, OktaTokenValidationConfig, AccessScope => IdentityAccessScope}
 import com.typesafe.scalalogging.LazyLogging
-import org.http4s.Uri
+import sttp.client4.WebSocketBackend
+import sttp.client4.httpclient.cats.HttpClientCatsBackend
+import sttp.model.Uri
+import sttp.monad.MonadError
 
 import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 import scala.concurrent.ExecutionContext
@@ -51,7 +55,7 @@ object AccessScope {
 }
 
 class AuthenticationService(
-  idapiAuthService: IdapiAuthService,
+  idapiAuthService: IdapiAuthService[IO],
   oktaLocalValidator: OktaLocalAccessTokenValidator
 ) {
   private def authenticateUserWithIdapi(
@@ -66,14 +70,14 @@ class AuthenticationService(
         )
       )
       credentials = IdapiUserCredentials.SCGUUCookie(value)
-      identityId <- idapiAuthService.authenticateUser(credentials)
-    } yield identityId
+      authResponse <- idapiAuthService.authenticateUser(credentials).flatMap(IO.fromEither(_))
+    } yield authResponse
 
     result
       .redeem(
         err =>
           Left(userAuthorizationFailed(List(err.getMessage)): Error),
-        identityId => Right(User(identityId))
+        authResponse => Right(User(authResponse.userId))
       )
       .unsafeRunSync()
   }
@@ -170,15 +174,12 @@ object AuthenticationService extends LazyLogging {
       case (c, i) => if (i < 3) c else '*'
     }.mkString
 
-    val uri = Uri.unsafeFromString(config.apiUrl)
+    val uri = Uri.unsafeParse(config.apiUrl)
 
     // Log parameters to be sure they are correct.
     logger.info(
       s"initialising identity auth service - url: $uri, access token: $scrubbedAccessToken"
     )
-
-    implicit val ec: ExecutionContext =
-      ExecutionContext.fromExecutorService(threadPool)
 
     val idapiAuthConfig = IdapiAuthConfig(
       identityApiUri = uri,
@@ -191,7 +192,10 @@ object AuthenticationService extends LazyLogging {
       clientId = None
     )
 
-    val identityAuthService = IdapiAuthService.unsafeInit(idapiAuthConfig)
+    implicit val backend: WebSocketBackend[IO] = HttpClientCatsBackend.resource[IO]().allocated.unsafeRunSync()._1
+    implicit val F: MonadError[IO] = backend.monad
+
+    val identityAuthService = IdapiAuthService.init(idapiAuthConfig)(backend, F)
 
     val oktaLocalValidator = OktaLocalAccessTokenValidator
       .fromConfig(oktaLocalConfig)
