@@ -112,9 +112,9 @@ case class Dynamo(client: DynamoDbClient, fs: FileStore, props: DynamoProperties
     val hasBefore = until.isDefined
 
     val querySpec = (hasBefore, oldestFirst) match {
-      case (true, true) =>   (until.map(t => (s"AND LastModified < :until", Map(":until" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), false)
-      case (false, true) =>  (since.map(t => (s"AND LastModified > :since", Map(":since" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), true)
-      case (true, false) =>  (until.map(t => (s"AND LastModified > :until", Map(":until" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), true)
+      case (true, true) => (until.map(t => (s"AND LastModified < :until", Map(":until" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), false)
+      case (false, true) => (since.map(t => (s"AND LastModified > :since", Map(":since" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), true)
+      case (true, false) => (until.map(t => (s"AND LastModified > :until", Map(":until" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), true)
       case (false, false) => (since.map(t => (s"AND LastModified < :since", Map(":since" -> AttributeValue.builder().s(ISODateFormatter.print(t)).build()))), false)
     }
 

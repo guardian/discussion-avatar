@@ -18,7 +18,7 @@ val logbackVersion = "1.5.18"
 val logbackAccessVersion = "2.0.6"
 val logstashEncoderVersion = "8.1"
 val servletApiVersion = "6.0.0"
-val identityVersion = "7.0.0"
+val identityVersion = "8.0.0-PREVIEW.sttp-spike-okta-client.2026-06-30T1535.7d357f1f"
 val typesafeConfigVersion = "1.4.3"
 val amazonawsVersion = "2.46.7"
 val scalaLoggingVersion = "3.9.5"
@@ -61,7 +61,9 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
   "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
   // brough it directly to ensure minimum jackson version
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.4"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.4",
+  "org.typelevel" %% "cats-effect" % "3.7.0"
+
 )
 
 // Exclude all transitive Akka dependencies
