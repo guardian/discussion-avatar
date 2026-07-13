@@ -21,7 +21,7 @@ class AuthenticationTests extends AnyFunSuite with Matchers with MockitoSugar {
     new Mocks {
       val scGuUCookie = "sc-gu-u-cookie"
       val credentials = IdapiUserCredentials.SCGUUCookie(scGuUCookie)
-      when(idapiAuthService.authenticateUser(credentials)).thenReturn(IO(Right(AuthResponse("identity-id"))))
+      when(idapiAuthService.authenticateUser(credentials)).thenReturn(IO("identity-id"))
       authenticationService.authenticateUser(
         Some(scGuUCookie),
         None,

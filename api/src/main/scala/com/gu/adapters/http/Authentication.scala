@@ -70,14 +70,14 @@ class AuthenticationService(
         )
       )
       credentials = IdapiUserCredentials.SCGUUCookie(value)
-      authResponse <- idapiAuthService.authenticateUser(credentials).flatMap(IO.fromEither(_))
-    } yield authResponse
+      identityId <- idapiAuthService.authenticateUser(credentials)
+    } yield identityId
 
     result
       .redeem(
         err =>
           Left(userAuthorizationFailed(List(err.getMessage)): Error),
-        authResponse => Right(User(authResponse.userId))
+        identityId => Right(User(identityId))
       )
       .unsafeRunSync()
   }
