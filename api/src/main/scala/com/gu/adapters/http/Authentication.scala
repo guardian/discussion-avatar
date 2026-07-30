@@ -11,7 +11,7 @@ import org.http4s.Uri
 
 import java.util.concurrent.{Executors, ThreadPoolExecutor, TimeUnit}
 import scala.concurrent.ExecutionContext
-
+import cats.effect.unsafe.implicits.global
 object TokenAuth {
 
   def isValidKey(
