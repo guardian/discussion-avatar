@@ -8,8 +8,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  scalafmt:
+    runs-on: ubuntu-latest
+
+    permissions:
+      # required by actions/checkout
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: guardian/setup-scala@v1
+
+      - run: sbt scalafmtCheckAll
+        working-directory: api
+
   CI:
     runs-on: ubuntu-latest
+    needs: scalafmt
 
     permissions:
       # required by actions/checkout
@@ -17,13 +32,11 @@ jobs:
       # required by guardian/actions-riff-raff
       pull-requests: write
       id-token: write
-    
+
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: guardian/setup-scala@v1
 
-      - run: sbt scalafmtCheckAll
-        working-directory: api
       - run: sbt clean compile
         working-directory: api
       - run: sbt test
