@@ -22,8 +22,8 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: guardian/setup-scala@v1
 
-      # TODO: Get scalafmt working
-      # - run: sbt scalafmtCheck
+      - run: sbt scalafmtCheckAll
+        working-directory: api
       - run: sbt clean compile
         working-directory: api
       - run: sbt test
