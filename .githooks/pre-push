@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+echo "Running scalafmt check before push..."
+cd "$repo_root/api"
+sbt scalafmtCheckAll
