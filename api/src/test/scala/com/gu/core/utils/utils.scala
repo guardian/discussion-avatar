@@ -19,9 +19,8 @@ class UnicodeEscapedFromFilename extends AnyFunSuite with Matchers {
     utils.EscapedUnicode(originalFilename) should be("\\u00FCe.JPG")
     val originalFilename2 = "helloworld.JPG"
     utils.EscapedUnicode(originalFilename2) should be("helloworld.JPG")
-    //Arabic
+    // Arabic
     val originalFilename3 = "\u063A.JPG"
     utils.EscapedUnicode(originalFilename3) should be("\\u063A.JPG")
   }
 }
-

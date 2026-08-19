@@ -19,7 +19,7 @@ object AvatarApiInfo extends ApiInfo(
   license = LicenseInfo(
     name = "To be determined",
     url = "To be added"
-  ),
+  )
 )
 
 class AvatarSwagger extends Swagger(Swagger.SpecVersion, "1.0.0", AvatarApiInfo)
