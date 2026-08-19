@@ -21,13 +21,13 @@ object Filter {
 
     val since: Either[List[String], Option[DateTime]] = params.get("since") match {
       case Some(s) => attempt(Some(ISODateFormatter.parse(s))).toEither
-        .left.map(_ => List(s"'$s' is not a valid datetime format for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
+          .left.map(_ => List(s"'$s' is not a valid datetime format for 'since'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Right(None)
     }
 
     val until: Either[List[String], Option[DateTime]] = params.get("until") match {
       case Some(s) => attempt(Some(ISODateFormatter.parse(s))).toEither
-        .left.map(_ => List(s"'$s' is not a valid datetime format for 'until'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
+          .left.map(_ => List(s"'$s' is not a valid datetime format for 'until'. Must be 'YYYY-MM-DDThh:mm:ssZ'"))
       case None => Right(None)
     }
 
@@ -61,8 +61,8 @@ object Filter {
       "until" -> f.until.map(t => ISODateFormatter.print(t)),
       "order" -> f.order.map(_.asString)
     ) collect {
-        case (key, Some(value)) => s"$key=$value"
-      }
+      case (key, Some(value)) => s"$key=$value"
+    }
 
     params.mkString("?", "&", "")
   }
