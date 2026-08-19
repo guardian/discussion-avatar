@@ -13,12 +13,11 @@ import org.scalatra.servlet.FileSingleParams
 
 object Image {
 
-  def getImageFromUrl(url: String): Either[Error, (Array[Byte], String)] = {
+      def getImageFromUrl(url: String): Either[Error, (Array[Byte], String)] = {
     for {
       bytes <- readBytesFromUrl(url)
       mimeType <- validate(bytes)
-    } yield (bytes, mimeType)
-  }
+    } yield (bytes, mimeType) }
 
   def getImageFromFile(fileParams: FileSingleParams): Either[Error, (Array[Byte], String, String)] = {
     for {
