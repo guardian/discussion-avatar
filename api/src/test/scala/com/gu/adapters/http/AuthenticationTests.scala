@@ -65,7 +65,8 @@ class AuthenticationTests extends AnyFunSuite with Matchers with MockitoSugar {
       val token = "token"
       when(oktaLocalValidator.parsedClaimsFromAccessToken(AccessToken(token), List(AccessScope.readSelf))).thenReturn(Left(InvalidOrExpiredToken))
       authenticationService.authenticateUser(
-        None, Some(s"Bearer $token"),
+        None,
+        Some(s"Bearer $token"),
         AccessScope.readSelf
       ) shouldBe Left(Errors.oauthTokenAuthorizationFailed(List("Token is invalid or expired"), 401))
     }

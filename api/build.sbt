@@ -1,5 +1,4 @@
 import com.typesafe.sbt.SbtNativePackager.autoImport.NativePackagerHelper._
-import scalariform.formatter.preferences._
 
 enablePlugins(
   UniversalPlugin,
@@ -79,6 +78,3 @@ Compile / mainClass := Some("com.gu.adapters.http.JettyLauncher")
 // package stuff - note, assumes presence of cfn and rr files
 Universal / packageName := normalizedName.value
 Universal / mappings ++= directory("conf")
-scalariformPreferences := scalariformPreferences.value
-  .setPreference(DanglingCloseParenthesis, Preserve)
-  .setPreference(SpacesAroundMultiImports, false)

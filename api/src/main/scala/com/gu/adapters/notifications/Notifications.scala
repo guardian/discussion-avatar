@@ -63,4 +63,3 @@ object Notifications {
     publisher.publish(snsTopicArn, msg, subject)
   }
 }
-

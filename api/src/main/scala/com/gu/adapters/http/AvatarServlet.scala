@@ -21,15 +21,15 @@ class AvatarServlet(
   props: AvatarServletProperties,
   authenticationService: AuthenticationService
 )(implicit val swagger: Swagger)
-  extends ScalatraServlet
-  with ServletWithErrorHandling[Error, Success]
-  with AuthorizedApiServlet[Success]
-  with JacksonJsonSupport
-  with SwaggerSupport
-  with SwaggerOps
-  with FileUploadSupport
-  with CorsSupport
-  with LazyLogging {
+extends ScalatraServlet
+with ServletWithErrorHandling[Error, Success]
+with AuthorizedApiServlet[Success]
+with JacksonJsonSupport
+with SwaggerSupport
+with SwaggerOps
+with FileUploadSupport
+with CorsSupport
+with LazyLogging {
 
   import CorsSupport._
 
@@ -194,13 +194,13 @@ class AvatarServlet(
 
   def handleSuccess: PartialFunction[Either[Error, (Success, Req)], ActionResult] = {
     case Right((success, url)) => success match {
-      case CreatedAvatar(avatar) => Created(AvatarResponse(avatar, url))
-      case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
-      case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, pageSize))
-      case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
-      case ud: UserDeleted => Ok(DeletedUserResponse(None, ud, Nil))
-      case uc: UserCleaned => Ok(CleanedUserResponse(None, uc, Nil))
-    }
+        case CreatedAvatar(avatar) => Created(AvatarResponse(avatar, url))
+        case FoundAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+        case FoundAvatars(avatars, hasMore) => Ok(AvatarsResponse(avatars, url, hasMore, pageSize))
+        case UpdatedAvatar(avatar) => Ok(AvatarResponse(avatar, url))
+        case ud: UserDeleted => Ok(DeletedUserResponse(None, ud, Nil))
+        case uc: UserCleaned => Ok(CleanedUserResponse(None, uc, Nil))
+      }
   }
 
   def handleError[A]: PartialFunction[Either[Error, A], ActionResult] = {

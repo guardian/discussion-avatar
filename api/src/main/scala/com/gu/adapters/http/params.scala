@@ -6,4 +6,3 @@ import org.joda.time.DateTime
 sealed trait RequestParam
 case class StatusRequest(status: Status)
 case class AvatarRequest(url: String, isSocial: Boolean)
-

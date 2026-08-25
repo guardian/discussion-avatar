@@ -347,4 +347,3 @@ case class StoreProperties(
   kvUserIndex: String,
   pageSize: Int
 )
-
