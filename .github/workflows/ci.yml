@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: guardian/setup-scala@v1
+      - uses: guardian/setup-scala@v2
 
       - run: sbt scalafmtCheckAll
         working-directory: api
@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: guardian/setup-scala@v1
+      - uses: guardian/setup-scala@v2
 
       - run: sbt clean compile
         working-directory: api
