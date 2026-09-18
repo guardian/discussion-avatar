@@ -8,9 +8,9 @@ enablePlugins(
 organization := "com.gu"
 name := "avatar-api"
 version := "1.0"
-scalaVersion := "2.13.16"
+scalaVersion := "2.13.18"
 
-val ScalatraVersion = "3.1.1"
+val ScalatraVersion = "3.1.2"
 val jettyVersion = "12.0.36"
 val json4sVersion = "4.0.7"
 val logbackVersion = "1.5.18"
@@ -20,7 +20,7 @@ val servletApiVersion = "6.0.0"
 val identityVersion = "8.0.0"
 val typesafeConfigVersion = "1.4.3"
 val amazonawsVersion = "2.54.18"
-val scalaLoggingVersion = "3.9.5"
+val scalaLoggingVersion = "3.9.6"
 val apacheCommonsVersion = "3.17.0"
 
 val guardianReleases =
@@ -58,7 +58,7 @@ libraryDependencies ++= Seq(
   "software.amazon.awssdk" % "dynamodb" % amazonawsVersion,
   "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion,
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
-  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
+  "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.2",
   // brough it directly to ensure minimum jackson version
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.4"
 )
