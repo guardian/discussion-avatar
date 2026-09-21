@@ -60,7 +60,9 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
   "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
   // brough it directly to ensure minimum jackson version
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.4"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.4",
+  // temporariliy brought in directly to override the version brought it by identity-auth-core v8 we can remove this later
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.85"
 )
 
 // Exclude all transitive Akka dependencies
