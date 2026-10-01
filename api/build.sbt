@@ -46,7 +46,7 @@ libraryDependencies ++= Seq(
   "org.json4s" %% "json4s-ext" % json4sVersion,
   "org.scalatra" %% "scalatra-json-jakarta" % ScalatraVersion,
   "org.scalatra" %% "scalatra-scalatest-jakarta" % ScalatraVersion % Test,
-  "org.mockito" % "mockito-core" % "5.17.0" % Test,
+  "org.mockito" % "mockito-core" % "5.24.0" % Test,
   "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
   "org.scalatra" %% "scalatra-swagger-jakarta" % ScalatraVersion,
   "com.gu.identity" %% "identity-auth-core" % identityVersion,
@@ -60,7 +60,7 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % apacheCommonsVersion,
   "org.apache.pekko" %% "pekko-connectors-sqs" % "1.0.0",
   // brough it directly to ensure minimum jackson version
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.6",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.21.6"
 )
 
 // Exclude all transitive Akka dependencies
