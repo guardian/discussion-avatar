@@ -91,8 +91,11 @@ Mappings:
       HostedZone: avatar-aws.code.dev-guardianapis.com
 
       InstanceType: t4g.micro
-      MinSize: "1"
-      MaxSize: "3"
+      # MinSize: "1"
+      # MaxSize: "3"
+      MinSize: "0"
+      MaxSize: "0"
+
 
       IdentityApiUrl: https://idapi.code.dev-theguardian.com
       IdentityOktaIssuer: https://profile.code.dev-theguardian.com/oauth2/aus3v9gla95Toj0EE0x7
@@ -103,8 +106,10 @@ Mappings:
       HostedZone: avatar-aws.guardianapis.com
 
       InstanceType: t4g.small
-      MinSize: "2"
-      MaxSize: "8"
+      # MinSize: "2"
+      # MaxSize: "8"
+      MinSize: "0"
+      MaxSize: "0"
 
       IdentityApiUrl: https://idapi.theguardian.com
       IdentityOktaIssuer: https://profile.theguardian.com/oauth2/aus3xgj525jYQRowl417
